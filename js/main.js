@@ -142,6 +142,7 @@ function toggleInv() {
 function togglePause() {
   if (state.mode !== 'play') return;
   state.paused = !state.paused;
+  if (state.paused) renderPauseStats();
   $('pausescreen').classList.toggle('hidden', !state.paused);
 }
 

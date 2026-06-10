@@ -39,10 +39,10 @@ Plan de trabajo autónomo. Reglas para el agente:
 
 ## Segunda tanda (agregada por el agente, manteniendo el alcance sobrio)
 
-- [ ] 11. **Segunda arma por clase**: martillo (lento, golpe en área) para
+- [x] 11. **Segunda arma por clase**: martillo (lento, golpe en área) para
   guerrero, ballesta (perfora enemigos) para arquero, varita (rápida, débil)
   para mago. Aparecen como drops igual que las armas base.
-- [ ] 12. **Pausa con resumen de run**: stats actuales, equipo, nivel, kills.
+- [x] 12. **Pausa con resumen de run**: stats actuales, equipo, nivel, kills.
 - [ ] 13. **Eventos de piso**: al generar, 15% de que el piso sea "oscuro"
   (visión reducida con viñeta) o "embrujado" (más élites, más loot). Anunciado
   al entrar.
@@ -87,3 +87,9 @@ Plan de trabajo autónomo. Reglas para el agente:
   de materiales acompaña bien), daño recibido tardío 13-19 con defensa típica.
   Único ajuste: los corazones curan max(22, 15% de vida máx.) para que no
   queden ridículos con 180 hp.
+- **11. Segundas armas** ✔ — Martillo (24 dmg, 0.85 s, golpe 360° con onda),
+  Ballesta (15 dmg, perfora hasta 3 enemigos en línea), Varita (7 dmg, 0.26 s,
+  sin área). Verificado: 6 ratas muertas entre martillazo circular y
+  perforación en línea. Los drops reparten entre las armas de tu clase.
+- **12. Pausa con resumen** ✔ — Zona/piso/profundidad, nivel, kills, monedas,
+  pociones, stats de combate y equipo con colores de rareza.
