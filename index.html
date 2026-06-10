@@ -2,8 +2,14 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="El Cuteo">
+<meta name="theme-color" content="#0b0a0f">
 <title>La Cárcel del Cuteo</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
 <style>
   :root{
@@ -13,7 +19,11 @@
   *{ box-sizing:border-box; margin:0; padding:0; }
   html,body{ width:100%; height:100%; background:#0b0a0f; overflow:hidden;
     font-family:"Courier New", monospace; color:var(--texto); }
-  #wrap{ position:relative; width:100vw; height:100vh; }
+  /* body fijo: mata el scroll elástico de iOS y la barra que empuja todo */
+  body{ position:fixed; inset:0; overscroll-behavior:none;
+    -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+  /* dvh = alto dinámico real del viewport móvil (100vh cuenta la barra del navegador) */
+  #wrap{ position:relative; width:100vw; height:100vh; height:100dvh; }
   canvas#game{ position:absolute; inset:0; width:100%; height:100%;
     image-rendering:pixelated; image-rendering:crisp-edges; }
 
@@ -131,6 +141,26 @@
   .endstats{ font-size:14px; line-height:2; text-align:center; }
   .endstats b{ color:#ffd84f; }
 
+  /* Pantallas angostas (celular): menú compacto y paneles que entran */
+  @media (max-width: 640px) {
+    h1.title{ font-size:26px; letter-spacing:3px; text-align:center; }
+    .subtitle{ font-size:11px; text-align:center; padding:0 12px; }
+    #classes{ gap:8px; }
+    .classcard{ width:112px; padding:8px; }
+    .classcard p{ display:none; }
+    .classcard canvas{ width:48px; }
+    .classcard h3{ font-size:13px; }
+    .statline{ padding:1px 2px; font-size:10px; }
+    #inv{ min-width:0; max-width:96vw; padding:12px; }
+    #invbody{ flex-wrap:wrap; gap:12px; }
+    #baggrid{ grid-template-columns:repeat(4, 44px); }
+    .slotgrid{ grid-template-columns:repeat(3, 44px); }
+    .slot{ width:44px; height:44px; }
+    #shop{ max-width:96vw; padding:12px; }
+    .shopcard{ width:86px; min-height:96px; padding:6px; }
+    #upgchoices{ flex-direction:column; gap:8px; }
+  }
+
   /* Controles táctiles (solo en dispositivos touch) */
   #touchui{ position:absolute; inset:0; pointer-events:none; z-index:5; }
   #joyzone{ position:absolute; left:0; bottom:0; width:45%; height:65%;
@@ -208,12 +238,12 @@
 </div>
 
 <!-- ?v=N evita que el navegador sirva JS viejo de caché; subir N al editar -->
-<script src="js/data.js?v=4"></script>
-<script src="js/sprites.js?v=4"></script>
-<script src="js/dungeon.js?v=4"></script>
-<script src="js/items.js?v=4"></script>
-<script src="js/entities.js?v=4"></script>
-<script src="js/ui.js?v=4"></script>
-<script src="js/main.js?v=4"></script>
+<script src="js/data.js?v=5"></script>
+<script src="js/sprites.js?v=5"></script>
+<script src="js/dungeon.js?v=5"></script>
+<script src="js/items.js?v=5"></script>
+<script src="js/entities.js?v=5"></script>
+<script src="js/ui.js?v=5"></script>
+<script src="js/main.js?v=5"></script>
 </body>
 </html>

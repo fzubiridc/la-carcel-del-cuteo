@@ -28,6 +28,8 @@ window.addEventListener('load', () => {
   mini = $('minimap'); mctx = mini.getContext('2d');
   resize();
   window.addEventListener('resize', resize);
+  // iOS: la barra del navegador aparece/desaparece sin disparar window.resize
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
   bindInput();
   buildMenu();
   requestAnimationFrame(loop);
