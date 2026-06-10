@@ -23,10 +23,57 @@ function flipH(img) {
   const g = c.getContext('2d');
   g.translate(img.width, 0); g.scale(-1, 1);
   g.drawImage(img, 0, 0);
+  c.ws = img.ws; // conservar la escala de mundo
   return c;
 }
 
 const Sprites = {};
+
+// =====================================================================
+// Assets CC0 (Dungeon Crawl Stone Soup, 32x32, dominio público).
+// ws = 0.5: el arte de 32px ocupa 16px de mundo → doble resolución.
+// Si un archivo falta, queda el sprite generado por código como fallback.
+// =====================================================================
+
+const ASSETS = {
+  rata: 'assets/rata.png',
+  esqueleto: 'assets/esqueleto.png',
+  arquero_esq: 'assets/arquero_esq.png',
+  murcielago: 'assets/murcielago.png',
+  arana: 'assets/arana.png',
+  golem: 'assets/golem.png',
+  espectro: 'assets/espectro.png',
+  cultista: 'assets/cultista.png',
+  caballero: 'assets/caballero.png',
+  golem_anciano: 'assets/golem_anciano.png',
+  liche: 'assets/liche.png',
+  floor_catacumbas: 'assets/floor_catacumbas.png',
+  wall_catacumbas: 'assets/wall_catacumbas.png',
+  floor_cavernas: 'assets/floor_cavernas.png',
+  wall_cavernas: 'assets/wall_cavernas.png',
+  floor_santuario: 'assets/floor_santuario.png',
+  wall_santuario: 'assets/wall_santuario.png',
+};
+
+function loadAssets(done) {
+  const keys = Object.keys(ASSETS);
+  let left = keys.length;
+  const finish = () => { if (--left === 0 && done) done(); };
+  for (const k of keys) {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      c.getContext('2d').drawImage(img, 0, 0);
+      c.ws = 0.5;
+      Sprites[k] = c;
+      Sprites[k + '_L'] = flipH(c);
+      finish();
+    };
+    img.onerror = finish;
+    img.src = ASSETS[k];
+  }
+}
 
 function buildSprites() {
   const skin = '#e8b88a', eye = '#1d1d22', bone = '#e6e3d6';
@@ -218,38 +265,49 @@ function buildSprites() {
   ], { A:'#566070', k:'#ff5050' });
 
   // ----- Jefes -----
-  // Bucle: rugbier maldito — casco scrum, remera azul con trébol verde
-  // a la altura del corazón, pelota bajo el brazo
-  Sprites.bucle = px([
-    '...hhhhhh...',
-    '..hhhhhhhh..',
-    '...ssssss...',
-    '...sk.ks....',
-    '...ssssss...',
-    '..JJJJJJJJ..',
-    '.sJJtJtJJJs.',
-    '.sJJtttJJJs.',
-    '.oJJJtJJJJ..',
-    'ooo.DD..DD..',
-    '.o..ss..ss..',
-    '....BB..BB..',
-  ], { h:'#3a3a42', s:'#d8a878', k:'#ff4040', J:'#27418f', t:'#3fa84f', o:'#9a5c28', D:'#202830', B:'#1a1a1a' });
+  // Bucle en alta resolución (24x28, ws 0.5): rugbier maldito con casco
+  // scrum, remera azul, trébol verde de tres lóbulos sobre el corazón y
+  // la pelota bajo el brazo.
+  const buclePal = { h:'#3a3a42', H:'#52525e', s:'#d8a878', S:'#b8895e', k:'#ff4040',
+    J:'#27418f', j:'#3a57ad', t:'#3fa84f', T:'#5ac86a', o:'#9a5c28', W:'#e8e3d0',
+    m:'#a8704a', D:'#202830', B:'#1a1a1a', c:'#e8e3d0' };
+  const bucleConPelota = [
+    '........hhhhhhhh........',
+    '......hhhhhhhhhhhh......',
+    '.....hhHHhhhhhhhhhh.....',
+    '.....hhHHhhhhhhhhhh.....',
+    '.....hhhhhhhhhhhhhh.....',
+    '......ssssssssssss......',
+    '......ssssssssssss......',
+    '......skk.ssss.kks......',
+    '......skk.ssss.kks......',
+    '......ssssssssssss......',
+    '.......ssssmmssss.......',
+    '.......sSssssssSs.......',
+    '.....JJJjjJJJJjjJJJ.....',
+    '....JJJJJJJJJJJJJJJJ....',
+    '...sJJJJtt.ttJJJJJJJs...',
+    '..ssJJJJttttttJJJJJJss..',
+    '..ooJJJJtTttttJJJJJJ.s..',
+    '.ooooJJJJ.tt.JJJJJJJ....',
+    '.ooooJJJJJttJJJJJJJJ....',
+    '.oWWooJJJJJJJJJJJJJJ....',
+    '..oooo.JJJJJJJJJJJ......',
+    '........DDDDDDDDDD......',
+    '........DDDDDDDDDD......',
+    '........DDD..DDD........',
+    '........sss..sss........',
+    '........sss..sss........',
+    '........Sss..Sss........',
+    '.......BBBB..BBBB.......',
+  ];
+  Sprites.bucle = px(bucleConPelota, buclePal);
+  Sprites.bucle.ws = 0.5;
 
-  // Bucle sin la pelota (cuando la patea y va a buscarla)
-  Sprites.bucle_sinpelota = px([
-    '...hhhhhh...',
-    '..hhhhhhhh..',
-    '...ssssss...',
-    '...sk.ks....',
-    '...ssssss...',
-    '..JJJJJJJJ..',
-    '.sJJtJtJJJs.',
-    '.sJJtttJJJs.',
-    '..JJJtJJJJ..',
-    '....DD..DD..',
-    '....ss..ss..',
-    '....BB..BB..',
-  ], { h:'#3a3a42', s:'#d8a878', k:'#ff4040', J:'#27418f', t:'#3fa84f', D:'#202830', B:'#1a1a1a' });
+  // sin la pelota: el brazo libre, listo para correr a buscarla
+  Sprites.bucle_sinpelota = px(bucleConPelota.map(r =>
+    r.replace(/[oW]/g, '.')), buclePal);
+  Sprites.bucle_sinpelota.ws = 0.5;
 
   // La pelota de rugby (proyectil girando y tirada en el piso)
   Sprites.pelota = px([
@@ -513,6 +571,7 @@ function tintedSprite(spr, color, alpha) {
     g.globalAlpha = alpha;
     g.fillStyle = color;
     g.fillRect(0, 0, c.width, c.height);
+    c.ws = spr.ws; // conservar la escala de mundo
     _tintCache.set(key, c);
   }
   return c;

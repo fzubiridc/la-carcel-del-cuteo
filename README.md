@@ -1,6 +1,8 @@
-# Cripta Olvidada — Roguelike RPG 2D
+# La Cárcel del Cuteo — Roguelike RPG 2D
 
 Action roguelike 2D de fantasía medieval: dungeon crawler con mazmorras procedurales y combate en tiempo real sobre el mapa.
+
+**Arte:** criaturas y tiles del tileset CC0 de [Dungeon Crawl Stone Soup](https://opengameart.org/content/dungeon-crawl-32x32-tiles) (32×32, dominio público) en `assets/`; jugador, equipo, ítems y el jefe Bucle siguen siendo pixel art generado por código (el sistema de equipo visible por capas depende de eso).
 
 **Cómo jugar:** abrir `index.html` en el navegador (doble clic alcanza), o
 servirlo (`python3 -m http.server 8417`) y abrirlo desde el iPhone en la misma

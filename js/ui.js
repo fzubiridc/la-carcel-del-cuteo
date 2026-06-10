@@ -7,7 +7,11 @@ const $ = id => document.getElementById(id);
 // ---------------- Récords persistentes (localStorage) ----------------
 
 function loadRecords() {
-  try { return JSON.parse(localStorage.getItem('cripta_records')) || {}; }
+  try {
+    // migración desde el nombre viejo del juego
+    return JSON.parse(localStorage.getItem('carcel_records'))
+      || JSON.parse(localStorage.getItem('cripta_records')) || {};
+  }
   catch (e) { return {}; }
 }
 
@@ -21,7 +25,7 @@ function recordRun(victory) {
   c.mejor = Math.max(c.mejor, state.run.depth);
   if (victory) c.victorias++;
   r.clases[state.player.cls] = c;
-  try { localStorage.setItem('cripta_records', JSON.stringify(r)); } catch (e) { }
+  try { localStorage.setItem('carcel_records', JSON.stringify(r)); } catch (e) { }
 }
 
 function buildMenu() {
@@ -405,7 +409,7 @@ function showEnd(victory) {
     return it ? `<span style="color:${rarityOf(it).color}">${it.name}</span>` : null;
   }).filter(Boolean).join(' · ');
   $('endstats').innerHTML = `
-    ${victory ? 'Purificaste la Cripta Olvidada con tu ' + CLASSES[p.cls].name.toLowerCase() + '.' : 'Tu historia termina en ' + zone.name + '.'}<br><br>
+    ${victory ? 'Escapaste de la Cárcel del Cuteo con tu ' + CLASSES[p.cls].name.toLowerCase() + '.' : 'Tu historia termina en ' + zone.name + '.'}<br><br>
     Profundidad alcanzada: <b>piso ${run.depth}</b> · Nivel <b>${p.level}</b><br>
     Criaturas eliminadas: <b>${run.kills}</b> · Monedas: <b>${p.coins}</b><br>
     Duración: <b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>

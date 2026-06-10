@@ -23,6 +23,7 @@ const touch = { enabled: false, stickId: null, baseX: 0, baseY: 0, vx: 0, vy: 0,
 
 window.addEventListener('load', () => {
   buildSprites();
+  loadAssets(); // los CC0 de 32px reemplazan en caliente; hay fallback por código
   canvas = $('game'); ctx = canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
   resize();
@@ -456,6 +457,9 @@ function render(dt) {
   const x1 = Math.min(lvl.W - 1, Math.ceil((state.cam.x + canvas.width / ZOOM) / TILE) + 1);
   const y1 = Math.min(lvl.H - 1, Math.ceil((state.cam.y + canvas.height / ZOOM) / TILE) + 1);
 
+  const zoneNow = ZONES[state.run.zoneIdx];
+  const floorImg = Sprites['floor_' + zoneNow.id];
+  const wallImg = Sprites['wall_' + zoneNow.id];
   const torches = []; // antorchas visibles, para dibujar su luz después
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
@@ -464,33 +468,32 @@ function render(dt) {
       const hash = (tx * 7 + ty * 13) % 5;
       const bigHash = (tx * 73 + ty * 37) % 23;
       if (!solid) {
-        ctx.fillStyle = hash === 0 ? pal.floorAlt : pal.floor;
-        ctx.fillRect(X, Y, TILE, TILE);
-        if (hash === 3) { // grieta sutil
-          ctx.fillStyle = pal.wallDark;
-          ctx.fillRect(X + ((tx * 11) % 12), Y + ((ty * 7) % 12), 2, 1);
+        if (floorImg) {
+          ctx.drawImage(floorImg, X, Y, TILE, TILE);
+          // sombreado sutil alternado para romper la repetición
+          if (hash === 0) { ctx.fillStyle = 'rgba(0,0,0,0.10)'; ctx.fillRect(X, Y, TILE, TILE); }
+        } else {
+          ctx.fillStyle = hash === 0 ? pal.floorAlt : pal.floor;
+          ctx.fillRect(X, Y, TILE, TILE);
         }
         if (bigHash === 5) drawFloorDecal(X, Y, tx, ty); // decoración de zona
       } else {
         // pared con cara frontal si abajo hay piso
         const floorBelow = ty + 1 < lvl.H && lvl.map[ty + 1][tx] === 1;
-        ctx.fillStyle = floorBelow ? pal.wall : pal.wallDark;
-        ctx.fillRect(X, Y, TILE, TILE);
-        if (floorBelow) {
-          // textura de ladrillos: hiladas + juntas verticales alternadas
-          ctx.fillStyle = pal.wallDark;
-          ctx.fillRect(X, Y + 4, TILE, 1);
-          ctx.fillRect(X, Y + 9, TILE, 1);
-          ctx.fillRect(X + ((tx + ty) % 2 ? 4 : 10), Y, 1, 4);
-          ctx.fillRect(X + ((tx + ty) % 2 ? 11 : 5), Y + 5, 1, 4);
-          ctx.fillRect(X, Y + TILE - 3, TILE, 3);
-          // antorcha cada tanto
-          if (bigHash === 0) torches.push([X + TILE / 2, Y, tx * 31 + ty]);
-        } else if (hash === 1) {
-          // textura tenue en el techo de los muros
-          ctx.fillStyle = pal.wall;
-          ctx.fillRect(X + (tx % 3) * 4 + 2, Y + (ty % 3) * 4 + 2, 2, 1);
+        if (wallImg) {
+          if (floorBelow) {
+            ctx.drawImage(wallImg, X, Y, TILE, TILE);
+            ctx.fillStyle = 'rgba(0,0,0,0.30)';
+            ctx.fillRect(X, Y + TILE - 3, TILE, 3);
+          } else {
+            ctx.drawImage(tintedSprite(wallImg, '#08070c', 0.55), X, Y, TILE, TILE);
+          }
+        } else {
+          ctx.fillStyle = floorBelow ? pal.wall : pal.wallDark;
+          ctx.fillRect(X, Y, TILE, TILE);
         }
+        // antorcha cada tanto en las caras frontales
+        if (floorBelow && bigHash === 0) torches.push([X + TILE / 2, Y, tx * 31 + ty]);
       }
     }
   }
@@ -799,7 +802,8 @@ function drawShadow(x, y, w) {
 
 function drawSpriteC(spr, x, y, scale, alpha) {
   if (alpha !== undefined) ctx.globalAlpha = alpha;
-  const w = spr.width * scale, h = spr.height * scale;
+  const k = spr.ws || 1;
+  const w = spr.width * k * scale, h = spr.height * k * scale;
   ctx.drawImage(spr, x - w / 2, y - h / 2, w, h);
   ctx.globalAlpha = 1;
 }
@@ -916,9 +920,10 @@ function drawEnemy(e) {
   // bob de vida propia + squash al recibir un golpe
   const bob = Math.sin(e.wobble * 1.1) * 0.8;
   const sq = e.flashT > 0 ? 0.16 : 0;
+  const k = spr.ws || 1;
   ctx.save();
   ctx.translate(e.x + ox, e.y - 2 + bob);
-  ctx.scale(e.scale * (1 + sq), e.scale * (1 - sq));
+  ctx.scale(e.scale * k * (1 + sq), e.scale * k * (1 - sq));
   ctx.globalAlpha = alpha;
   ctx.drawImage(spr, -spr.width / 2, -spr.height / 2);
   ctx.globalAlpha = 1;
