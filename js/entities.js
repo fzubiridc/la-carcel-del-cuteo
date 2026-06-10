@@ -161,7 +161,7 @@ function fireProj(o) {
     ang: o.ang, dmg: o.dmg, friendly: o.friendly,
     color: o.color || '#fff', style: o.style || 'dot',
     splash: o.splash || 0, crit: o.crit || false,
-    life: 2.2, dead: false,
+    life: 2.2, dead: false, t: 0, trailT: 0,
   });
 }
 
@@ -171,7 +171,23 @@ function updateProjectiles(dt) {
     if (pr.dead) continue;
     pr.x += pr.vx * dt; pr.y += pr.vy * dt;
     pr.life -= dt;
+    pr.t += dt;
     if (pr.life <= 0) { pr.dead = true; continue; }
+
+    // estela de chispas arcanas del orbe del mago
+    if (pr.style === 'bolt') {
+      pr.trailT -= dt;
+      if (pr.trailT <= 0) {
+        pr.trailT = 0.016;
+        state.particles.push({
+          x: pr.x + (Math.random() - 0.5) * 3, y: pr.y + (Math.random() - 0.5) * 3,
+          vx: -pr.vx * 0.06 + (Math.random() - 0.5) * 14,
+          vy: -pr.vy * 0.06 + (Math.random() - 0.5) * 14,
+          t: 0.22 + Math.random() * 0.18,
+          color: Math.random() < 0.55 ? '#7ec8ff' : '#b14fff', glow: true,
+        });
+      }
+    }
     if (rectHitsWall(lvl, pr.x, pr.y, 4, 4)) {
       pr.dead = true;
       if (pr.splash) explode(pr);
@@ -201,7 +217,18 @@ function updateProjectiles(dt) {
 
 // Explosión con área (bastón de mago)
 function explode(pr) {
-  burst(pr.x, pr.y, '#7ec8ff', 14);
+  // destello + onda expansiva + chispas arcanas
+  state.fx.push({ type: 'flash', x: pr.x, y: pr.y, t: 0.12, t0: 0.12, r: Math.max(10, pr.splash * 0.8) });
+  state.fx.push({ type: 'ring', x: pr.x, y: pr.y, t: 0.32, t0: 0.32, maxR: pr.splash + 10, color: '#9ad8ff' });
+  state.fx.push({ type: 'ring', x: pr.x, y: pr.y, t: 0.45, t0: 0.45, maxR: pr.splash * 0.6, color: '#b14fff' });
+  for (let i = 0; i < 18; i++) {
+    const a = Math.random() * Math.PI * 2, s = 40 + Math.random() * 110;
+    state.particles.push({
+      x: pr.x, y: pr.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      t: 0.25 + Math.random() * 0.35,
+      color: ['#7ec8ff', '#b14fff', '#ffffff'][i % 3], glow: true,
+    });
+  }
   shake(2);
   sfx('boom');
   for (const e of state.enemies) {
@@ -246,6 +273,12 @@ function playerAttack(aimAng) {
     sfx('shoot');
   } else if (wt.style === 'bolt') {
     fireProj({ x: p.x, y: p.y, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit });
+    // destello de lanzamiento en la punta del bastón
+    const hx = p.x + Math.cos(aimAng) * 9, hy = p.y + Math.sin(aimAng) * 9;
+    for (let i = 0; i < 5; i++) {
+      const a = aimAng + (Math.random() - 0.5) * 1.2, s = 30 + Math.random() * 50;
+      state.particles.push({ x: hx, y: hy, vx: Math.cos(a) * s, vy: Math.sin(a) * s, t: 0.15 + Math.random() * 0.1, color: Math.random() < 0.5 ? '#9ad8ff' : '#b14fff', glow: true });
+    }
     sfx('cast');
   }
 }
@@ -368,3 +401,9 @@ function updateFloaters(dt) {
 }
 
 function shake(n) { state.shake = Math.min(8, state.shake + n); }
+
+// Efectos visuales transitorios (anillos, destellos)
+function updateFx(dt) {
+  for (const f of state.fx) f.t -= dt;
+  state.fx = state.fx.filter(f => f.t > 0);
+}

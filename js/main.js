@@ -7,7 +7,7 @@ const state = {
   invOpen: false, paused: false,
   player: null, run: null, level: null,
   enemies: [], projs: [], pickups: [], chests: [],
-  particles: [], floaters: [],
+  particles: [], floaters: [], fx: [],
   cam: { x: 0, y: 0 }, shake: 0, time: 0, winT: 0,
   explored: null,
 };
@@ -96,7 +96,7 @@ function nextFloor() {
   const lvl = genDungeon(zone, run.depth, isBoss);
   state.level = lvl;
   state.enemies = []; state.projs = []; state.pickups = [];
-  state.particles = []; state.floaters = [];
+  state.particles = []; state.floaters = []; state.fx = [];
   state.explored = Array.from({ length: lvl.H }, () => new Array(lvl.W).fill(false));
 
   const p = state.player;
@@ -204,6 +204,7 @@ function update(dt) {
   updatePickups(dt);
   updateParticles(dt);
   updateFloaters(dt);
+  updateFx(dt);
 
   // cofres: se abren al tocarlos
   for (const ch of lvl.chests) {
@@ -338,10 +339,23 @@ function render(dt) {
       ctx.fillRect(2, -1.5, 2, 3);
       ctx.restore();
     } else if (pr.style === 'bolt') {
-      ctx.fillStyle = pr.color + '66';
-      ctx.beginPath(); ctx.arc(pr.x, pr.y, 4, 0, Math.PI * 2); ctx.fill();
+      // orbe arcano: halo pulsante + núcleo + chispas orbitando
+      const pulse = 1 + Math.sin(pr.t * 22) * 0.25;
+      ctx.globalCompositeOperation = 'lighter';
+      const grad = ctx.createRadialGradient(pr.x, pr.y, 0, pr.x, pr.y, 6.5 * pulse);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.35, '#9ad8ffcc');
+      grad.addColorStop(1, 'rgba(126,200,255,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, 6.5 * pulse, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(pr.x, pr.y, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#b14fff';
+      for (let i = 0; i < 2; i++) {
+        const oa = pr.t * 13 + i * Math.PI;
+        ctx.fillRect(pr.x + Math.cos(oa) * 4.5 - 0.8, pr.y + Math.sin(oa) * 4.5 - 0.8, 1.6, 1.6);
+      }
+      ctx.globalCompositeOperation = 'source-over';
     } else {
       ctx.fillStyle = pr.color;
       ctx.beginPath(); ctx.arc(pr.x, pr.y, 2.2, 0, Math.PI * 2); ctx.fill();
@@ -351,10 +365,34 @@ function render(dt) {
   // partículas
   for (const pa of state.particles) {
     ctx.globalAlpha = Math.min(1, pa.t * 3);
+    if (pa.glow) ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = pa.color;
     ctx.fillRect(pa.x - 1, pa.y - 1, 2, 2);
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
+
+  // efectos: ondas expansivas y destellos
+  ctx.globalCompositeOperation = 'lighter';
+  for (const f of state.fx) {
+    const k = 1 - f.t / f.t0; // progreso 0→1
+    if (f.type === 'ring') {
+      const ease = 1 - (1 - k) * (1 - k);
+      ctx.globalAlpha = f.t / f.t0;
+      ctx.strokeStyle = f.color;
+      ctx.lineWidth = 0.5 + 2 * (f.t / f.t0);
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.maxR * ease, 0, Math.PI * 2); ctx.stroke();
+    } else if (f.type === 'flash') {
+      ctx.globalAlpha = (f.t / f.t0) * 0.85;
+      const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(1, 'rgba(154,216,255,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
 
   // números flotantes (en espacio de pantalla para que el texto sea nítido)
   ctx.setTransform(1, 0, 0, 1, 0, 0);
