@@ -4,9 +4,38 @@
 
 const $ = id => document.getElementById(id);
 
+// ---------------- Récords persistentes (localStorage) ----------------
+
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem('cripta_records')) || {}; }
+  catch (e) { return {}; }
+}
+
+function recordRun(victory) {
+  const r = loadRecords();
+  r.runs = (r.runs || 0) + 1;
+  r.kills = (r.kills || 0) + state.run.kills;
+  if (victory) r.victorias = (r.victorias || 0) + 1;
+  r.clases = r.clases || {};
+  const c = r.clases[state.player.cls] || { mejor: 0, victorias: 0 };
+  c.mejor = Math.max(c.mejor, state.run.depth);
+  if (victory) c.victorias++;
+  r.clases[state.player.cls] = c;
+  try { localStorage.setItem('cripta_records', JSON.stringify(r)); } catch (e) { }
+}
+
 function buildMenu() {
   const wrap = $('classes');
   wrap.innerHTML = '';
+  const rec = loadRecords();
+  // línea de récords globales
+  const rl = $('recordline');
+  if (rec.runs) {
+    rl.textContent = `Runs: ${rec.runs} · Criaturas eliminadas: ${rec.kills || 0} · Victorias: ${rec.victorias || 0}`;
+    rl.classList.remove('hidden');
+  } else {
+    rl.classList.add('hidden');
+  }
   for (const cls of Object.values(CLASSES)) {
     const card = document.createElement('div');
     card.className = 'classcard panel';
@@ -24,6 +53,13 @@ function buildMenu() {
       <div class="statline"><span>Crítico</span><b>${cls.crit}%</b></div>
       <div class="statline"><span>Arma</span><b>${wt.name}</b></div>
     `);
+    const cr = (rec.clases || {})[cls.id];
+    if (cr && cr.mejor) {
+      card.insertAdjacentHTML('beforeend',
+        `<div class="statline" style="margin-top:4px;border-top:1px solid var(--borde);padding-top:4px">
+           <span>Mejor</span><b>piso ${cr.mejor}${cr.victorias ? ' · ' + cr.victorias + '🏆' : ''}</b>
+         </div>`);
+    }
     card.onclick = () => startRun(cls.id);
     wrap.appendChild(card);
   }
@@ -342,6 +378,7 @@ function hideTooltip() { $('tooltip').classList.add('hidden'); }
 
 function showEnd(victory) {
   const run = state.run, p = state.player;
+  recordRun(victory);
   $('endtitle').textContent = victory ? '¡VICTORIA!' : 'HAS CAÍDO';
   $('endtitle').style.color = victory ? '#ffd84f' : '#d8403f';
   const zone = ZONES[run.zoneIdx];
@@ -358,7 +395,51 @@ function showEnd(victory) {
 
 let AC = null;
 function initAudio() {
-  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } }
+  if (!AC) {
+    try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { }
+    startAmbient();
+  }
+}
+
+// ---------------- Ambiente procedural (drone + notas sueltas) ----------------
+
+let _droneGain = null;
+function startAmbient() {
+  if (!AC || _droneGain) return;
+  // drone grave, dos osciladores levemente desafinados
+  _droneGain = AC.createGain();
+  _droneGain.gain.value = 0.006;
+  _droneGain.connect(AC.destination);
+  for (const f of [55, 55.7]) {
+    const o = AC.createOscillator();
+    o.type = 'sine'; o.frequency.value = f;
+    o.connect(_droneGain); o.start();
+  }
+  // el drone respira: más presente jugando, casi nada en menús
+  setInterval(() => {
+    if (!AC) return;
+    const target = state.mode === 'play' ? 0.014 : 0.005;
+    _droneGain.gain.linearRampToValueAtTime(target, AC.currentTime + 1.5);
+  }, 1000);
+  scheduleAmbientNote();
+}
+
+function scheduleAmbientNote() {
+  setTimeout(() => {
+    if (AC && state.mode === 'play' && !state.paused) {
+      // nota suelta de la escala menor, muy suave, ataque y caída lentos
+      const notes = [110, 123.5, 130.8, 146.8, 164.8, 196];
+      const o = AC.createOscillator(), g = AC.createGain();
+      o.type = 'triangle';
+      o.frequency.value = notes[Math.floor(Math.random() * notes.length)];
+      g.gain.value = 0.0001;
+      g.gain.exponentialRampToValueAtTime(0.02, AC.currentTime + 0.9);
+      g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + 2.8);
+      o.connect(g); g.connect(AC.destination);
+      o.start(); o.stop(AC.currentTime + 3);
+    }
+    scheduleAmbientNote();
+  }, 2800 + Math.random() * 4500);
 }
 
 function beep(freq, dur, type, vol, slide) {
@@ -392,6 +473,7 @@ const SFX = {
   tackle: () => { beep(70, 0.3, 'sawtooth', 0.11, -30); setTimeout(() => beep(50, 0.2, 'square', 0.07, -20), 80); },
   kick:   () => beep(140, 0.18, 'square', 0.09, -90),
   dash:   () => beep(520, 0.1, 'sine', 0.05, -260),
+  step:   () => beep(72 + Math.random() * 14, 0.04, 'triangle', 0.016, -25),
   xp:     () => beep(840 + Math.random() * 280, 0.06, 'sine', 0.03, 240),
   levelup:() => { beep(440, 0.12, 'square', 0.06); setTimeout(() => beep(554, 0.12, 'square', 0.06), 100); setTimeout(() => beep(659, 0.22, 'square', 0.07, 120), 200); },
 };

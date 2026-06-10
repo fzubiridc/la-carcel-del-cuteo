@@ -216,6 +216,7 @@ function backToMenu() {
   $('hud').classList.add('hidden');
   $('hint').classList.add('hidden');
   mini.classList.add('hidden');
+  buildMenu(); // refresca récords
   $('menu').classList.remove('hidden');
 }
 
@@ -265,6 +266,9 @@ function update(dt) {
       const n = Math.hypot(mx, my);
       moveWithCollision(lvl, p, (mx / n) * p.stats.spd * dt, (my / n) * p.stats.spd * dt, false);
       if (mx) p.dir = mx;
+      // pasos sutiles
+      p.stepT = (p.stepT || 0) - dt;
+      if (p.stepT <= 0) { p.stepT = 0.28; sfx('step'); }
     }
 
     // apuntado y ataque
