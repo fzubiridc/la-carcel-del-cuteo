@@ -660,8 +660,11 @@ function render(dt) {
       ctx.drawImage(Sprites.pelota, -3.5, -2, 7, 4);
       ctx.restore();
     } else {
+      // los disparos enemigos se desvanecen al agotarse su alcance
+      ctx.globalAlpha = Math.min(1, pr.life * 4);
       ctx.fillStyle = pr.color;
       ctx.beginPath(); ctx.arc(pr.x, pr.y, 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
     }
   }
 

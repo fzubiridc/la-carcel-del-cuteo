@@ -78,7 +78,7 @@ function updateEnemies(dt) {
         e.fireT -= dt;
         if (e.fireT <= 0 && dist < e.def.range + 40) {
           e.fireT = e.def.fireCd;
-          fireProj({ x: e.x, y: e.y, ang: Math.atan2(dy, dx), spd: e.def.projSpd, dmg: e.dmg, friendly: false, color: '#ff7b5a' });
+          fireProj({ x: e.x, y: e.y, ang: Math.atan2(dy, dx), spd: e.def.projSpd, dmg: e.dmg, friendly: false, color: '#ff7b5a', range: e.def.range + 50 });
           sfx('eshoot');
         }
       } else if (e.ai === 'boss') {
@@ -151,7 +151,7 @@ function updateBoss(e, dt, dist, dx, dy) {
       e.subT = 1.1;
       const n = 12, off = Math.random() * Math.PI;
       for (let i = 0; i < n; i++)
-        fireProj({ x: e.x, y: e.y, ang: off + (i / n) * Math.PI * 2, spd: e.def.projSpd, dmg: e.dmg, friendly: false, color: '#ff5a8a' });
+        fireProj({ x: e.x, y: e.y, ang: off + (i / n) * Math.PI * 2, spd: e.def.projSpd, dmg: e.dmg, friendly: false, color: '#ff5a8a', range: e.def.projRange || 170 });
       sfx('eshoot');
     }
   } else if (pat === 'spread') {
@@ -160,7 +160,7 @@ function updateBoss(e, dt, dist, dx, dy) {
       e.subT = 0.65;
       const base = Math.atan2(dy, dx);
       for (const o of [-0.25, 0, 0.25])
-        fireProj({ x: e.x, y: e.y, ang: base + o, spd: e.def.projSpd * 1.2, dmg: e.dmg, friendly: false, color: '#ffb15a' });
+        fireProj({ x: e.x, y: e.y, ang: base + o, spd: e.def.projSpd * 1.2, dmg: e.dmg, friendly: false, color: '#ffb15a', range: e.def.projRange || 170 });
       sfx('eshoot');
     }
   } else if (pat === 'charge') {
@@ -218,13 +218,15 @@ function updateBoss(e, dt, dist, dx, dy) {
 // ---------------- Proyectiles ----------------
 
 function fireProj(o) {
+  // o.range (px) limita el alcance: vida = distancia / velocidad
+  const life = o.range ? o.range / o.spd : (o.life || 2.2);
   state.projs.push({
     x: o.x, y: o.y,
     vx: Math.cos(o.ang) * o.spd, vy: Math.sin(o.ang) * o.spd,
     ang: o.ang, dmg: o.dmg, friendly: o.friendly,
     color: o.color || '#fff', style: o.style || 'dot',
     splash: o.splash || 0, crit: o.crit || false,
-    life: o.life || 2.2, dead: false, t: 0, trailT: 0, owner: o.owner || null,
+    life, dead: false, t: 0, trailT: 0, owner: o.owner || null,
     pierce: o.pierce || 0, hitSet: null,
   });
 }
@@ -237,7 +239,12 @@ function updateProjectiles(dt) {
     pr.x += pr.vx * dt; pr.y += pr.vy * dt;
     pr.life -= dt;
     pr.t += dt;
-    if (pr.life <= 0) { pr.dead = true; continue; }
+    if (pr.life <= 0) {
+      // el poder se agota: chisporroteo y muere
+      pr.dead = true;
+      burst(pr.x, pr.y, pr.color, 3);
+      continue;
+    }
 
     // estela de chispas arcanas del orbe del mago
     if (pr.style === 'bolt') {

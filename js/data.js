@@ -109,10 +109,11 @@ const BOSSES = {
     hp: 380, dmg: 16, spd: 62, size: 16, scale: 2,
     patterns: ['charge', 'chase', 'kickball', 'charge'],
     stunOnCharge: 1, arenaDecor: 'rugby', kicksBall: true },
+  // projRange: alcance máximo de sus proyectiles en px (nada es infinito)
   golem_anciano: { name: 'Gólem Anciano', sprite: 'golem_anciano', hp: 550, dmg: 24, spd: 32,
-    size: 18, scale: 2, patterns: ['chase', 'charge', 'burst'], projSpd: 110 },
+    size: 18, scale: 2, patterns: ['chase', 'charge', 'burst'], projSpd: 110, projRange: 150 },
   liche:         { name: 'El Liche',      sprite: 'liche',         hp: 650, dmg: 20, spd: 60,
-    size: 16, scale: 2, patterns: ['spread', 'summon', 'burst', 'charge'], projSpd: 160, minion: 'espectro' },
+    size: 16, scale: 2, patterns: ['spread', 'summon', 'burst', 'charge'], projSpd: 160, projRange: 190, minion: 'espectro' },
 };
 
 // ---------- Zonas (el orden define la progresión de la run) ----------
