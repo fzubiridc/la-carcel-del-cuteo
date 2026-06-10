@@ -124,6 +124,23 @@
 
   .endstats{ font-size:14px; line-height:2; text-align:center; }
   .endstats b{ color:#ffd84f; }
+
+  /* Controles táctiles (solo en dispositivos touch) */
+  #touchui{ position:absolute; inset:0; pointer-events:none; z-index:5; }
+  #joyzone{ position:absolute; left:0; bottom:0; width:45%; height:65%;
+    pointer-events:auto; touch-action:none; }
+  #joybase{ position:absolute; width:84px; height:84px; border-radius:50%;
+    border:2px solid #ffffff44; background:#ffffff11; transform:translate(-50%,-50%); }
+  #joyknob{ position:absolute; width:38px; height:38px; border-radius:50%;
+    background:#ffffff55; transform:translate(-50%,-50%); }
+  .tbtn{ position:absolute; border-radius:50%; pointer-events:auto; touch-action:none;
+    background:#ffffff18; border:2px solid #ffffff44; color:#d8d2c8;
+    font-family:inherit; font-weight:bold; display:flex; align-items:center;
+    justify-content:center; user-select:none; -webkit-user-select:none; }
+  #btnatk{ right:24px; bottom:60px; width:84px; height:84px; font-size:15px; }
+  #btndash{ right:120px; bottom:30px; width:56px; height:56px; font-size:11px; }
+  #btnpot{ right:130px; bottom:100px; width:48px; height:48px; font-size:16px; }
+  #btnint{ right:34px; bottom:160px; width:48px; height:48px; font-size:14px; }
 </style>
 </head>
 <body>
@@ -140,6 +157,13 @@
     <div id="coinlabel"></div>
     <div id="potlabel" style="font-size:13px;color:#f08a88"></div>
     <div id="dashwrap"><div id="dashbar"><div id="dashfill"></div></div><span id="dashlabel">DASH</span></div>
+  </div>
+  <div id="touchui" class="hidden">
+    <div id="joyzone"><div id="joybase" class="hidden"><div id="joyknob"></div></div></div>
+    <button class="tbtn" id="btnatk">ATK</button>
+    <button class="tbtn" id="btndash">DASH</button>
+    <button class="tbtn" id="btnpot">⚗</button>
+    <button class="tbtn" id="btnint">E</button>
   </div>
   <div id="prompt"></div>
   <div id="bigtoast"></div>

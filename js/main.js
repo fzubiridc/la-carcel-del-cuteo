@@ -16,6 +16,8 @@ let canvas, ctx, mini, mctx;
 let ZOOM = 3;
 const keys = new Set();
 const mouse = { sx: 0, sy: 0, down: false };
+// Controles táctiles: joystick virtual + botones; el apuntado es automático
+const touch = { enabled: false, stickId: null, baseX: 0, baseY: 0, vx: 0, vy: 0, attacking: false };
 
 // ---------------- Init ----------------
 
@@ -60,6 +62,72 @@ function bindInput() {
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   $('endbtn').onclick = () => { $('endscreen').classList.add('hidden'); backToMenu(); };
   $('resumebtn').onclick = togglePause;
+  bindTouch();
+}
+
+function bindTouch() {
+  touch.enabled = 'ontouchstart' in window;
+  if (!touch.enabled) return;
+  $('touchui').classList.remove('hidden');
+  $('hint').style.display = 'none'; // el hint de teclado no aplica en táctil
+
+  const jz = $('joyzone'), base = $('joybase'), knob = $('joyknob');
+  const RADIO = 40;
+  jz.addEventListener('touchstart', e => {
+    e.preventDefault(); initAudio();
+    const t = e.changedTouches[0];
+    touch.stickId = t.identifier;
+    touch.baseX = t.clientX; touch.baseY = t.clientY;
+    base.style.left = t.clientX + 'px'; base.style.top = t.clientY + 'px';
+    knob.style.left = '50%'; knob.style.top = '50%';
+    base.classList.remove('hidden');
+  }, { passive: false });
+  jz.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== touch.stickId) continue;
+      let dx = t.clientX - touch.baseX, dy = t.clientY - touch.baseY;
+      const d = Math.hypot(dx, dy);
+      if (d > RADIO) { dx = dx / d * RADIO; dy = dy / d * RADIO; }
+      touch.vx = dx / RADIO; touch.vy = dy / RADIO;
+      knob.style.left = (50 + dx / 84 * 100) + '%';
+      knob.style.top = (50 + dy / 84 * 100) + '%';
+    }
+  }, { passive: false });
+  const endStick = e => {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== touch.stickId) continue;
+      touch.stickId = null; touch.vx = 0; touch.vy = 0;
+      base.classList.add('hidden');
+    }
+  };
+  jz.addEventListener('touchend', endStick);
+  jz.addEventListener('touchcancel', endStick);
+
+  const bind = (id, down, up) => {
+    const b = $(id);
+    b.addEventListener('touchstart', e => { e.preventDefault(); initAudio(); down(); }, { passive: false });
+    if (up) b.addEventListener('touchend', e => { e.preventDefault(); up(); }, { passive: false });
+  };
+  bind('btnatk', () => touch.attacking = true, () => touch.attacking = false);
+  bind('btndash', () => tryDash());
+  bind('btnpot', () => drinkPotion());
+  bind('btnint', () => tryInteract());
+}
+
+// Ángulo de apuntado: ratón en escritorio, auto-apuntado al enemigo
+// más cercano en táctil (si no hay, hacia donde te movés)
+function aimAngle() {
+  const p = state.player;
+  if (!touch.enabled) return Math.atan2(mouseWorldY() - p.y, mouseWorldX() - p.x);
+  let best = null, bd = 12 * TILE;
+  for (const e of state.enemies) {
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (d < bd) { bd = d; best = e; }
+  }
+  if (best) return Math.atan2(best.y - p.y, best.x - p.x);
+  if (touch.vx || touch.vy) return Math.atan2(touch.vy, touch.vx);
+  return p.dir >= 0 ? 0 : Math.PI;
 }
 
 function toggleInv() {
@@ -159,8 +227,9 @@ function tryDash() {
   if (keys.has('d') || keys.has('arrowright')) mx++;
   if (keys.has('w') || keys.has('arrowup')) my--;
   if (keys.has('s') || keys.has('arrowdown')) my++;
+  if (!mx && !my && touch.stickId !== null) { mx = touch.vx; my = touch.vy; }
   if (!mx && !my) {
-    const aim = Math.atan2(mouseWorldY() - p.y, mouseWorldX() - p.x);
+    const aim = aimAngle();
     mx = Math.cos(aim); my = Math.sin(aim);
   }
   const n = Math.hypot(mx, my);
@@ -262,19 +331,20 @@ function update(dt) {
     if (keys.has('d') || keys.has('arrowright')) mx++;
     if (keys.has('w') || keys.has('arrowup')) my--;
     if (keys.has('s') || keys.has('arrowdown')) my++;
+    if (touch.stickId !== null) { mx += touch.vx; my += touch.vy; }
     if (mx || my) {
-      const n = Math.hypot(mx, my);
+      const n = Math.max(1, Math.hypot(mx, my)); // el joystick permite caminar lento
       moveWithCollision(lvl, p, (mx / n) * p.stats.spd * dt, (my / n) * p.stats.spd * dt, false);
-      if (mx) p.dir = mx;
+      if (mx) p.dir = mx > 0 ? 1 : -1;
       // pasos sutiles
       p.stepT = (p.stepT || 0) - dt;
       if (p.stepT <= 0) { p.stepT = 0.28; sfx('step'); }
     }
 
     // apuntado y ataque
-    const aim = Math.atan2(mouseWorldY() - p.y, mouseWorldX() - p.x);
-    if (mouse.down) playerAttack(aim);
-    if (mouseWorldX() > p.x) p.dir = 1; else p.dir = -1;
+    const aim = aimAngle();
+    if (mouse.down || touch.attacking) playerAttack(aim);
+    if (!touch.enabled) p.dir = mouseWorldX() > p.x ? 1 : -1;
   }
 
   p.atkCd = Math.max(0, p.atkCd - dt);
@@ -672,7 +742,7 @@ function drawHeldWeapon(p) {
   if (!arma) return;
   const wt = WEAPON_TYPES[arma.weaponType];
   const icon = Sprites['icon_' + arma.weaponType];
-  const aim = Math.atan2(mouseWorldY() - p.y, mouseWorldX() - p.x);
+  const aim = aimAngle();
   // golpe de muñeca durante el espadazo (sigue la dirección del tajo)
   const swing = p.swingT > 0 ? (Math.sin((0.16 - p.swingT) / 0.16 * Math.PI) * 1.1 - 0.55) * (p.swingDir || 1) : 0;
   ctx.save();
