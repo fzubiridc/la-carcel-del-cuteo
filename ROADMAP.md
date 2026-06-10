@@ -13,10 +13,10 @@ Plan de trabajo autónomo. Reglas para el agente:
 
 ## Prioridades
 
-- [ ] 1. **Mercader entre zonas**: piso especial (o rincón del piso de jefe ya
+- [x] 1. **Mercader entre zonas**: piso especial (o rincón del piso de jefe ya
   vencido) con 3 ítems a la venta generados según profundidad + 1 poción.
   Precios en monedas. UI simple al acercarse y apretar E.
-- [ ] 2. **Dash/esquive con Espacio**: impulso corto en la dirección de
+- [x] 2. **Dash/esquive con Espacio**: impulso corto en la dirección de
   movimiento, ~0.15 s, invulnerable durante el dash, cooldown ~1.2 s visible
   en el HUD. Debe permitir esquivar el tackle de Bucle.
 - [ ] 3. **Consumibles**: poción de vida (cura 40%) con slot rápido (Q),
@@ -39,4 +39,9 @@ Plan de trabajo autónomo. Reglas para el agente:
 
 ## Notas de la noche
 
-(el agente escribe acá)
+- **1. Mercader** ✔ — Aparece junto a la escalera al matar un jefe (no en el
+  último). 3 ítems con precio según su puntaje + curación (+60%) por 30
+  monedas. Verificado: compra descuenta monedas, marca VENDIDO, va a la bolsa.
+- **2. Dash** ✔ — Espacio, 330 px/s × 0.16 s (~53 px), invulnerable durante el
+  impulso, cooldown 1.2 s con barra en el HUD, estela fantasma. Si estás
+  quieto, esquiva hacia el ratón.

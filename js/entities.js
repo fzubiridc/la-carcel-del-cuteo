@@ -14,6 +14,7 @@ function makePlayer(clsId) {
     level: 1, xp: 0, xpNext: 25,
     bonus: { hp: 0, spd: 0, crit: 0, atkspd: 0, def: 0, dmgMul: 1 },
     atkCd: 0, ifr: 0, stunT: 0, dir: 1,
+    dashT: 0, dashCd: 0, dashVX: 0, dashVY: 0,
     kbx: 0, kby: 0,
     swingT: 0, swingAng: 0,
   };
@@ -389,7 +390,7 @@ function killEnemy(e) {
 
 function damagePlayer(dmg) {
   const p = state.player;
-  if (p.ifr > 0 || state.mode !== 'play') return;
+  if (p.ifr > 0 || p.dashT > 0 || state.mode !== 'play') return; // el dash esquiva todo
   const real = applyDefense(dmg, p.stats.def);
   p.hp -= real;
   p.ifr = BALANCE.playerIfr;
