@@ -287,12 +287,12 @@ function buildSprites() {
     '.....JJJjjJJJJjjJJJ.....',
     '....JJJJJJJJJJJJJJJJ....',
     '...sJJJJtt.ttJJJJJJJs...',
-    '..ssJJJJttttttJJJJJJss..',
-    '..ooJJJJtTttttJJJJJJ.s..',
-    '.ooooJJJJ.tt.JJJJJJJ....',
-    '.ooooJJJJJttJJJJJJJJ....',
-    '.oWWooJJJJJJJJJJJJJJ....',
-    '..oooo.JJJJJJJJJJJ......',
+    '..oooJJJttttttJJJJJJss..',
+    '.oooooJJtTttttJJJJJJ.s..',
+    '.ooWooJJJ.tt.JJJJJJJ....',
+    '.ooWooJJJJttJJJJJJJJ....',
+    '.oooooJJJJJJJJJJJJJJ....',
+    '..ooo..JJJJJJJJJJJ......',
     '........DDDDDDDDDD......',
     '........DDDDDDDDDD......',
     '........DDD..DDD........',
@@ -309,13 +309,18 @@ function buildSprites() {
     r.replace(/[oW]/g, '.')), buclePal);
   Sprites.bucle_sinpelota.ws = 0.5;
 
-  // La pelota de rugby (proyectil girando y tirada en el piso)
+  // La pelota de rugby: óvalo perfectamente simétrico con tiento centrado
   Sprites.pelota = px([
-    '.ooo.',
-    'oWWWo',
-    'ooooo',
-    '.ooo.',
+    '.....oooo.....',
+    '...oooooooo...',
+    '..oooooooooo..',
+    '.ooooWWWWoooo.',
+    '.ooooWWWWoooo.',
+    '..oooooooooo..',
+    '...oooooooo...',
+    '.....oooo.....',
   ], { o:'#9a5c28', W:'#e8e3d0' });
+  Sprites.pelota.ws = 0.5;
 
   Sprites.golem_anciano = px([
     '..GGGGGGGG..',

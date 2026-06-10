@@ -610,7 +610,7 @@ function render(dt) {
 
   // pelota de rugby tirada en el piso (Bucle va a buscarla)
   for (const e of state.enemies) {
-    if (e.ballPos) ctx.drawImage(Sprites.pelota, e.ballPos.x - 3, e.ballPos.y - 2);
+    if (e.ballPos) ctx.drawImage(Sprites.pelota, e.ballPos.x - 3.5, e.ballPos.y - 2, 7, 4);
   }
 
   // entidades ordenadas por Y (las de abajo tapan a las de arriba)
@@ -657,7 +657,7 @@ function render(dt) {
       ctx.save();
       ctx.translate(pr.x, pr.y);
       ctx.rotate(pr.t * 12);
-      ctx.drawImage(Sprites.pelota, -3, -2);
+      ctx.drawImage(Sprites.pelota, -3.5, -2, 7, 4);
       ctx.restore();
     } else {
       ctx.fillStyle = pr.color;
