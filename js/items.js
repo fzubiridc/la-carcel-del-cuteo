@@ -76,6 +76,17 @@ function makeStarterWeapon(weaponType) {
   };
 }
 
+// Stock del mercader: 3 ítems según profundidad + curación
+function makeShopStock(depth) {
+  const items = [];
+  for (let i = 0; i < 3; i++) {
+    const it = makeItem(depth + 1);
+    it.price = Math.round(12 + itemScore(it) * 0.9);
+    items.push(it);
+  }
+  return { items, healPrice: 30 };
+}
+
 // Puntaje heurístico para comparar dos ítems del mismo slot (flecha ▲/▼ del tooltip)
 function itemScore(it) {
   let s = (it.dmg || 0) * 2 + (it.def || 0) * 2;

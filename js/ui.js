@@ -39,6 +39,7 @@ function updateHUD() {
   $('xpfill').style.width = Math.min(100, 100 * p.xp / p.xpNext) + '%';
   $('lvllabel').textContent = 'Nv. ' + p.level;
   $('coinlabel').textContent = '◉ ' + p.coins + ' monedas';
+  $('dashfill').style.width = (100 * (1 - p.dashCd / 1.2)) + '%';
 }
 
 // Al subir de nivel: elegir 1 de 3 mejoras al azar (pausa el juego)
@@ -202,6 +203,83 @@ function dropItem(bagIdx) {
   renderInv();
 }
 
+// ---------------- Mercader ----------------
+
+function openShop() {
+  state.shopOpen = true;
+  renderShop();
+  $('shop').classList.remove('hidden');
+  sfx('pickup');
+}
+
+function closeShop() {
+  state.shopOpen = false;
+  $('shop').classList.add('hidden');
+  hideTooltip();
+}
+
+function renderShop() {
+  const p = state.player;
+  const stock = state.level.shopStock;
+  const shop = $('shop');
+  shop.innerHTML = `<h2>MERCADER</h2>
+    <div style="font-size:12px;color:#ffd84f;margin-bottom:10px">Tus monedas: ◉ ${p.coins}</div>`;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:12px';
+
+  for (const it of stock.items) {
+    const card = document.createElement('div');
+    card.className = 'shopcard panel' + (it.sold ? ' sold' : '');
+    if (it.sold) {
+      card.innerHTML = '<div class="soldtag">VENDIDO</div>';
+    } else {
+      const r = rarityOf(it);
+      card.appendChild(iconCanvasFor(it));
+      card.insertAdjacentHTML('beforeend',
+        `<div class="shopname" style="color:${r.color}">${it.name}</div>
+         <div class="shopprice">◉ ${it.price}</div>`);
+      card.onmouseenter = ev => showTooltip(it, ev);
+      card.onmousemove = ev => moveTooltip(ev);
+      card.onmouseleave = hideTooltip;
+      card.onclick = () => buyItem(it);
+    }
+    row.appendChild(card);
+  }
+
+  // curación
+  const heal = document.createElement('div');
+  heal.className = 'shopcard panel';
+  heal.innerHTML = `<div style="font-size:26px">❤</div>
+    <div class="shopname" style="color:#7fc97f">Curación (+60%)</div>
+    <div class="shopprice">◉ ${stock.healPrice}</div>`;
+  heal.onclick = () => {
+    if (p.hp >= p.stats.maxhp) { toast('Ya estás al máximo de vida', '#8a8496'); return; }
+    if (p.coins < stock.healPrice) { toast('No te alcanzan las monedas', '#ff6b6b'); return; }
+    p.coins -= stock.healPrice;
+    p.hp = Math.min(p.stats.maxhp, p.hp + Math.round(p.stats.maxhp * 0.6));
+    sfx('heal');
+    renderShop();
+  };
+  row.appendChild(heal);
+
+  shop.appendChild(row);
+  shop.insertAdjacentHTML('beforeend', '<div class="invhint">clic: comprar · E o Esc: cerrar</div>');
+}
+
+function buyItem(it) {
+  const p = state.player;
+  if (it.sold) return;
+  if (p.coins < it.price) { toast('No te alcanzan las monedas', '#ff6b6b'); return; }
+  if (p.bag.length >= BALANCE.bagSize) { toast('Inventario lleno', '#ff6b6b'); return; }
+  p.coins -= it.price;
+  it.sold = true;
+  p.bag.push(it);
+  toast('Compraste: ' + it.name, rarityOf(it).color);
+  sfx('coin');
+  hideTooltip();
+  renderShop();
+}
+
 // ---------------- Tooltip ----------------
 
 function modLines(item) {
@@ -312,6 +390,7 @@ const SFX = {
   summon: () => beep(250, 0.2, 'sine', 0.05, 150),
   tackle: () => { beep(70, 0.3, 'sawtooth', 0.11, -30); setTimeout(() => beep(50, 0.2, 'square', 0.07, -20), 80); },
   kick:   () => beep(140, 0.18, 'square', 0.09, -90),
+  dash:   () => beep(520, 0.1, 'sine', 0.05, -260),
   xp:     () => beep(840 + Math.random() * 280, 0.06, 'sine', 0.03, 240),
   levelup:() => { beep(440, 0.12, 'square', 0.06); setTimeout(() => beep(554, 0.12, 'square', 0.06), 100); setTimeout(() => beep(659, 0.22, 'square', 0.07, 120), 200); },
 };

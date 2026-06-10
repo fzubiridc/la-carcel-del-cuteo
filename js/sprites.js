@@ -287,6 +287,21 @@ function buildSprites() {
     '....p..p....',
   ], { p:'#4c2f73', w:bone, k:'#b14fff', d:'#8d8a7c' });
 
+  // El mercader: figura encapuchada con linterna y mochila
+  Sprites.mercader = px([
+    '....mmmm....',
+    '...mmmmmm...',
+    '...mddddm...',
+    '...mdkdkm...',
+    '...mddddm...',
+    '..mmmmmmmm..',
+    '.ymmmmmmmmp.',
+    '.y.mmmmmm.p.',
+    '...mmmmmm...',
+    '...mmmmmm...',
+    '....m..m....',
+  ], { m:'#6a5a8a', d:'#241c30', k:'#ffd84f', y:'#ffd84f', p:'#7a5230' });
+
   // ----- Objetos del mundo -----
   Sprites.cofre = px([
     '.CCCCCCCC.',

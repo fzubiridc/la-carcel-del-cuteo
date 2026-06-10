@@ -36,6 +36,11 @@
     transition:width .15s; }
   #lvllabel{ font-size:12px; color:#ffd84f; }
   #coinlabel{ font-size:13px; color:#ffd84f; }
+  #dashwrap{ display:flex; align-items:center; gap:6px; }
+  #dashbar{ width:60px; height:5px; background:#1c1722; border:2px solid #000;
+    border-radius:3px; overflow:hidden; }
+  #dashfill{ height:100%; width:100%; background:#9ab8d8; transition:width .1s; }
+  #dashlabel{ font-size:9px; color:#9ab8d8; letter-spacing:1px; }
   #hint{ position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
     font-size:12px; color:#8a8496; pointer-events:none; text-shadow:1px 1px 0 #000; }
   #prompt{ position:absolute; bottom:60px; left:50%; transform:translateX(-50%);
@@ -98,6 +103,19 @@
   #statpanel b{ color:#ffd84f; }
   .invhint{ font-size:10px; color:#8a8496; margin-top:10px; }
 
+  /* Mercader */
+  #shop{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    padding:18px 22px; z-index:20; }
+  #shop h2{ color:#ffd84f; letter-spacing:2px; font-size:18px; margin-bottom:4px; }
+  .shopcard{ width:130px; min-height:120px; padding:10px; text-align:center; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
+  .shopcard:hover{ border-color:#ffd84f; }
+  .shopcard canvas{ width:36px; height:36px; image-rendering:pixelated; }
+  .shopname{ font-size:11px; line-height:1.4; }
+  .shopprice{ font-size:13px; color:#ffd84f; font-weight:bold; }
+  .shopcard.sold{ opacity:.4; cursor:default; }
+  .soldtag{ font-size:12px; color:#8a8496; letter-spacing:2px; }
+
   #tooltip{ position:absolute; z-index:30; pointer-events:none; padding:10px 12px;
     font-size:12px; line-height:1.6; max-width:240px; }
   #tooltip .iname{ font-weight:bold; font-size:13px; }
@@ -120,11 +138,12 @@
     <div id="xpbar"><div id="xpfill"></div></div>
     <div id="lvllabel"></div>
     <div id="coinlabel"></div>
+    <div id="dashwrap"><div id="dashbar"><div id="dashfill"></div></div><span id="dashlabel">DASH</span></div>
   </div>
   <div id="prompt"></div>
   <div id="bigtoast"></div>
   <div id="toast"></div>
-  <div id="hint" class="hidden">WASD / flechas mover · ratón apuntar · clic atacar · E interactuar · I inventario · Esc pausa</div>
+  <div id="hint" class="hidden">WASD mover · ratón apuntar · clic atacar · Espacio dash · E interactuar · I inventario · Esc pausa</div>
 
   <div id="menu" class="screen">
     <h1 class="title">CRIPTA OLVIDADA</h1>
@@ -134,6 +153,7 @@
   </div>
 
   <div id="inv" class="panel hidden"></div>
+  <div id="shop" class="panel hidden"></div>
   <div id="tooltip" class="panel hidden"></div>
 
   <div id="upgradescreen" class="screen hidden">

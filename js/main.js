@@ -4,7 +4,7 @@
 
 const state = {
   mode: 'menu', // menu | play | dead | win
-  invOpen: false, paused: false, upgradeOpen: false,
+  invOpen: false, paused: false, upgradeOpen: false, shopOpen: false,
   player: null, run: null, level: null,
   enemies: [], projs: [], pickups: [], chests: [],
   particles: [], floaters: [], fx: [],
@@ -44,10 +44,12 @@ function bindInput() {
     keys.add(k);
     if (k === 'i' || k === 'tab') { e.preventDefault(); toggleInv(); }
     if (k === 'escape') {
-      if (state.invOpen) toggleInv();
+      if (state.shopOpen) closeShop();
+      else if (state.invOpen) toggleInv();
       else if (state.mode === 'play') togglePause();
     }
     if (k === 'e') tryInteract();
+    if (k === ' ') { e.preventDefault(); tryDash(); }
   });
   window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
   window.addEventListener('blur', () => { keys.clear(); mouse.down = false; });
@@ -80,8 +82,9 @@ function startRun(clsId) {
   state.player = makePlayer(clsId);
   state.run = { zoneIdx: 0, floorInZone: 0, depth: 0, kills: 0 };
   state.mode = 'play';
-  state.invOpen = false; state.paused = false; state.upgradeOpen = false;
+  state.invOpen = false; state.paused = false; state.upgradeOpen = false; state.shopOpen = false;
   $('upgradescreen').classList.add('hidden');
+  $('shop').classList.add('hidden');
   $('menu').classList.add('hidden');
   $('hud').classList.remove('hidden');
   $('hint').classList.remove('hidden');
@@ -120,12 +123,18 @@ function nextFloor() {
 
 function onBossKilled(boss) {
   const run = state.run;
-  state.level.exitOpen = true;
+  const lvl = state.level;
+  lvl.exitOpen = true;
   if (run.zoneIdx >= ZONES.length - 1) {
     state.winT = 1.6; // pequeña pausa dramática antes de la victoria
   } else {
     bigToast('¡' + boss.def.name + ' derrotado!');
     toast('Se abrió la escalera', '#ffd84f');
+    // aparece el mercader junto a la escalera, con stock según profundidad
+    lvl.merchant = { x: (lvl.exit.tx - 2.5) * TILE, y: (lvl.exit.ty + 2) * TILE };
+    lvl.shopStock = makeShopStock(run.depth);
+    burst(lvl.merchant.x, lvl.merchant.y, '#6a5a8a', 12);
+    toast('Un mercader apareció...', '#c7b8e8');
   }
 }
 
@@ -134,9 +143,38 @@ function onPlayerDeath() {
   showEnd(false);
 }
 
+function tryDash() {
+  const p = state.player;
+  if (!p || state.mode !== 'play' || state.invOpen || state.paused || state.upgradeOpen || state.shopOpen) return;
+  if (p.stunT > 0 || p.dashT > 0 || p.dashCd > 0) return;
+  // dirección: las teclas de movimiento; si estás quieto, hacia el ratón
+  let mx = 0, my = 0;
+  if (keys.has('a') || keys.has('arrowleft')) mx--;
+  if (keys.has('d') || keys.has('arrowright')) mx++;
+  if (keys.has('w') || keys.has('arrowup')) my--;
+  if (keys.has('s') || keys.has('arrowdown')) my++;
+  if (!mx && !my) {
+    const aim = Math.atan2(mouseWorldY() - p.y, mouseWorldX() - p.x);
+    mx = Math.cos(aim); my = Math.sin(aim);
+  }
+  const n = Math.hypot(mx, my);
+  const SPD = 330;
+  p.dashVX = (mx / n) * SPD;
+  p.dashVY = (my / n) * SPD;
+  p.dashT = 0.16;
+  p.dashCd = 1.2;
+  sfx('dash');
+}
+
 function tryInteract() {
-  if (state.mode !== 'play' || state.paused || state.invOpen) return;
+  if (state.shopOpen) { closeShop(); return; }
+  if (state.mode !== 'play' || state.paused || state.invOpen || state.upgradeOpen) return;
   const p = state.player, lvl = state.level;
+  // mercader
+  if (lvl.merchant && Math.hypot(p.x - lvl.merchant.x, p.y - lvl.merchant.y) < TILE * 1.5) {
+    openShop();
+    return;
+  }
   // escalera
   if (lvl.exitOpen) {
     const ex = (lvl.exit.tx + 0.5) * TILE, ey = (lvl.exit.ty + 0.5) * TILE;
@@ -151,8 +189,9 @@ function tryInteract() {
 function backToMenu() {
   state.mode = 'menu';
   state.player = null; state.level = null;
-  state.invOpen = false; state.paused = false; state.upgradeOpen = false;
+  state.invOpen = false; state.paused = false; state.upgradeOpen = false; state.shopOpen = false;
   $('upgradescreen').classList.add('hidden');
+  $('shop').classList.add('hidden');
   $('inv').classList.add('hidden');
   $('hud').classList.add('hidden');
   $('hint').classList.add('hidden');
@@ -166,7 +205,7 @@ let lastT = 0;
 function loop(t) {
   const dt = Math.min((t - lastT) / 1000, 0.05);
   lastT = t;
-  if (state.mode === 'play' && !state.invOpen && !state.paused && !state.upgradeOpen) update(dt);
+  if (state.mode === 'play' && !state.invOpen && !state.paused && !state.upgradeOpen && !state.shopOpen) update(dt);
   render(dt);
   requestAnimationFrame(loop);
 }
@@ -181,9 +220,21 @@ function update(dt) {
     if (state.winT <= 0) { state.mode = 'win'; showEnd(true); return; }
   }
 
+  // dash: impulso breve, invulnerable, con cooldown
+  p.dashCd = Math.max(0, p.dashCd - dt);
+  if (p.dashT > 0) {
+    p.dashT -= dt;
+    moveWithCollision(lvl, p, p.dashVX * dt, p.dashVY * dt, false);
+    // estela fantasma
+    state.particles.push({
+      x: p.x + (Math.random() - 0.5) * 5, y: p.y + (Math.random() - 0.5) * 7,
+      vx: 0, vy: 0, t: 0.22, color: '#9ab8d8', glow: true,
+    });
+  }
+
   // tirado en el piso por un tackle: ni moverse ni atacar
   p.stunT = Math.max(0, p.stunT - dt);
-  if (p.stunT <= 0) {
+  if (p.stunT <= 0 && p.dashT <= 0) {
     // movimiento
     let mx = 0, my = 0;
     if (keys.has('a') || keys.has('arrowleft')) mx--;
@@ -246,7 +297,9 @@ function mouseWorldY() { return mouse.sy / ZOOM + state.cam.y; }
 function updatePrompt() {
   const p = state.player, lvl = state.level;
   let msg = '';
-  if (lvl.exitOpen) {
+  if (lvl.merchant && Math.hypot(p.x - lvl.merchant.x, p.y - lvl.merchant.y) < TILE * 1.5)
+    msg = '[E] Comerciar';
+  else if (lvl.exitOpen) {
     const ex = (lvl.exit.tx + 0.5) * TILE, ey = (lvl.exit.ty + 0.5) * TILE;
     if (Math.hypot(p.x - ex, p.y - ey) < TILE * 1.2)
       msg = lvl.isBoss ? '[E] Avanzar a la siguiente zona' : '[E] Bajar por la escalera';
@@ -318,6 +371,17 @@ function render(dt) {
   for (const ch of lvl.chests) {
     const spr = ch.opened ? Sprites.cofre_abierto : Sprites.cofre;
     ctx.drawImage(spr, ch.x - spr.width / 2, ch.y - spr.height / 2);
+  }
+
+  // mercader (flota suavemente, con brillo de linterna)
+  if (lvl.merchant) {
+    const m = lvl.merchant;
+    const bob = Math.sin(state.time * 2.5) * 1.2;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgba(255,216,79,0.10)';
+    ctx.beginPath(); ctx.arc(m.x, m.y + bob, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    drawSpriteC(Sprites.mercader, m.x, m.y + bob - 2, 1);
   }
 
   // pickups
