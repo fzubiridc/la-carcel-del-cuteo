@@ -225,6 +225,7 @@ function fireProj(o) {
     color: o.color || '#fff', style: o.style || 'dot',
     splash: o.splash || 0, crit: o.crit || false,
     life: o.life || 2.2, dead: false, t: 0, trailT: 0, owner: o.owner || null,
+    pierce: o.pierce || 0, hitSet: null,
   });
 }
 
@@ -273,12 +274,19 @@ function updateProjectiles(dt) {
     if (pr.friendly) {
       for (const e of state.enemies) {
         if (e.hp <= 0) continue;
+        if (pr.hitSet && pr.hitSet.has(e)) continue; // la ballesta no pega dos veces al mismo
         const r = (e.w * e.scale + 6) / 2;
         if (Math.abs(pr.x - e.x) < r && Math.abs(pr.y - e.y) < r) {
-          pr.dead = true;
-          if (pr.splash) explode(pr);
-          else damageEnemy(e, pr.dmg, pr.crit, pr.vx * 0.4, pr.vy * 0.4);
-          break;
+          if (pr.splash) { pr.dead = true; explode(pr); break; }
+          damageEnemy(e, pr.dmg, pr.crit, pr.vx * 0.4, pr.vy * 0.4);
+          if (pr.pierce > 0) {
+            pr.pierce--;
+            if (!pr.hitSet) pr.hitSet = new Set();
+            pr.hitSet.add(e);
+          } else {
+            pr.dead = true;
+            break;
+          }
         }
       }
     } else {
@@ -359,8 +367,25 @@ function playerAttack(aimAng) {
       }
     }
     if (hitAny) sfx('hit');
+  } else if (wt.style === 'smash') {
+    // martillazo: golpe circular que daña todo alrededor
+    p.swingT = 0.18; p.swingAng = aimAng;
+    p.swingFlip = !p.swingFlip; p.swingDir = p.swingFlip ? 1 : -1;
+    state.fx.push({ type: 'ring', x: p.x, y: p.y, t: 0.25, t0: 0.25, maxR: wt.range + 4, color: '#c4ccd6' });
+    shake(3);
+    sfx('smash');
+    let hitAny = false;
+    for (const e of state.enemies) {
+      if (e.hp <= 0) continue;
+      const d = Math.hypot(e.x - p.x, e.y - p.y);
+      if (d > wt.range + e.w * e.scale / 2) continue;
+      const ang = Math.atan2(e.y - p.y, e.x - p.x);
+      damageEnemy(e, dmg, crit, Math.cos(ang) * 220, Math.sin(ang) * 220);
+      hitAny = true;
+    }
+    if (hitAny) sfx('hit');
   } else if (wt.style === 'arrow') {
-    fireProj({ x: p.x, y: p.y, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#e8d8a0', style: 'arrow', crit });
+    fireProj({ x: p.x, y: p.y, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#e8d8a0', style: 'arrow', crit, pierce: wt.pierce || 0 });
     // chasquido de la cuerda: destello corto en la boca del arco
     const hx = p.x + Math.cos(aimAng) * 9, hy = p.y + Math.sin(aimAng) * 9;
     for (let i = 0; i < 4; i++) {

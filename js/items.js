@@ -36,8 +36,12 @@ function makeItem(depth, slot) {
   const item = { id: ++_itemSeq, slot, rarity: rarity.id, material: mat.id, matName: mat.name, mods: {}, def: 0 };
 
   if (slot === 'arma') {
-    // las armas que aparecen son siempre de tu clase (las demás no podrías usarlas)
-    item.weaponType = state.player ? CLASSES[state.player.cls].weapon : pick(Object.keys(WEAPON_TYPES));
+    // las armas que aparecen son siempre de tu clase (cualquiera de sus tipos)
+    const cls = state.player ? state.player.cls : null;
+    const opciones = cls
+      ? Object.keys(WEAPON_TYPES).filter(k => WEAPON_TYPES[k].cls === cls)
+      : Object.keys(WEAPON_TYPES);
+    item.weaponType = pick(opciones);
     const wt = WEAPON_TYPES[item.weaponType];
     item.dmg = Math.round(wt.dmg * mat.mult * rarity.mult);
     item.baseName = wt.name;

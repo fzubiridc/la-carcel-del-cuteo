@@ -413,6 +413,38 @@ function buildSprites() {
     '....bb....',
   ], { o:'#7ec8ff', b:'#6b4a2b' });
 
+  Sprites.icon_martillo = px([
+    '.wwwww....',
+    '.wWWWw....',
+    '.wwwww....',
+    '...bb.....',
+    '....bb....',
+    '.....bb...',
+    '......bb..',
+    '.......bb.',
+  ], { w:'#9aa4b0', W:'#c4ccd6', b:'#6b4a2b' });
+
+  Sprites.icon_ballesta = px([
+    'w...ss...w',
+    '.w..ss..w.',
+    '..wwsswW..',
+    '....ss....',
+    '....bb....',
+    '....bb....',
+    '....bb....',
+  ], { w:'#8a6a3a', W:'#cfd6dd', s:'#cfd6dd', b:'#5c3e24' });
+
+  Sprites.icon_varita = px([
+    '.......yy.',
+    '......yYy.',
+    '.......y..',
+    '.....b....',
+    '....b.....',
+    '...b......',
+    '..b.......',
+    '.b........',
+  ], { y:'#ffd84f', Y:'#fff', b:'#6b4a2b' });
+
   Sprites.icon_casco = px([
     '...AAAA...',
     '..AAAAAA..',

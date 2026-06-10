@@ -28,9 +28,12 @@ const CLASSES = {
 // baseRot: corrección para que el icono apunte hacia donde mira el jugador al dibujarlo en mano
 // cls: cada arma solo puede ser usada por su clase
 const WEAPON_TYPES = {
-  espada: { name: 'Espada', cls: 'guerrero', dmg: 14, cd: 0.42, style: 'melee', range: 30, icon: 'espada', baseRot: Math.PI / 4 },
-  arco:   { name: 'Arco',   cls: 'arquero',  dmg: 10, cd: 0.50, style: 'arrow', projSpd: 300, icon: 'arco', baseRot: 0 },
-  baston: { name: 'Bastón', cls: 'mago',     dmg: 15, cd: 0.70, style: 'bolt',  projSpd: 190, splash: 24, icon: 'baston', baseRot: Math.PI / 2 },
+  espada:   { name: 'Espada',   cls: 'guerrero', dmg: 14, cd: 0.42, style: 'melee', range: 30, icon: 'espada', baseRot: Math.PI / 4 },
+  martillo: { name: 'Martillo', cls: 'guerrero', dmg: 24, cd: 0.85, style: 'smash', range: 30, icon: 'martillo', baseRot: Math.PI / 4 },
+  arco:     { name: 'Arco',     cls: 'arquero',  dmg: 10, cd: 0.50, style: 'arrow', projSpd: 300, icon: 'arco', baseRot: 0 },
+  ballesta: { name: 'Ballesta', cls: 'arquero',  dmg: 15, cd: 0.78, style: 'arrow', projSpd: 350, pierce: 2, icon: 'ballesta', baseRot: 0 },
+  baston:   { name: 'Bastón',   cls: 'mago',     dmg: 15, cd: 0.70, style: 'bolt',  projSpd: 190, splash: 24, icon: 'baston', baseRot: Math.PI / 2 },
+  varita:   { name: 'Varita',   cls: 'mago',     dmg: 7,  cd: 0.26, style: 'bolt',  projSpd: 270, splash: 0, icon: 'varita', baseRot: Math.PI / 4 },
 };
 
 // Materiales: escalera ordenada de calidad. El material define el stat base

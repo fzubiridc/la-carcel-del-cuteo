@@ -374,6 +374,23 @@ function moveTooltip(ev) {
 
 function hideTooltip() { $('tooltip').classList.add('hidden'); }
 
+// Resumen de la run en la pantalla de pausa
+function renderPauseStats() {
+  const p = state.player, run = state.run, s = p.stats;
+  const zone = ZONES[run.zoneIdx];
+  const equipo = SLOTS.map(slot => {
+    const it = p.equip[slot];
+    return it ? `<span style="color:${rarityOf(it).color}">${it.name}</span>` : null;
+  }).filter(Boolean).join(' · ');
+  $('pausestats').innerHTML = `
+    <b>${zone.name}</b> · ${state.level.isBoss ? 'JEFE' : 'piso ' + run.floorInZone} (profundidad ${run.depth})<br>
+    Nivel <b>${p.level}</b> · ${run.kills} criaturas · ◉ ${p.coins} monedas · ⚗ ${p.potions}<br>
+    Daño <b>${playerDamage(p)}</b> · Defensa <b>${s.def}</b> · Crítico <b>${s.crit}%</b> ·
+    Vel. ataque <b>${(1 / attackCooldown(p)).toFixed(1)}/s</b><br>
+    <span style="font-size:11px">${equipo}</span>
+  `;
+}
+
 // ---------------- Pantallas finales ----------------
 
 function showEnd(victory) {
@@ -473,6 +490,7 @@ const SFX = {
   tackle: () => { beep(70, 0.3, 'sawtooth', 0.11, -30); setTimeout(() => beep(50, 0.2, 'square', 0.07, -20), 80); },
   kick:   () => beep(140, 0.18, 'square', 0.09, -90),
   dash:   () => beep(520, 0.1, 'sine', 0.05, -260),
+  smash:  () => beep(95, 0.2, 'square', 0.1, -55),
   step:   () => beep(72 + Math.random() * 14, 0.04, 'triangle', 0.016, -25),
   xp:     () => beep(840 + Math.random() * 280, 0.06, 'sine', 0.03, 240),
   levelup:() => { beep(440, 0.12, 'square', 0.06); setTimeout(() => beep(554, 0.12, 'square', 0.06), 100); setTimeout(() => beep(659, 0.22, 'square', 0.07, 120), 200); },
