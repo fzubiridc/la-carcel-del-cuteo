@@ -99,11 +99,13 @@ const ENEMIES = {
 // Jefes: patterns rotan en ciclo. 'chase' embiste, 'burst' anillo de proyectiles,
 // 'spread' ráfagas apuntadas, 'charge' carga telegrafiada, 'summon' invoca esbirros.
 const BOSSES = {
-  // Bucle: jugador de rugby maldito. Su especialidad es la embestida (tackle):
-  // si te alcanza en plena carga, te deja tirado en el piso (stunOnCharge segundos).
-  bucle: { name: 'Bucle', sprite: 'bucle', hp: 380, dmg: 16, spd: 62,
-    size: 16, scale: 2, patterns: ['charge', 'chase', 'charge', 'spread'], projSpd: 150,
-    stunOnCharge: 1, arenaDecor: 'rugby' },
+  // Bucle: jugador de rugby maldito. Embestida (tackle) que te deja en el piso
+  // (stunOnCharge), y su ataque a rango es patear SU pelota (kickball): donde
+  // cae tiene que ir a buscarla, y mientras tanto recibe daño extra (punto débil).
+  bucle: { name: 'Bucle', sprite: 'bucle', spriteNoBall: 'bucle_sinpelota',
+    hp: 380, dmg: 16, spd: 62, size: 16, scale: 2,
+    patterns: ['charge', 'chase', 'kickball', 'charge'],
+    stunOnCharge: 1, arenaDecor: 'rugby', kicksBall: true },
   golem_anciano: { name: 'Gólem Anciano', sprite: 'golem_anciano', hp: 550, dmg: 24, spd: 32,
     size: 18, scale: 2, patterns: ['chase', 'charge', 'burst'], projSpd: 110 },
   liche:         { name: 'El Liche',      sprite: 'liche',         hp: 650, dmg: 20, spd: 60,
@@ -130,6 +132,22 @@ const ZONES = [
     enemies: ['espectro', 'cultista', 'caballero'],
     boss: 'liche', density: 1.25,
   },
+];
+
+// ---------- Mejoras de nivel (al subir, elegís 1 de 3 al azar) ----------
+const UPGRADES = [
+  { id: 'vigor',     name: 'Vigor',          desc: '+20 vida máxima y te cura 20',
+    apply: p => { p.bonus.hp += 20; p.hp += 20; } },
+  { id: 'fuerza',    name: 'Fuerza',         desc: '+12% de daño',
+    apply: p => { p.bonus.dmgMul += 0.12; } },
+  { id: 'celeridad', name: 'Celeridad',      desc: '+8 de velocidad de movimiento',
+    apply: p => { p.bonus.spd += 8; } },
+  { id: 'precision', name: 'Precisión',      desc: '+6% de probabilidad de crítico',
+    apply: p => { p.bonus.crit += 6; } },
+  { id: 'frenesi',   name: 'Frenesí',        desc: '+10% de velocidad de ataque',
+    apply: p => { p.bonus.atkspd += 0.10; } },
+  { id: 'piel',      name: 'Piel de hierro', desc: '+3 de defensa',
+    apply: p => { p.bonus.def += 3; } },
 ];
 
 // ---------- Balance global ----------

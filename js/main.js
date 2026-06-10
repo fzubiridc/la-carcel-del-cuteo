@@ -4,7 +4,7 @@
 
 const state = {
   mode: 'menu', // menu | play | dead | win
-  invOpen: false, paused: false,
+  invOpen: false, paused: false, upgradeOpen: false,
   player: null, run: null, level: null,
   enemies: [], projs: [], pickups: [], chests: [],
   particles: [], floaters: [], fx: [],
@@ -60,6 +60,7 @@ function bindInput() {
 }
 
 function toggleInv() {
+  if (state.upgradeOpen) return;
   if (state.mode !== 'play' && !state.invOpen) return;
   state.invOpen = !state.invOpen;
   $('inv').classList.toggle('hidden', !state.invOpen);
@@ -79,7 +80,8 @@ function startRun(clsId) {
   state.player = makePlayer(clsId);
   state.run = { zoneIdx: 0, floorInZone: 0, depth: 0, kills: 0 };
   state.mode = 'play';
-  state.invOpen = false; state.paused = false;
+  state.invOpen = false; state.paused = false; state.upgradeOpen = false;
+  $('upgradescreen').classList.add('hidden');
   $('menu').classList.add('hidden');
   $('hud').classList.remove('hidden');
   $('hint').classList.remove('hidden');
@@ -149,7 +151,8 @@ function tryInteract() {
 function backToMenu() {
   state.mode = 'menu';
   state.player = null; state.level = null;
-  state.invOpen = false; state.paused = false;
+  state.invOpen = false; state.paused = false; state.upgradeOpen = false;
+  $('upgradescreen').classList.add('hidden');
   $('inv').classList.add('hidden');
   $('hud').classList.add('hidden');
   $('hint').classList.add('hidden');
@@ -163,7 +166,7 @@ let lastT = 0;
 function loop(t) {
   const dt = Math.min((t - lastT) / 1000, 0.05);
   lastT = t;
-  if (state.mode === 'play' && !state.invOpen && !state.paused) update(dt);
+  if (state.mode === 'play' && !state.invOpen && !state.paused && !state.upgradeOpen) update(dt);
   render(dt);
   requestAnimationFrame(loop);
 }
@@ -322,6 +325,16 @@ function render(dt) {
     const bob = Math.sin(pk.t) * 1.5;
     if (pk.kind === 'coin') ctx.drawImage(Sprites.moneda, pk.x - 3, pk.y - 3 + bob);
     else if (pk.kind === 'heart') ctx.drawImage(Sprites.corazon, pk.x - 3.5, pk.y - 3 + bob);
+    else if (pk.kind === 'xp') {
+      // puntito rojo de experiencia, titila
+      const tw = 1 + Math.sin(pk.t * 2.5) * 0.35;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255,70,60,0.28)';
+      ctx.beginPath(); ctx.arc(pk.x, pk.y + bob * 0.4, 3.6 * tw, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ff5a4a';
+      ctx.beginPath(); ctx.arc(pk.x, pk.y + bob * 0.4, 1.7 * tw, 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
     else if (pk.kind === 'item') {
       const spr = itemIcon(pk.item);
       const r = rarityOf(pk.item);
@@ -329,6 +342,11 @@ function render(dt) {
       ctx.beginPath(); ctx.arc(pk.x, pk.y + 2, 7, 0, Math.PI * 2); ctx.fill();
       ctx.drawImage(spr, pk.x - spr.width / 2, pk.y - spr.height / 2 + bob);
     }
+  }
+
+  // pelota de rugby tirada en el piso (Bucle va a buscarla)
+  for (const e of state.enemies) {
+    if (e.ballPos) ctx.drawImage(Sprites.pelota, e.ballPos.x - 3, e.ballPos.y - 2);
   }
 
   // entidades ordenadas por Y (las de abajo tapan a las de arriba)
@@ -365,6 +383,13 @@ function render(dt) {
         ctx.fillRect(pr.x + Math.cos(oa) * 4.5 - 0.8, pr.y + Math.sin(oa) * 4.5 - 0.8, 1.6, 1.6);
       }
       ctx.globalCompositeOperation = 'source-over';
+    } else if (pr.style === 'rugbyball') {
+      // la pelota gira mientras vuela
+      ctx.save();
+      ctx.translate(pr.x, pr.y);
+      ctx.rotate(pr.t * 12);
+      ctx.drawImage(Sprites.pelota, -3, -2);
+      ctx.restore();
     } else {
       ctx.fillStyle = pr.color;
       ctx.beginPath(); ctx.arc(pr.x, pr.y, 2.2, 0, Math.PI * 2); ctx.fill();

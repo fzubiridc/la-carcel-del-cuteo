@@ -87,10 +87,12 @@ function itemScore(it) {
 
 function rarityOf(item) { return RARITIES.find(r => r.id === item.rarity); }
 
-// Stats totales del jugador = base de clase + suma de equipo
+// Stats totales del jugador = base de clase + mejoras de nivel + suma de equipo
 function calcStats(p) {
   const base = CLASSES[p.cls];
-  const s = { maxhp: base.hp, spd: base.spd, def: base.def, crit: base.crit, dmgB: 0, atkspd: 1 };
+  const b = p.bonus || { hp: 0, spd: 0, crit: 0, atkspd: 0, def: 0, dmgMul: 1 };
+  const s = { maxhp: base.hp + b.hp, spd: base.spd + b.spd, def: base.def + b.def,
+    crit: base.crit + b.crit, dmgB: 0, atkspd: 1 + b.atkspd };
   for (const slot of SLOTS) {
     const it = p.equip[slot];
     if (!it) continue;
@@ -109,7 +111,7 @@ function calcStats(p) {
 function playerDamage(p) {
   const w = p.equip.arma;
   const wdmg = w ? w.dmg : 5;
-  return Math.round((wdmg + p.stats.dmgB) * CLASSES[p.cls].dmgMul);
+  return Math.round((wdmg + p.stats.dmgB) * CLASSES[p.cls].dmgMul * (p.bonus ? p.bonus.dmgMul : 1));
 }
 
 function weaponDef(p) {

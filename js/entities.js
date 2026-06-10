@@ -11,6 +11,8 @@ function makePlayer(clsId) {
     hp: cls.hp, stats: null,
     equip: { arma: makeStarterWeapon(cls.weapon), casco: null, coraza: null, botas: null, anillo: null, amuleto: null },
     bag: [], coins: 0,
+    level: 1, xp: 0, xpNext: 25,
+    bonus: { hp: 0, spd: 0, crit: 0, atkspd: 0, def: 0, dmgMul: 1 },
     atkCd: 0, ifr: 0, stunT: 0, dir: 1,
     kbx: 0, kby: 0,
     swingT: 0, swingAng: 0,
@@ -35,6 +37,7 @@ function spawnEnemy(typeId, x, y, depth, isBossType) {
     isBoss: !!isBossType, scale: def.scale || 1,
     // estado de jefe
     pattern: 0, patT: 2.5, subT: 0, chargeVX: 0, chargeVY: 0, charging: false, telegraphT: 0,
+    hasBall: def.kicksBall ? true : undefined, ballPos: null,
   };
 }
 
@@ -104,6 +107,21 @@ function updateEnemies(dt) {
 
 function updateBoss(e, dt, dist, dx, dy) {
   const lvl = state.level, p = state.player;
+
+  // Sin su pelota el jefe no ataca: primero mira el vuelo de la patada y
+  // después corre a buscarla — ahí es vulnerable (recibe daño extra).
+  if (e.hasBall === false) {
+    if (!e.ballPos) return; // la pelota todavía está en el aire
+    const bx = e.ballPos.x - e.x, by = e.ballPos.y - e.y;
+    const bd = Math.hypot(bx, by) || 1;
+    moveWithCollision(lvl, e, (bx / bd) * e.spd * 1.15 * dt, (by / bd) * e.spd * 1.15 * dt, false);
+    if (bd < 12) {
+      e.hasBall = true; e.ballPos = null; e.patT = 2;
+      addFloater(e.x, e.y - 20, '¡Recuperó la pelota!', '#9a5c28', false);
+    }
+    return;
+  }
+
   e.patT -= dt;
   if (e.patT <= 0 && !e.charging) {
     e.pattern = (e.pattern + 1) % e.def.patterns.length;
@@ -149,6 +167,21 @@ function updateBoss(e, dt, dist, dx, dy) {
         e.charging = false; e.patT = 0; shake(5);
       }
     }
+  } else if (pat === 'kickball') {
+    // patea SU pelota hacia el jugador; donde caiga, irá a buscarla
+    if (e.subT === 0) {
+      e.subT = 0.5; // toma carrera
+    } else {
+      e.subT -= dt;
+      if (e.subT <= 0 && e.hasBall) {
+        e.subT = 999; // una sola patada por ciclo
+        fireProj({ x: e.x, y: e.y, ang: Math.atan2(dy, dx), spd: 240,
+          dmg: Math.round(e.dmg * 1.2), friendly: false, style: 'rugbyball', life: 0.6, owner: e });
+        e.hasBall = false;
+        addFloater(e.x, e.y - 24, '¡Patada!', '#ffd84f', false);
+        sfx('kick');
+      }
+    }
   } else if (pat === 'summon') {
     e.subT -= dt;
     if (e.subT <= 0) {
@@ -173,7 +206,7 @@ function fireProj(o) {
     ang: o.ang, dmg: o.dmg, friendly: o.friendly,
     color: o.color || '#fff', style: o.style || 'dot',
     splash: o.splash || 0, crit: o.crit || false,
-    life: 2.2, dead: false, t: 0, trailT: 0,
+    life: o.life || 2.2, dead: false, t: 0, trailT: 0, owner: o.owner || null,
   });
 }
 
@@ -181,6 +214,7 @@ function updateProjectiles(dt) {
   const p = state.player, lvl = state.level;
   for (const pr of state.projs) {
     if (pr.dead) continue;
+    pr.px = pr.x; pr.py = pr.y;
     pr.x += pr.vx * dt; pr.y += pr.vy * dt;
     pr.life -= dt;
     pr.t += dt;
@@ -222,6 +256,12 @@ function updateProjectiles(dt) {
         pr.dead = true;
         damagePlayer(pr.dmg);
       }
+    }
+  }
+  // la pelota de rugby queda tirada donde murió el proyectil
+  for (const pr of state.projs) {
+    if (pr.dead && pr.style === 'rugbyball' && pr.owner && pr.owner.hasBall === false) {
+      pr.owner.ballPos = { x: pr.px !== undefined ? pr.px : pr.x, y: pr.py !== undefined ? pr.py : pr.y };
     }
   }
   state.projs = state.projs.filter(pr => !pr.dead);
@@ -298,11 +338,14 @@ function playerAttack(aimAng) {
 // ---------------- Daño ----------------
 
 function damageEnemy(e, dmg, crit, kx, ky) {
+  // punto débil: un jefe sin su pelota recibe daño extra
+  const weak = e.isBoss && e.hasBall === false;
+  if (weak) dmg = Math.round(dmg * 1.75);
   e.hp -= dmg;
   e.flashT = 0.1;
   e.kbx += (kx || 0) * (e.isBoss ? 0.15 : 1);
   e.kby += (ky || 0) * (e.isBoss ? 0.15 : 1);
-  addFloater(e.x, e.y - e.h, String(dmg), crit ? '#ffd84f' : '#fff', crit);
+  addFloater(e.x, e.y - e.h, String(dmg), crit ? '#ffd84f' : weak ? '#ffb15a' : '#fff', crit || weak);
   if (e.hp <= 0) killEnemy(e);
 }
 
@@ -331,6 +374,12 @@ function damagePlayer(dmg) {
 
 function dropLoot(e) {
   const depth = state.run.depth;
+  // orbes de experiencia: siempre, escalan con la dureza del bicho
+  const orbs = e.isBoss ? 12 : Math.min(8, 2 + Math.floor(e.maxhp / 25));
+  for (let i = 0; i < orbs; i++) {
+    const pk = spawnPickup('xp', e.x + randInt(-12, 12), e.y + randInt(-12, 12));
+    pk.val = e.isBoss ? 6 : 2;
+  }
   if (e.isBoss) {
     // los jefes siempre sueltan un ítem bueno + monedas
     const it = makeItem(depth + 2);
@@ -357,7 +406,9 @@ function makeItemRespectRarity(proto, depth) {
 }
 
 function spawnPickup(kind, x, y, item) {
-  state.pickups.push({ kind, x, y, item: item || null, t: Math.random() * Math.PI * 2, noPickT: 0.4 });
+  const pk = { kind, x, y, item: item || null, t: Math.random() * Math.PI * 2, noPickT: 0.4 };
+  state.pickups.push(pk);
+  return pk;
 }
 
 function updatePickups(dt) {
@@ -368,10 +419,16 @@ function updatePickups(dt) {
     const dx = p.x - pk.x, dy = p.y - pk.y;
     const d = Math.hypot(dx, dy);
     if (pk.noPickT > 0) continue;
+    // los orbes de XP se magnetizan hacia el personaje desde lejos
+    if (pk.kind === 'xp' && d < 70 && d > 0.1) {
+      const pull = 90 + (70 - d) * 5;
+      pk.x += dx / d * pull * dt; pk.y += dy / d * pull * dt;
+    }
     // imán suave
     if (d < 30 && pk.kind !== 'item') { pk.x += dx / d * 130 * dt; pk.y += dy / d * 130 * dt; }
     if (d < 14) {
-      if (pk.kind === 'coin') { p.coins++; pk.dead = true; sfx('coin'); }
+      if (pk.kind === 'xp') { gainXP(pk.val || 2); pk.dead = true; sfx('xp'); }
+      else if (pk.kind === 'coin') { p.coins++; pk.dead = true; sfx('coin'); }
       else if (pk.kind === 'heart') {
         if (p.hp < p.stats.maxhp) { p.hp = Math.min(p.stats.maxhp, p.hp + BALANCE.heartHeal); pk.dead = true; sfx('heal'); addFloater(p.x, p.y - 14, '+' + BALANCE.heartHeal, '#7fc97f', false); }
       } else if (pk.kind === 'item') {
@@ -418,4 +475,23 @@ function shake(n) { state.shake = Math.min(8, state.shake + n); }
 function updateFx(dt) {
   for (const f of state.fx) f.t -= dt;
   state.fx = state.fx.filter(f => f.t > 0);
+}
+
+// ---------------- Experiencia y niveles ----------------
+
+function gainXP(v) {
+  const p = state.player;
+  p.xp += v;
+  if (p.xp >= p.xpNext && !state.upgradeOpen) triggerLevelUp();
+}
+
+function triggerLevelUp() {
+  const p = state.player;
+  p.xp -= p.xpNext;
+  p.level++;
+  p.xpNext = Math.round(25 + (p.level - 1) * 18);
+  sfx('levelup');
+  bigToast('¡NIVEL ' + p.level + '!');
+  burst(p.x, p.y, '#ffd84f', 16);
+  showUpgradeChoice();
 }

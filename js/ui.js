@@ -36,7 +36,34 @@ function updateHUD() {
   $('hpfill').style.width = (100 * p.hp / p.stats.maxhp) + '%';
   $('hptext').textContent = Math.ceil(p.hp) + ' / ' + p.stats.maxhp;
   $('zonelabel').textContent = zone.name + (state.level.isBoss ? ' · JEFE' : ' · Piso ' + run.floorInZone);
+  $('xpfill').style.width = Math.min(100, 100 * p.xp / p.xpNext) + '%';
+  $('lvllabel').textContent = 'Nv. ' + p.level;
   $('coinlabel').textContent = '◉ ' + p.coins + ' monedas';
+}
+
+// Al subir de nivel: elegir 1 de 3 mejoras al azar (pausa el juego)
+function showUpgradeChoice() {
+  state.upgradeOpen = true;
+  const wrap = $('upgchoices');
+  wrap.innerHTML = '';
+  const pool = UPGRADES.slice();
+  for (let i = 0; i < 3 && pool.length; i++) {
+    const u = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+    const card = document.createElement('div');
+    card.className = 'classcard panel';
+    card.innerHTML = `<h3>${u.name}</h3><p>${u.desc}</p>`;
+    card.onclick = () => {
+      u.apply(state.player);
+      calcStats(state.player);
+      $('upgradescreen').classList.add('hidden');
+      state.upgradeOpen = false;
+      sfx('equip');
+      // si quedó XP acumulada para otro nivel, encadenar
+      if (state.player.xp >= state.player.xpNext) triggerLevelUp();
+    };
+    wrap.appendChild(card);
+  }
+  $('upgradescreen').classList.remove('hidden');
 }
 
 function toast(msg, color) {
@@ -284,6 +311,9 @@ const SFX = {
   stairs: () => { beep(330, 0.12, 'square', 0.05, -80); setTimeout(() => beep(247, 0.12, 'square', 0.05, -60), 110); },
   summon: () => beep(250, 0.2, 'sine', 0.05, 150),
   tackle: () => { beep(70, 0.3, 'sawtooth', 0.11, -30); setTimeout(() => beep(50, 0.2, 'square', 0.07, -20), 80); },
+  kick:   () => beep(140, 0.18, 'square', 0.09, -90),
+  xp:     () => beep(840 + Math.random() * 280, 0.06, 'sine', 0.03, 240),
+  levelup:() => { beep(440, 0.12, 'square', 0.06); setTimeout(() => beep(554, 0.12, 'square', 0.06), 100); setTimeout(() => beep(659, 0.22, 'square', 0.07, 120), 200); },
 };
 
 function sfx(name) { if (SFX[name]) SFX[name](); }

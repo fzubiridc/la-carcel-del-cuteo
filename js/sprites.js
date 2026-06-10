@@ -230,6 +230,30 @@ function buildSprites() {
     '....BB..BB..',
   ], { h:'#3a3a42', s:'#d8a878', k:'#ff4040', J:'#27418f', t:'#3fa84f', o:'#9a5c28', D:'#202830', B:'#1a1a1a' });
 
+  // Bucle sin la pelota (cuando la patea y va a buscarla)
+  Sprites.bucle_sinpelota = px([
+    '...hhhhhh...',
+    '..hhhhhhhh..',
+    '...ssssss...',
+    '...sk.ks....',
+    '...ssssss...',
+    '..JJJJJJJJ..',
+    '.sJJtJtJJJs.',
+    '.sJJtttJJJs.',
+    '..JJJtJJJJ..',
+    '....DD..DD..',
+    '....ss..ss..',
+    '....BB..BB..',
+  ], { h:'#3a3a42', s:'#d8a878', k:'#ff4040', J:'#27418f', t:'#3fa84f', D:'#202830', B:'#1a1a1a' });
+
+  // La pelota de rugby (proyectil girando y tirada en el piso)
+  Sprites.pelota = px([
+    '.ooo.',
+    'oWWWo',
+    'ooooo',
+    '.ooo.',
+  ], { o:'#9a5c28', W:'#e8e3d0' });
+
   Sprites.golem_anciano = px([
     '..GGGGGGGG..',
     '..GkkGGkkG..',
