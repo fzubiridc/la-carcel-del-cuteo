@@ -105,8 +105,10 @@ const BOSSES = {
   // Bucle: jugador de rugby maldito. Embestida (tackle) que te deja en el piso
   // (stunOnCharge), y su ataque a rango es patear SU pelota (kickball): donde
   // cae tiene que ir a buscarla, y mientras tanto recibe daño extra (punto débil).
+  // anims: usa el pack de sprite sheets "boss_rugby" (idle/run/tackle/kick/defeat)
   bucle: { name: 'Bucle', sprite: 'bucle', spriteNoBall: 'bucle_sinpelota',
-    hp: 380, dmg: 16, spd: 62, size: 16, scale: 2,
+    anims: 'bucle',
+    hp: 380, dmg: 16, spd: 62, size: 16, scale: 1.3,
     patterns: ['charge', 'chase', 'kickball', 'charge'],
     stunOnCharge: 1, arenaDecor: 'rugby', kicksBall: true },
   // projRange: alcance máximo de sus proyectiles en px (nada es infinito)

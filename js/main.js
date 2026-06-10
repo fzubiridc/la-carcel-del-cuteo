@@ -649,7 +649,9 @@ function render(dt) {
 
   // pelota de rugby tirada en el piso (Bucle va a buscarla)
   for (const e of state.enemies) {
-    if (e.ballPos) ctx.drawImage(Sprites.pelota, e.ballPos.x - 3.5, e.ballPos.y - 2, 7, 4);
+    if (!e.ballPos) continue;
+    if (Sprites.anim_pelota) ctx.drawImage(Sprites.anim_pelota[0], e.ballPos.x - 4, e.ballPos.y - 4, 8, 8);
+    else ctx.drawImage(Sprites.pelota, e.ballPos.x - 3.5, e.ballPos.y - 2, 7, 4);
   }
 
   // entidades ordenadas por Y (las de abajo tapan a las de arriba)
@@ -705,11 +707,17 @@ function render(dt) {
       }
       ctx.globalCompositeOperation = 'source-over';
     } else if (pr.style === 'rugbyball') {
-      // la pelota gira mientras vuela
+      // la pelota gira mientras vuela (4 frames del pack, 70 ms c/u)
       ctx.save();
       ctx.translate(pr.x, pr.y);
-      ctx.rotate(pr.t * 12);
-      ctx.drawImage(Sprites.pelota, -3.5, -2, 7, 4);
+      const bframes = Sprites.anim_pelota;
+      if (bframes) {
+        ctx.rotate(pr.ang);
+        ctx.drawImage(bframes[Math.floor(pr.t * 1000 / 70) % bframes.length], -4, -4, 8, 8);
+      } else {
+        ctx.rotate(pr.t * 12);
+        ctx.drawImage(Sprites.pelota, -3.5, -2, 7, 4);
+      }
       ctx.restore();
     } else {
       // los disparos enemigos se desvanecen al agotarse su alcance
@@ -739,6 +747,33 @@ function render(dt) {
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
+
+  // polvo del tackle: 4 frames, se reproduce una vez y muere (pivote en el piso)
+  for (const f of state.fx) {
+    if (f.type !== 'dust' || !Sprites.anim_dust) continue;
+    const fi = Math.min(3, Math.floor((state.time - f.start) * 1000 / 70));
+    ctx.drawImage(Sprites.anim_dust[fi], f.x - 4, f.y - 8, 8, 8);
+  }
+
+  // cadáver del jefe: animación de derrota que queda en el piso y se desvanece
+  for (const f of state.fx) {
+    if (f.type !== 'corpse') continue;
+    const frames = Sprites['anim_' + f.anims + (f.dir < 0 ? '_defeat_L' : '_defeat')];
+    if (!frames) continue;
+    const elapsed = (state.time - f.start) * 1000;
+    const fspr = frames[animFrame(BOSS_ANIMS.defeat, elapsed)];
+    const kc = fspr.ws || 1;
+    ctx.globalAlpha = Math.min(1, f.t / 0.8); // fade final
+    ctx.save();
+    ctx.translate(f.x, f.y + 6);
+    ctx.scale(f.scale * kc, f.scale * kc);
+    ctx.drawImage(fspr, -fspr.width / 2, -fspr.height);
+    ctx.restore();
+    // la pelota se le cae al lado (frame 1 del pack en adelante)
+    if (elapsed > 280 && Sprites.anim_pelota)
+      ctx.drawImage(Sprites.anim_pelota[0], f.x - f.dir * 14 - 4, f.y + 1, 8, 8);
+    ctx.globalAlpha = 1;
+  }
 
   // efectos: ondas expansivas y destellos
   ctx.globalCompositeOperation = 'lighter';
@@ -964,6 +999,36 @@ function drawEnemy(e) {
     ctx.globalCompositeOperation = 'source-over';
   }
   if (!e.def.ghost) drawShadow(e.x, e.y, e.w * e.scale * 0.45);
+
+  // jefes con pack de animaciones (sheets): elegir anim según su estado
+  if (e.def.anims && Sprites['anim_' + e.def.anims + '_idle']) {
+    e._moved = Math.hypot(e.x - (e._lx !== undefined ? e._lx : e.x), e.y - (e._ly !== undefined ? e._ly : e.y)) > 0.05;
+    e._lx = e.x; e._ly = e.y;
+    let name = 'idle';
+    if (e.kickStart && (state.time - e.kickStart) * 1000 < 670) name = 'kick';
+    else if (e.telegraphT > 0) name = 'tackle_charge'; // el toro escarba: ventana de esquive
+    else if (e.charging) name = 'tackle';
+    else if (e._moved) name = 'run';
+    if (e._animName !== name) { e._animName = name; e._animStart = state.time; }
+    const adef = BOSS_ANIMS[name];
+    const fi = animFrame(adef, (state.time - e._animStart) * 1000);
+    const frames = Sprites['anim_' + e.def.anims + (e.dir < 0 ? '_' + name + '_L' : '_' + name)];
+    let fspr = frames[fi];
+    if (e.flashT > 0) fspr = tintedSprite(fspr, '#ffffff', 0.8);
+    else if (e.enraged) fspr = tintedSprite(fspr, '#ff3030', 0.3);
+    const k2 = fspr.ws || 1;
+    const ox2 = (e.telegraphT > 0) ? (Math.random() - 0.5) * 2 : 0;
+    const sq2 = e.flashT > 0 ? 0.12 : 0;
+    ctx.save();
+    // pivote del pack: bottom-center — los pies tocan el piso bajo la sombra
+    ctx.translate(e.x + ox2, e.y + 6);
+    ctx.scale(e.scale * k2 * (1 + sq2), e.scale * k2 * (1 - sq2));
+    ctx.drawImage(fspr, -fspr.width / 2, -fspr.height);
+    ctx.restore();
+    drawEnemyExtras(e);
+    return;
+  }
+
   // un jefe que pateó su pelota se dibuja sin ella
   const base = (e.hasBall === false && e.def.spriteNoBall) ? e.def.spriteNoBall : e.def.sprite;
   let spr = Sprites[base + (e.dir < 0 ? '_L' : '')];
@@ -983,13 +1048,15 @@ function drawEnemy(e) {
   ctx.drawImage(spr, -spr.width / 2, -spr.height / 2);
   ctx.globalAlpha = 1;
   ctx.restore();
-  // el portador de la llave brilla dorado sobre la cabeza
+  drawEnemyExtras(e);
+}
+
+// Brillo del portador de llave + mini barra de vida (común a ambos caminos)
+function drawEnemyExtras(e) {
   if (e.keyCarrier && Math.floor(state.time * 4) % 2 === 0) {
     ctx.fillStyle = '#ffd84f';
     ctx.fillRect(e.x - 1, e.y - e.h * e.scale - 7, 2, 2);
   }
-
-  // mini barra de vida si está herido (no jefes: ellos tienen la grande)
   if (!e.isBoss && e.hp < e.maxhp) {
     const w = 12;
     ctx.fillStyle = '#000c';

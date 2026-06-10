@@ -55,9 +55,54 @@ const ASSETS = {
   wall_santuario: 'assets/wall_santuario.png',
 };
 
+// Sprite sheets animados (pack "Boss Rugby" de Claude Design, frames 40x54)
+const SHEET_ASSETS = {
+  anim_bucle_idle:   { src: 'assets/boss_rugby/boss_rugby_idle_sheet.png',   fw: 40, fh: 54 },
+  anim_bucle_run:    { src: 'assets/boss_rugby/boss_rugby_run_sheet.png',    fw: 40, fh: 54 },
+  anim_bucle_tackle: { src: 'assets/boss_rugby/boss_rugby_tackle_sheet.png', fw: 40, fh: 54 },
+  anim_bucle_tackle_charge: { src: 'assets/boss_rugby/boss_rugby_tackle_charge_sheet.png', fw: 40, fh: 54 },
+  anim_dust:         { src: 'assets/boss_rugby/tackle_dust_sheet.png',       fw: 16, fh: 16 },
+  anim_bucle_kick:   { src: 'assets/boss_rugby/boss_rugby_kick_sheet.png',   fw: 40, fh: 54 },
+  anim_bucle_defeat: { src: 'assets/boss_rugby/boss_rugby_defeat_sheet.png', fw: 40, fh: 54 },
+  anim_pelota:       { src: 'assets/boss_rugby/ball_spin_sheet.png',         fw: 16, fh: 16 },
+};
+
+// Timings del pack (ms por frame). loopFrom: el intro se reproduce una vez
+// y después se loopean los frames restantes (tackle: windup → carga).
+const BOSS_ANIMS = {
+  idle:   { times: [650, 650], loop: true },
+  run:    { times: [140, 140, 140, 140], loop: true },
+  tackle: { times: [180, 120, 120], loopFrom: 1 },
+  tackle_charge: { times: [110, 110, 110, 110], loop: true },
+  kick:   { times: [250, 120, 150, 150] },
+  defeat: { times: [280, 280, 280], hold: true },
+};
+
+// Devuelve el índice de frame para un tiempo transcurrido (ms)
+function animFrame(def, elapsed) {
+  const times = def.times;
+  const total = times.reduce((a, b) => a + b, 0);
+  let t;
+  if (def.loopFrom !== undefined) {
+    const intro = times.slice(0, def.loopFrom).reduce((a, b) => a + b, 0);
+    t = elapsed < intro ? elapsed : intro + ((elapsed - intro) % (total - intro));
+  } else if (def.loop) {
+    t = elapsed % total;
+  } else {
+    t = Math.min(elapsed, total - 1); // sin loop: queda en el último frame
+  }
+  let acc = 0;
+  for (let i = 0; i < times.length; i++) {
+    acc += times[i];
+    if (t < acc) return i;
+  }
+  return times.length - 1;
+}
+
 function loadAssets(done) {
   const keys = Object.keys(ASSETS);
-  let left = keys.length;
+  const sheetKeys = Object.keys(SHEET_ASSETS);
+  let left = keys.length + sheetKeys.length;
   const finish = () => { if (--left === 0 && done) done(); };
   for (const k of keys) {
     const img = new Image();
@@ -72,6 +117,27 @@ function loadAssets(done) {
     };
     img.onerror = finish;
     img.src = ASSETS[k];
+  }
+  // sheets: se cortan en frames individuales, con variante espejada
+  for (const k of sheetKeys) {
+    const def = SHEET_ASSETS[k];
+    const img = new Image();
+    img.onload = () => {
+      const n = Math.floor(img.width / def.fw);
+      const frames = [];
+      for (let i = 0; i < n; i++) {
+        const c = document.createElement('canvas');
+        c.width = def.fw; c.height = def.fh;
+        c.getContext('2d').drawImage(img, -i * def.fw, 0);
+        c.ws = 0.5;
+        frames.push(c);
+      }
+      Sprites[k] = frames;
+      Sprites[k + '_L'] = frames.map(flipH);
+      finish();
+    };
+    img.onerror = finish;
+    img.src = def.src;
   }
 }
 

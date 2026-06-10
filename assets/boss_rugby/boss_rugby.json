@@ -1,0 +1,113 @@
+{
+  "name": "boss_rugby",
+  "description": "Final boss rugby player, 3/4 top-down (Zelda-like), south-facing. Blue jersey with a shamrock over the heart, rugby ball under the left arm. Original pixel art. Engine mirrors horizontally as needed.",
+  "view": "3/4 top-down, facing south (toward camera)",
+  "format": "RGBA8888",
+  "scaling": "nearest-neighbor only (Point filter / image-rendering: pixelated)",
+  "boss": {
+    "frameWidth": 40,
+    "frameHeight": 54,
+    "pivot": { "x": 0.5, "y": 1.0, "note": "bottom-center, ground line at y=54" },
+    "hitbox": { "x": 12, "y": 17, "w": 18, "h": 37, "note": "body only; excludes ball and extended limbs" },
+    "animations": {
+      "idle": {
+        "sheet": "boss_rugby_idle_sheet.png",
+        "frames": 2, "frameDurationMs": 650, "loop": true,
+        "note": "Breathing. Feet planted, upper body rises 1px."
+      },
+      "run": {
+        "sheet": "boss_rugby_run_sheet.png",
+        "frames": 4, "frameDurationMs": 140, "loop": true,
+        "sequence": [0, 1, 2, 3],
+        "note": "0 = left knee up, 1 = pass, 2 = right knee up, 3 = pass. Ball stays clamped under the left arm."
+      },
+      "tackle_charge": {
+        "sheet": "boss_rugby_tackle_charge_sheet.png",
+        "frames": 4, "frameDurationMs": 110, "loop": true,
+        "sequence": [0, 1, 2, 3],
+        "note": "Charge-up telegraph BEFORE the tackle dash. Deep crouch, head sunk, frown; right boot paws the ground like a bull (scrape + dust), body trembles 1px, snort puffs alternate sides. Loop ~0.8-1.2s while aiming, then play tackle. No hitbox during this phase."
+      },
+      "tackle": {
+        "sheet": "boss_rugby_tackle_sheet.png",
+        "frames": 3, "loop": "frames 1-2 only",
+        "sequence": [0, 1, 2, 1, 2, "..."],
+        "timing": { "0": 180, "1": 120, "2": 120 },
+        "note": "0 = windup crouch (play once), then loop 1-2 while charging. Head down, open hand reaching. Use as the charge attack; deal contact damage. Telegraph first with tackle_charge."
+      },
+      "kick": {
+        "sheet": "boss_rugby_kick_sheet.png",
+        "frames": 4, "loop": false,
+        "timing": { "0": 250, "1": 120, "2": 150, "3": 150 },
+        "events": {
+          "spawnProjectile": {
+            "frame": 2,
+            "at": { "x": 22, "y": 42 },
+            "note": "Spawn ball_spin projectile at start of frame 2 (sole contact), frame px from top-left. Fires toward the player; engine sets direction."
+          }
+        },
+        "note": "0 = holds ball in front, 1 = ball drop + knee cocked, 2 = CONTACT (sole toward camera), 3 = follow-through. Return to idle after."
+      },
+      "defeat": {
+        "sheet": "boss_rugby_defeat_sheet.png",
+        "frames": 3, "loop": false, "frameDurationMs": 280, "holdLastFrame": true,
+        "events": {
+          "dropBall": {
+            "frame": 1,
+            "at": { "x": 8, "y": 46 },
+            "note": "The boss no longer holds the ball in any defeat frame. Optionally spawn a ball entity (ball_spin frame 0) here and let it roll away."
+          }
+        },
+        "note": "0 = slump (eyes closed), 1 = falls to knees, 2 = collapsed. No loop, hold frame 2."
+      }
+    }
+  },
+  "effects": {
+    "tackle_dust": {
+      "sheet": "tackle_dust_sheet.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "frames": 4,
+      "frameDurationMs": 70,
+      "loop": false,
+      "pivot": { "x": 0.5, "y": 1.0, "note": "bottom-center, same ground line as the boss" },
+      "spawn": {
+        "during": "tackle frames 1-2 (dash loop)",
+        "everyMs": 70,
+        "offset": "4-8 px behind the boss pivot, opposite the travel direction"
+      },
+      "note": "Dust trail for the tackle dash. Play once and destroy: puff -> billow -> break into clumps -> fade. No outline (soft effect), no hitbox. Purely cosmetic."
+    }
+  },
+  "projectile": {
+    "name": "ball_spin",
+    "sheet": "ball_spin_sheet.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 4,
+    "frameDurationMs": 70,
+    "loop": true,
+    "pivot": { "x": 0.5, "y": 0.5 },
+    "hitbox": { "x": 2, "y": 4, "w": 12, "h": 8 },
+    "note": "End-over-end tumbling rugby ball, 45deg per frame (4 frames = half turn; the oval is symmetric so it loops seamlessly). Horizontal projectile; rotate/mirror per travel direction in-engine."
+  },
+  "palette": {
+    "outline":      "#16110d",
+    "skin":         "#d79a63",
+    "skinShadow":   "#a86f3c",
+    "skinLight":    "#eebd88",
+    "hair":         "#2a2017",
+    "jerseyBlue":   "#2f6fb8",
+    "jerseyShadow": "#1f4d86",
+    "jerseyLight":  "#5d9ce2",
+    "cloverGreen":  "#43b35d",
+    "cloverShadow": "#2c7d40",
+    "shortsWhite":  "#eef1f4",
+    "shortsShadow": "#bcc3cd",
+    "sockNavy":     "#1f2a44",
+    "sockStripe":   "#dfe3ea",
+    "boot":         "#14110d",
+    "ballBrown":    "#8a5230",
+    "ballShadow":   "#5f3620",
+    "ballLace":     "#efe6d2"
+  }
+}

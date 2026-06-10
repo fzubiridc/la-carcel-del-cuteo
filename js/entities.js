@@ -176,6 +176,14 @@ function updateBoss(e, dt, dist, dx, dy) {
     if (e.charging) {
       const ox = e.x, oy = e.y;
       moveWithCollision(lvl, e, e.chargeVX * dt, e.chargeVY * dt, false);
+      // estela de polvo cada ~70 ms, detrás de la dirección de carga
+      e.dustT = (e.dustT || 0) - dt;
+      if (e.dustT <= 0) {
+        e.dustT = 0.07;
+        const dn = Math.hypot(e.chargeVX, e.chargeVY) || 1;
+        state.fx.push({ type: 'dust', x: e.x - (e.chargeVX / dn) * 6, y: e.y + 6,
+          start: state.time, t: 0.28, t0: 0.28 });
+      }
       if (Math.abs(e.x - ox) < 0.1 && Math.abs(e.y - oy) < 0.1) { // chocó con pared
         e.charging = false; shake(5);
         if (e.enraged && !e.chained) {
@@ -188,7 +196,8 @@ function updateBoss(e, dt, dist, dx, dy) {
   } else if (pat === 'kickball') {
     // patea SU pelota hacia el jugador; donde caiga, irá a buscarla
     if (e.subT === 0) {
-      e.subT = 0.5; // toma carrera
+      e.subT = 0.37; // windup: la pelota sale al inicio del frame 2 (250+120 ms)
+      e.kickStart = state.time;
     } else {
       e.subT -= dt;
       if (e.subT <= 0 && e.hasBall) {
@@ -430,6 +439,11 @@ function damageEnemy(e, dmg, crit, kx, ky) {
 
 function killEnemy(e) {
   state.run.kills++;
+  // jefes con pack de anims: dejan su animación de derrota en el piso
+  if (e.isBoss && e.def.anims) {
+    state.fx.push({ type: 'corpse', anims: e.def.anims, x: e.x, y: e.y,
+      dir: e.dir, scale: e.scale, t: 4.5, t0: 4.5, start: state.time });
+  }
   burst(e.x, e.y, e.isBoss ? '#ffd84f' : '#c44', e.isBoss ? 30 : 8);
   sfx(e.isBoss ? 'bossdie' : 'die');
   dropLoot(e);
