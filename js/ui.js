@@ -460,7 +460,35 @@ function initAudio() {
   if (!AC) {
     try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { }
     startAmbient();
+    startMusic();
   }
+}
+
+// ---------------- Música ambiental (assets/music.mp3, opcional) ----------------
+// Si el archivo existe, suena en loop y el drone sintetizado se apaga.
+// Si no existe (p. ej. en el build publicado), queda el ambiente por código.
+
+let music = null, musicOk = false, musicMuted = false;
+
+function startMusic() {
+  if (music) return;
+  music = new Audio('assets/music.mp3');
+  music.loop = true;
+  music.volume = 0.22;
+  music.addEventListener('canplay', () => { musicOk = true; });
+  music.onerror = () => { musicOk = false; };
+  music.play().catch(() => { /* autoplay bloqueado: reintenta en el próximo gesto */ });
+}
+
+function musicActive() {
+  return musicOk && music && !music.paused && !musicMuted;
+}
+
+function toggleMusic() {
+  if (!musicOk) { toast('No hay música cargada (assets/music.mp3)', '#8a8496'); return; }
+  musicMuted = !musicMuted;
+  music.muted = musicMuted;
+  toast(musicMuted ? 'Música silenciada' : 'Música activada', '#8a8496');
 }
 
 // ---------------- Ambiente procedural (drone + notas sueltas) ----------------
@@ -477,10 +505,11 @@ function startAmbient() {
     o.type = 'sine'; o.frequency.value = f;
     o.connect(_droneGain); o.start();
   }
-  // el drone respira: más presente jugando, casi nada en menús
+  // el drone respira: más presente jugando, casi nada en menús,
+  // y se apaga del todo si hay música de archivo sonando
   setInterval(() => {
     if (!AC) return;
-    const target = state.mode === 'play' ? 0.014 : 0.005;
+    const target = musicActive() ? 0.0001 : (state.mode === 'play' ? 0.014 : 0.005);
     _droneGain.gain.linearRampToValueAtTime(target, AC.currentTime + 1.5);
   }, 1000);
   scheduleAmbientNote();
@@ -488,7 +517,7 @@ function startAmbient() {
 
 function scheduleAmbientNote() {
   setTimeout(() => {
-    if (AC && state.mode === 'play' && !state.paused) {
+    if (AC && state.mode === 'play' && !state.paused && !musicActive()) {
       // nota suelta de la escala menor, muy suave, ataque y caída lentos
       const notes = [110, 123.5, 130.8, 146.8, 164.8, 196];
       const o = AC.createOscillator(), g = AC.createGain();

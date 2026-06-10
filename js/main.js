@@ -58,6 +58,9 @@ function bindInput() {
     if (k === 'e') tryInteract();
     if (k === ' ') { e.preventDefault(); tryDash(); }
     if (k === 'q') drinkPotion();
+    if (k === 'm') toggleMusic();
+    // autoplay: si la música quedó bloqueada, este gesto la destraba
+    if (music && music.paused && musicOk && !musicMuted) music.play().catch(() => { });
   });
   window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
   window.addEventListener('blur', () => { keys.clear(); mouse.down = false; });
