@@ -25,6 +25,7 @@ const touch = { enabled: false, stickId: null, baseX: 0, baseY: 0, vx: 0, vy: 0,
 
 window.addEventListener('load', () => {
   buildSprites();
+  if (typeof buildHero === 'function') buildHero();
   loadAssets(); // los CC0 de 32px reemplazan en caliente; hay fallback por código
   canvas = $('game'); ctx = canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
@@ -920,16 +921,29 @@ function drawPlayer(p) {
   }
   // parpadeo durante invulnerabilidad
   if (p.ifr > 0 && Math.floor(state.time * 14) % 2 === 0) return;
-  // caminata: rebote e inclinación; en reposo, respiración sutil
-  const spr = playerSprite(p);
-  const bob = p.moving ? -Math.abs(Math.sin(state.time * 10)) * 1.5 : Math.sin(state.time * 2.2) * 0.5;
-  const tilt = p.moving ? Math.sin(state.time * 10) * 0.07 : 0;
-  ctx.save();
-  ctx.translate(p.x, p.y - 3 + bob);
-  ctx.rotate(tilt);
-  ctx.drawImage(spr, -spr.width / 2, -spr.height / 2);
-  ctx.restore();
-  drawHeldWeapon(p);
+  if (Sprites.hero_idle) {
+    // héroe animado 48px (pack de Claude Design): idle / run
+    const name = p.moving ? 'run' : 'idle';
+    if (p._heroAnim !== name) { p._heroAnim = name; p._heroStart = state.time; }
+    const frames = Sprites['hero_' + name + (p.dir < 0 ? '_L' : '')];
+    const fi = animFrame(HERO_ANIMS[name], (state.time - p._heroStart) * 1000);
+    const spr = frames[fi];
+    const ws = spr.ws || 1, w = spr.width * ws, h = spr.height * ws;
+    const bob = p.moving ? 0 : Math.sin(state.time * 2.2) * 0.6; // respiración en reposo
+    ctx.drawImage(spr, p.x - w / 2, p.y + 5 - h + bob, w, h);
+    drawHeldWeapon(p);
+  } else {
+    // fallback al sprite por código
+    const spr = playerSprite(p);
+    const bob = p.moving ? -Math.abs(Math.sin(state.time * 10)) * 1.5 : Math.sin(state.time * 2.2) * 0.5;
+    const tilt = p.moving ? Math.sin(state.time * 10) * 0.07 : 0;
+    ctx.save();
+    ctx.translate(p.x, p.y - 3 + bob);
+    ctx.rotate(tilt);
+    ctx.drawImage(spr, -spr.width / 2, -spr.height / 2);
+    ctx.restore();
+    drawHeldWeapon(p);
+  }
 
   // tajo de la espada: barrido animado con estela que se desvanece
   if (p.swingT > 0) {
