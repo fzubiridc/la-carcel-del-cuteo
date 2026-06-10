@@ -26,11 +26,23 @@ const CLASSES = {
 
 // ---------- Armas: el estilo de ataque lo define el arma equipada ----------
 // baseRot: corrección para que el icono apunte hacia donde mira el jugador al dibujarlo en mano
+// cls: cada arma solo puede ser usada por su clase
 const WEAPON_TYPES = {
-  espada: { name: 'Espada', dmg: 14, cd: 0.42, style: 'melee', range: 30, icon: 'espada', baseRot: Math.PI / 4 },
-  arco:   { name: 'Arco',   dmg: 10, cd: 0.50, style: 'arrow', projSpd: 300, icon: 'arco', baseRot: 0 },
-  baston: { name: 'Bastón', dmg: 15, cd: 0.70, style: 'bolt',  projSpd: 190, splash: 24, icon: 'baston', baseRot: Math.PI / 2 },
+  espada: { name: 'Espada', cls: 'guerrero', dmg: 14, cd: 0.42, style: 'melee', range: 30, icon: 'espada', baseRot: Math.PI / 4 },
+  arco:   { name: 'Arco',   cls: 'arquero',  dmg: 10, cd: 0.50, style: 'arrow', projSpd: 300, icon: 'arco', baseRot: 0 },
+  baston: { name: 'Bastón', cls: 'mago',     dmg: 15, cd: 0.70, style: 'bolt',  projSpd: 190, splash: 24, icon: 'baston', baseRot: Math.PI / 2 },
 };
+
+// Materiales: escalera ordenada de calidad. El material define el stat base
+// del ítem; la profundidad empuja qué materiales aparecen.
+const MATERIALS = [
+  { id: 'madera',    name: 'Madera',    mult: 0.8 },
+  { id: 'hierro',    name: 'Hierro',    mult: 1.0 },
+  { id: 'acero',     name: 'Acero',     mult: 1.3 },
+  { id: 'plata',     name: 'Plata',     mult: 1.6 },
+  { id: 'mitrilo',   name: 'Mitrilo',   mult: 2.0 },
+  { id: 'adamantio', name: 'Adamantio', mult: 2.5 },
+];
 
 // ---------- Rarezas ----------
 const RARITIES = [
@@ -56,8 +68,8 @@ const ARMOR_BASES = {
   casco:  [ { name: 'Capucha', def: 1 }, { name: 'Yelmo', def: 2 } ],
   coraza: [ { name: 'Túnica', def: 2 }, { name: 'Coraza', def: 3 } ],
   botas:  [ { name: 'Botas', def: 1, spd: 5 } ],
-  anillo: [ { name: 'Anillo', def: 0 } ],
-  amuleto:[ { name: 'Amuleto', def: 0 } ],
+  anillo: [ { name: 'Anillo', def: 0, dmg: 2 } ],   // los anillos dan daño base según material
+  amuleto:[ { name: 'Amuleto', def: 0, hp: 8 } ],   // los amuletos dan vida base según material
 };
 
 // Sufijos: cada mod posible da nombre al ítem ("Yelmo del Oso")
@@ -87,8 +99,9 @@ const ENEMIES = {
 // Jefes: patterns rotan en ciclo. 'chase' embiste, 'burst' anillo de proyectiles,
 // 'spread' ráfagas apuntadas, 'charge' carga telegrafiada, 'summon' invoca esbirros.
 const BOSSES = {
-  rey_esqueleto: { name: 'Rey Esqueleto', sprite: 'rey_esqueleto', hp: 380, dmg: 16, spd: 55,
-    size: 16, scale: 2, patterns: ['chase', 'burst', 'spread'], projSpd: 140 },
+  // Bucle: jugador de rugby maldito. Su especialidad es la embestida (tackle).
+  bucle: { name: 'Bucle', sprite: 'bucle', hp: 380, dmg: 16, spd: 62,
+    size: 16, scale: 2, patterns: ['charge', 'chase', 'charge', 'spread'], projSpd: 150 },
   golem_anciano: { name: 'Gólem Anciano', sprite: 'golem_anciano', hp: 550, dmg: 24, spd: 32,
     size: 18, scale: 2, patterns: ['chase', 'charge', 'burst'], projSpd: 110 },
   liche:         { name: 'El Liche',      sprite: 'liche',         hp: 650, dmg: 20, spd: 60,
@@ -101,7 +114,7 @@ const ZONES = [
     id: 'catacumbas', name: 'Catacumbas', floors: 2,
     palette: { floor: '#26292f', floorAlt: '#222529', wall: '#474e58', wallDark: '#343a42', accent: '#5a7d54' },
     enemies: ['rata', 'esqueleto', 'arquero_esq'],
-    boss: 'rey_esqueleto', density: 1.0,
+    boss: 'bucle', density: 1.0,
   },
   {
     id: 'cavernas', name: 'Cavernas Hondas', floors: 2,

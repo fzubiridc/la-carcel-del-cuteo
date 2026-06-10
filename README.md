@@ -9,8 +9,8 @@ Action roguelike 2D de fantasía medieval: dungeon crawler con mazmorras procedu
 - **Género:** dungeon crawler roguelike, combate en tiempo real (estilo Binding of Isaac / Hades 2D).
 - **Ambientación:** fantasía medieval (catacumbas, cavernas, santuario profano).
 - **Stack:** HTML5 Canvas + JavaScript vanilla, sin dependencias. Pixel art generado por código.
-- **Clases:** Guerrero (melee), Arquero (a distancia), Mago (proyectiles mágicos con área).
-- **Equipamiento:** 6 slots — arma, casco/capucha, coraza, botas, anillo, amuleto. Rarezas (común/mágico/raro/épico) con stats aleatorios que escalan con la profundidad.
+- **Clases:** Guerrero (melee), Arquero (a distancia), Mago (proyectiles mágicos con área). Cada arma es exclusiva de su clase.
+- **Equipamiento:** 6 slots — arma, casco/capucha, coraza, botas, anillo, amuleto. El **material** define el stat base (Madera → Hierro → Acero → Plata → Mitrilo → Adamantio, escala con la profundidad) y la **rareza** (común/mágico/raro/épico) cuántos mods extra trae. El equipo se ve sobre el personaje, teñido por rareza, y el inventario replica el cuerpo (paper-doll).
 - **Loot:** ítems tirados en el piso, en cofres y soltados por criaturas al morir.
 - **Generación procedural:** cada run genera mazmorras nuevas.
 - **Arquitectura data-driven y expandible** (`js/data.js`):

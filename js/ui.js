@@ -90,14 +90,16 @@ function renderInv() {
   const body = document.createElement('div');
   body.id = 'invbody';
 
-  // Equipo
+  // Equipo: los slots replican el cuerpo (casco arriba, anillo/arma en las manos...)
   const eq = document.createElement('div');
   eq.innerHTML = '<div style="font-size:11px;color:#8a8496;margin-bottom:6px">EQUIPADO</div>';
   const eqGrid = document.createElement('div');
   eqGrid.className = 'slotgrid';
   for (const slot of SLOTS) {
     const it = p.equip[slot];
-    eqGrid.appendChild(slotDiv(it, SLOT_LABELS[slot], () => unequipItem(slot)));
+    const d = slotDiv(it, SLOT_LABELS[slot], () => unequipItem(slot));
+    d.style.gridArea = slot;
+    eqGrid.appendChild(d);
   }
   eq.appendChild(eqGrid);
 
@@ -135,6 +137,14 @@ function equipItem(bagIdx) {
   const p = state.player;
   const it = p.bag[bagIdx];
   if (!it) return;
+  // las armas son exclusivas de su clase
+  if (it.slot === 'arma') {
+    const wcls = WEAPON_TYPES[it.weaponType].cls;
+    if (wcls !== p.cls) {
+      toast('Solo ' + CLASSES[wcls].name + ' puede usar: ' + WEAPON_TYPES[it.weaponType].name, '#ff6b6b');
+      return;
+    }
+  }
   p.bag.splice(bagIdx, 1);
   const prev = p.equip[it.slot];
   p.equip[it.slot] = it;
@@ -181,10 +191,31 @@ function showTooltip(item, ev) {
   const tt = $('tooltip');
   const r = rarityOf(item);
   let html = `<div class="iname" style="color:${r.color}">${item.name}</div>
-    <div style="color:${r.color};font-size:10px">${r.name} · ${SLOT_LABELS[item.slot]}</div>
-    ${modLines(item)}`;
+    <div style="color:${r.color};font-size:10px">${r.name} · ${SLOT_LABELS[item.slot]}</div>`;
+
+  // material con su posición en la escalera de calidad
+  if (item.material) {
+    const mi = MATERIALS.findIndex(m => m.id === item.material);
+    html += `<div style="font-size:10px;color:#8a8496">Material: ${item.matName} (${mi + 1}/${MATERIALS.length})</div>`;
+  }
+  // restricción de clase de las armas
+  if (item.slot === 'arma') {
+    const wcls = WEAPON_TYPES[item.weaponType].cls;
+    const ok = wcls === state.player.cls;
+    html += `<div style="font-size:10px;color:${ok ? '#8a8496' : '#ff6b6b'}">Clase: ${CLASSES[wcls].name}${ok ? '' : ' — no podés usarla'}</div>`;
+  }
+  html += modLines(item);
+
   const eq = state.player.equip[item.slot];
   if (eq && eq.id !== item.id) {
+    // veredicto rápido: ¿mejor o peor que lo puesto?
+    const d = itemScore(item) - itemScore(eq);
+    const verdict = d > 0
+      ? '<span style="color:#7fc97f">▲ Mejor que lo equipado</span>'
+      : d < 0
+        ? '<span style="color:#ff6b6b">▼ Peor que lo equipado</span>'
+        : '<span style="color:#9aa0a6">= Similar a lo equipado</span>';
+    html += `<div style="margin-top:4px;font-size:12px">${verdict}</div>`;
     html += `<div class="cmp">Equipado: ${eq.name}${modLines(eq)}</div>`;
   }
   tt.innerHTML = html;

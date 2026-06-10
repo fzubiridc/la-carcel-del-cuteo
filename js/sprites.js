@@ -213,20 +213,21 @@ function buildSprites() {
   ], { A:'#566070', k:'#ff5050' });
 
   // ----- Jefes -----
-  Sprites.rey_esqueleto = px([
-    '..y.y..y.y..',
-    '..yyyyyyyy..',
-    '..wwwwwwww..',
-    '..wkwwwwkw..',
-    '..wwwwwwww..',
-    '...wwddww...',
-    '..wwwwwwww..',
-    '.w.wwwwww.w.',
-    '.w..wwww..w.',
-    '....wwww....',
-    '...ww..ww...',
-    '...ww..ww...',
-  ], { y:'#ffd84f', w:bone, k:'#ff4040', d:'#8d8a7c' });
+  // Bucle: jugador de rugby maldito — casco scrum, franjas celestes, pelota bajo el brazo
+  Sprites.bucle = px([
+    '...hhhhhh...',
+    '..hhhhhhhh..',
+    '...ssssss...',
+    '...sk.ks....',
+    '...ssssss...',
+    '..CCCCCCCC..',
+    '.sWWWWWWWWs.',
+    '.sCCCCCCCCs.',
+    '.oWWWWWWWW..',
+    'ooo.DD..DD..',
+    '.o..ss..ss..',
+    '....BB..BB..',
+  ], { h:'#3a3a42', s:'#d8a878', k:'#ff4040', C:'#5ab4d8', W:'#e8e8e8', o:'#9a5c28', D:'#202830', B:'#1a1a1a' });
 
   Sprites.golem_anciano = px([
     '..GGGGGGGG..',

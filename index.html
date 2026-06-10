@@ -73,7 +73,14 @@
     padding:18px 22px; z-index:20; min-width:560px; }
   #inv h2{ color:#ffd84f; letter-spacing:2px; font-size:18px; margin-bottom:10px; }
   #invbody{ display:flex; gap:24px; }
-  .slotgrid{ display:grid; grid-template-columns:repeat(3, 54px); gap:8px; }
+  /* Los slots de equipo replican el cuerpo: casco arriba, amuleto en el
+     cuello, arma y anillo a la altura de las manos, botas abajo */
+  .slotgrid{ display:grid; grid-template-columns:repeat(3, 54px); gap:8px;
+    grid-template-areas:
+      ".     casco   ."
+      ".     amuleto ."
+      "arma  coraza  anillo"
+      ".     botas   ."; }
   #baggrid{ display:grid; grid-template-columns:repeat(4, 54px); gap:8px; }
   .slot{ width:54px; height:54px; background:#0e0c13; border:2px solid var(--borde);
     border-radius:6px; display:flex; align-items:center; justify-content:center;

@@ -20,22 +20,34 @@ function rollRarity(depth) {
 
 function depthMult(depth) { return 1 + (depth - 1) * BALANCE.depthModScale; }
 
+// El material sube con la profundidad, con algo de azar (±1 escalón)
+function rollMaterial(depth) {
+  const center = Math.min(MATERIALS.length - 1, (depth - 1) / 1.6);
+  const idx = Math.max(0, Math.min(MATERIALS.length - 1, Math.round(center + (Math.random() * 2 - 1))));
+  return MATERIALS[idx];
+}
+
 // Genera un ítem aleatorio. slot opcional para forzar tipo.
+// Material → stat base · Rareza → cantidad de mods extra · Profundidad → valor de los mods
 function makeItem(depth, slot) {
   slot = slot || pick(['arma', 'arma', 'casco', 'coraza', 'botas', 'anillo', 'amuleto']);
   const rarity = rollRarity(depth);
-  const item = { id: ++_itemSeq, slot, rarity: rarity.id, mods: {}, def: 0 };
+  const mat = rollMaterial(depth);
+  const item = { id: ++_itemSeq, slot, rarity: rarity.id, material: mat.id, matName: mat.name, mods: {}, def: 0 };
 
   if (slot === 'arma') {
-    item.weaponType = pick(Object.keys(WEAPON_TYPES));
+    // las armas que aparecen son siempre de tu clase (las demás no podrías usarlas)
+    item.weaponType = state.player ? CLASSES[state.player.cls].weapon : pick(Object.keys(WEAPON_TYPES));
     const wt = WEAPON_TYPES[item.weaponType];
-    item.dmg = Math.round(wt.dmg * rarity.mult * depthMult(depth));
+    item.dmg = Math.round(wt.dmg * mat.mult * rarity.mult);
     item.baseName = wt.name;
   } else {
     const base = pick(ARMOR_BASES[slot]);
     item.baseName = base.name;
-    item.def = Math.round((base.def || 0) * rarity.mult * depthMult(depth));
+    item.def = Math.round((base.def || 0) * mat.mult * rarity.mult);
     if (base.spd) item.mods.spd = base.spd;
+    if (base.dmg) item.mods.dmg = Math.max(1, Math.round(base.dmg * mat.mult * rarity.mult));
+    if (base.hp) item.mods.hp = Math.round(base.hp * mat.mult * rarity.mult);
   }
 
   // Mods aleatorios distintos según rareza
@@ -48,18 +60,29 @@ function makeItem(depth, slot) {
     if (!suffix) suffix = m.suffix;
   }
 
-  item.name = item.baseName + (suffix ? ' ' + suffix : '');
+  item.name = item.baseName + ' de ' + mat.name + (suffix ? ' ' + suffix : '');
   return item;
 }
 
-// Arma inicial de clase: común, sin mods
+// Arma inicial de clase: de madera, común, sin mods
 function makeStarterWeapon(weaponType) {
   const wt = WEAPON_TYPES[weaponType];
+  const mat = MATERIALS[0];
   return {
-    id: ++_itemSeq, slot: 'arma', rarity: 'comun', mods: {}, def: 0,
-    weaponType, dmg: wt.dmg, baseName: wt.name,
-    name: wt.name + ' gastada',
+    id: ++_itemSeq, slot: 'arma', rarity: 'comun', material: mat.id, matName: mat.name,
+    mods: {}, def: 0,
+    weaponType, dmg: Math.round(wt.dmg * mat.mult), baseName: wt.name,
+    name: wt.name + ' de ' + mat.name,
   };
+}
+
+// Puntaje heurístico para comparar dos ítems del mismo slot (flecha ▲/▼ del tooltip)
+function itemScore(it) {
+  let s = (it.dmg || 0) * 2 + (it.def || 0) * 2;
+  const m = it.mods || {};
+  s += (m.dmg || 0) * 2 + (m.def || 0) * 2 + (m.hp || 0) * 0.4
+     + (m.spd || 0) * 0.8 + (m.crit || 0) + (m.atkspd || 0) * 0.6;
+  return s;
 }
 
 function rarityOf(item) { return RARITIES.find(r => r.id === item.rarity); }
