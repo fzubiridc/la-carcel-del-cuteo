@@ -304,7 +304,42 @@ function renderShop() {
   row.appendChild(heal);
 
   shop.appendChild(row);
-  shop.insertAdjacentHTML('beforeend', '<div class="invhint">clic: comprar · E o Esc: cerrar</div>');
+
+  // sección de venta: tu mochila, con lo que paga el mercader
+  if (p.bag.length) {
+    shop.insertAdjacentHTML('beforeend',
+      `<div style="font-size:11px;color:#8a8496;margin:12px 0 6px">VENDER (tu mochila)</div>`);
+    const sellRow = document.createElement('div');
+    sellRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;max-width:560px';
+    p.bag.forEach((it, idx) => {
+      const d = document.createElement('div');
+      d.className = 'slot r-' + it.rarity;
+      d.style.position = 'relative';
+      d.appendChild(iconCanvasFor(it));
+      d.insertAdjacentHTML('beforeend',
+        `<div class="sellprice">◉${sellPrice(it)}</div>`);
+      d.onmouseenter = ev => showTooltip(it, ev);
+      d.onmousemove = ev => moveTooltip(ev);
+      d.onmouseleave = hideTooltip;
+      d.onclick = () => sellItem(idx);
+      sellRow.appendChild(d);
+    });
+    shop.appendChild(sellRow);
+  }
+
+  shop.insertAdjacentHTML('beforeend', '<div class="invhint">clic arriba: comprar · clic abajo: vender · E o Esc: cerrar</div>');
+}
+
+function sellItem(bagIdx) {
+  const p = state.player;
+  const it = p.bag[bagIdx];
+  if (!it) return;
+  p.bag.splice(bagIdx, 1);
+  p.coins += sellPrice(it);
+  toast('Vendiste ' + it.name + ' por ◉ ' + sellPrice(it), '#ffd84f');
+  sfx('coin');
+  hideTooltip();
+  renderShop();
 }
 
 function buyItem(it) {

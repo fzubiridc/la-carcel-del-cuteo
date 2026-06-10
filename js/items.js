@@ -90,6 +90,11 @@ function makeItemMinRare(depth) {
   return it;
 }
 
+// Lo que paga el mercader por tus ítems (menos de lo que cobra, claro)
+function sellPrice(it) {
+  return Math.max(2, Math.round(itemScore(it) * 0.45));
+}
+
 // Stock del mercader: 3 ítems según profundidad + curación
 function makeShopStock(depth) {
   const items = [];
