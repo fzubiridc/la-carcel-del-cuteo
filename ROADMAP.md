@@ -28,9 +28,9 @@ Plan de trabajo autónomo. Reglas para el agente:
 - [x] 6. **Salas especiales**: sala del tesoro cerrada con llave (la llave la
   tiene un enemigo aleatorio del piso) y altar de sacrificio (pagás 25% de
   vida máx., recibís un ítem raro+).
-- [ ] 7. **Meta-progresión**: récords en localStorage (mejor profundidad por
+- [x] 7. **Meta-progresión**: récords en localStorage (mejor profundidad por
   clase, kills totales) mostrados en el menú.
-- [ ] 8. **Polish de audio**: sonido de pasos sutil, música ambiente procedural
+- [x] 8. **Polish de audio**: sonido de pasos sutil, música ambiente procedural
   muy simple (drone + notas aleatorias de escala menor, volumen bajo).
 - [ ] 9. **Controles táctiles**: joystick virtual izquierdo + botón de ataque
   derecho, solo si se detecta touch. Para jugar en iPhone.
@@ -60,3 +60,9 @@ Plan de trabajo autónomo. Reglas para el agente:
   loop de juego). 55% de pisos: cofre dorado (2 ítems, uno raro+) cuya llave
   la porta un enemigo (brilla dorado). 45%: altar — 25% de vida por ítem
   raro+. Verificada la cadena completa llave→cofre y el altar (-33 HP).
+- **7. Récords** ✔ — localStorage `cripta_records`: runs, kills, victorias
+  globales + mejor piso y victorias por clase (en la card del menú, con 🏆).
+  Verificado con 2 runs simuladas; datos de prueba limpiados después.
+- **8. Audio** ✔ — Drone grave (55 Hz ×2 desafinados) que respira según el
+  modo, notas sueltas de escala menor cada 3-7 s muy suaves, y pasos sutiles
+  cada 0.28 s al caminar.
