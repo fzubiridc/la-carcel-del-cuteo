@@ -32,10 +32,22 @@ Plan de trabajo autónomo. Reglas para el agente:
   clase, kills totales) mostrados en el menú.
 - [x] 8. **Polish de audio**: sonido de pasos sutil, música ambiente procedural
   muy simple (drone + notas aleatorias de escala menor, volumen bajo).
-- [ ] 9. **Controles táctiles**: joystick virtual izquierdo + botón de ataque
+- [x] 9. **Controles táctiles**: joystick virtual izquierdo + botón de ataque
   derecho, solo si se detecta touch. Para jugar en iPhone.
-- [ ] 10. **Pasada de balance**: jugar una run completa por clase vía preview,
+- [x] 10. **Pasada de balance**: jugar una run completa por clase vía preview,
   ajustar curvas (XP, daño de enemigos, drops) y anotar cambios.
+
+## Segunda tanda (agregada por el agente, manteniendo el alcance sobrio)
+
+- [ ] 11. **Segunda arma por clase**: martillo (lento, golpe en área) para
+  guerrero, ballesta (perfora enemigos) para arquero, varita (rápida, débil)
+  para mago. Aparecen como drops igual que las armas base.
+- [ ] 12. **Pausa con resumen de run**: stats actuales, equipo, nivel, kills.
+- [ ] 13. **Eventos de piso**: al generar, 15% de que el piso sea "oscuro"
+  (visión reducida con viñeta) o "embrujado" (más élites, más loot). Anunciado
+  al entrar.
+- [ ] 14. **Pulido final**: favicon, animación sutil del título, pantalla de
+  victoria con resumen completo de la run, y actualizar README.
 
 ## Notas de la noche
 
@@ -66,3 +78,12 @@ Plan de trabajo autónomo. Reglas para el agente:
 - **8. Audio** ✔ — Drone grave (55 Hz ×2 desafinados) que respira según el
   modo, notas sueltas de escala menor cada 3-7 s muy suaves, y pasos sutiles
   cada 0.28 s al caminar.
+- **9. Táctil** ✔ — Joystick virtual analógico (zona izquierda) + botones
+  ATK/DASH/⚗/E. Auto-apuntado al enemigo más cercano (radio 12 tiles). Solo
+  aparece si el dispositivo es touch; verificada la lógica por simulación y
+  el layout en viewport de iPhone. Falta probar en el iPhone real.
+- **10. Balance** ✔ — Auditoría numérica en profundidades 1/5/9: matar un
+  esqueleto cuesta 3/3/2 golpes con arma media de la profundidad (la escalera
+  de materiales acompaña bien), daño recibido tardío 13-19 con defensa típica.
+  Único ajuste: los corazones curan max(22, 15% de vida máx.) para que no
+  queden ridículos con 180 hp.

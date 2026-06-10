@@ -491,7 +491,13 @@ function updatePickups(dt) {
       }
       else if (pk.kind === 'coin') { p.coins++; pk.dead = true; sfx('coin'); }
       else if (pk.kind === 'heart') {
-        if (p.hp < p.stats.maxhp) { p.hp = Math.min(p.stats.maxhp, p.hp + BALANCE.heartHeal); pk.dead = true; sfx('heal'); addFloater(p.x, p.y - 14, '+' + BALANCE.heartHeal, '#7fc97f', false); }
+        if (p.hp < p.stats.maxhp) {
+          // cura un mínimo fijo o un % de la vida máxima (escala en runs avanzadas)
+          const heal = Math.max(BALANCE.heartHeal, Math.round(p.stats.maxhp * 0.15));
+          p.hp = Math.min(p.stats.maxhp, p.hp + heal);
+          pk.dead = true; sfx('heal');
+          addFloater(p.x, p.y - 14, '+' + heal, '#7fc97f', false);
+        }
       } else if (pk.kind === 'item') {
         if (p.bag.length < BALANCE.bagSize) {
           p.bag.push(pk.item); pk.dead = true; sfx('pickup');
