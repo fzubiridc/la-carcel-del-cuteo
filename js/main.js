@@ -16,8 +16,10 @@ let canvas, ctx, mini, mctx;
 let ZOOM = 3;
 const keys = new Set();
 const mouse = { sx: 0, sy: 0, down: false };
-// Controles táctiles: joystick virtual + botones; el apuntado es automático
-const touch = { enabled: false, stickId: null, baseX: 0, baseY: 0, vx: 0, vy: 0, attacking: false };
+// Controles táctiles: joystick de movimiento + botón ATK que también apunta
+// (tocás = atacar con auto-aim; arrastrás sobre él = apuntar manual)
+const touch = { enabled: false, stickId: null, baseX: 0, baseY: 0, vx: 0, vy: 0,
+  attacking: false, atkId: null, aimBaseX: 0, aimBaseY: 0, aimX: 0, aimY: 0, aimActive: false };
 
 // ---------------- Init ----------------
 
@@ -112,7 +114,39 @@ function bindTouch() {
     b.addEventListener('touchstart', e => { e.preventDefault(); initAudio(); down(); }, { passive: false });
     if (up) b.addEventListener('touchend', e => { e.preventDefault(); up(); }, { passive: false });
   };
-  bind('btnatk', () => touch.attacking = true, () => touch.attacking = false);
+  // ATK: presionar ataca (auto-aim); arrastrar el dedo sobre él apunta manual
+  const atk = $('btnatk');
+  const RADIO_AIM = 12; // px de zona muerta antes de activar puntería manual
+  atk.addEventListener('touchstart', e => {
+    e.preventDefault(); initAudio();
+    const t = e.changedTouches[0];
+    touch.atkId = t.identifier;
+    touch.aimBaseX = t.clientX; touch.aimBaseY = t.clientY;
+    touch.attacking = true;
+  }, { passive: false });
+  atk.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== touch.atkId) continue;
+      const dx = t.clientX - touch.aimBaseX, dy = t.clientY - touch.aimBaseY;
+      const d = Math.hypot(dx, dy);
+      if (d > RADIO_AIM) {
+        touch.aimActive = true;
+        touch.aimX = dx / d; touch.aimY = dy / d;
+      }
+    }
+  }, { passive: false });
+  const endAtk = e => {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== touch.atkId) continue;
+      touch.atkId = null;
+      touch.attacking = false;
+      touch.aimActive = false;
+    }
+  };
+  atk.addEventListener('touchend', endAtk);
+  atk.addEventListener('touchcancel', endAtk);
+
   bind('btndash', () => tryDash());
   bind('btnpot', () => drinkPotion());
   bind('btnint', () => tryInteract());
@@ -123,6 +157,8 @@ function bindTouch() {
 function aimAngle() {
   const p = state.player;
   if (!touch.enabled) return Math.atan2(mouseWorldY() - p.y, mouseWorldX() - p.x);
+  // puntería manual: el dedo arrastrado sobre el botón ATK manda
+  if (touch.aimActive) return Math.atan2(touch.aimY, touch.aimX);
   let best = null, bd = 12 * TILE;
   for (const e of state.enemies) {
     const d = Math.hypot(e.x - p.x, e.y - p.y);
@@ -359,6 +395,7 @@ function update(dt) {
     const aim = aimAngle();
     if (mouse.down || touch.attacking) playerAttack(aim);
     if (!touch.enabled) p.dir = mouseWorldX() > p.x ? 1 : -1;
+    else if (touch.aimActive) p.dir = touch.aimX >= 0 ? 1 : -1;
   }
 
   p.atkCd = Math.max(0, p.atkCd - dt);
@@ -620,6 +657,19 @@ function render(dt) {
   for (const e of drawables) {
     if (e === p) drawPlayer(p);
     else drawEnemy(e);
+  }
+
+  // guía de puntería manual en táctil (línea punteada desde el personaje)
+  if (touch.aimActive && state.mode === 'play') {
+    const a = Math.atan2(touch.aimY, touch.aimX);
+    ctx.strokeStyle = 'rgba(255,255,255,0.30)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(p.x + Math.cos(a) * 10, p.y + Math.sin(a) * 10);
+    ctx.lineTo(p.x + Math.cos(a) * 40, p.y + Math.sin(a) * 40);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   // proyectiles
