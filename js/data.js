@@ -99,9 +99,11 @@ const ENEMIES = {
 // Jefes: patterns rotan en ciclo. 'chase' embiste, 'burst' anillo de proyectiles,
 // 'spread' ráfagas apuntadas, 'charge' carga telegrafiada, 'summon' invoca esbirros.
 const BOSSES = {
-  // Bucle: jugador de rugby maldito. Su especialidad es la embestida (tackle).
+  // Bucle: jugador de rugby maldito. Su especialidad es la embestida (tackle):
+  // si te alcanza en plena carga, te deja tirado en el piso (stunOnCharge segundos).
   bucle: { name: 'Bucle', sprite: 'bucle', hp: 380, dmg: 16, spd: 62,
-    size: 16, scale: 2, patterns: ['charge', 'chase', 'charge', 'spread'], projSpd: 150 },
+    size: 16, scale: 2, patterns: ['charge', 'chase', 'charge', 'spread'], projSpd: 150,
+    stunOnCharge: 1, arenaDecor: 'rugby' },
   golem_anciano: { name: 'Gólem Anciano', sprite: 'golem_anciano', hp: 550, dmg: 24, spd: 32,
     size: 18, scale: 2, patterns: ['chase', 'charge', 'burst'], projSpd: 110 },
   liche:         { name: 'El Liche',      sprite: 'liche',         hp: 650, dmg: 20, spd: 60,

@@ -178,22 +178,26 @@ function update(dt) {
     if (state.winT <= 0) { state.mode = 'win'; showEnd(true); return; }
   }
 
-  // movimiento
-  let mx = 0, my = 0;
-  if (keys.has('a') || keys.has('arrowleft')) mx--;
-  if (keys.has('d') || keys.has('arrowright')) mx++;
-  if (keys.has('w') || keys.has('arrowup')) my--;
-  if (keys.has('s') || keys.has('arrowdown')) my++;
-  if (mx || my) {
-    const n = Math.hypot(mx, my);
-    moveWithCollision(lvl, p, (mx / n) * p.stats.spd * dt, (my / n) * p.stats.spd * dt, false);
-    if (mx) p.dir = mx;
-  }
+  // tirado en el piso por un tackle: ni moverse ni atacar
+  p.stunT = Math.max(0, p.stunT - dt);
+  if (p.stunT <= 0) {
+    // movimiento
+    let mx = 0, my = 0;
+    if (keys.has('a') || keys.has('arrowleft')) mx--;
+    if (keys.has('d') || keys.has('arrowright')) mx++;
+    if (keys.has('w') || keys.has('arrowup')) my--;
+    if (keys.has('s') || keys.has('arrowdown')) my++;
+    if (mx || my) {
+      const n = Math.hypot(mx, my);
+      moveWithCollision(lvl, p, (mx / n) * p.stats.spd * dt, (my / n) * p.stats.spd * dt, false);
+      if (mx) p.dir = mx;
+    }
 
-  // apuntado y ataque
-  const aim = Math.atan2(mouseWorldY() - p.y, mouseWorldX() - p.x);
-  if (mouse.down) playerAttack(aim);
-  if (mouseWorldX() > p.x) p.dir = 1; else p.dir = -1;
+    // apuntado y ataque
+    const aim = Math.atan2(mouseWorldY() - p.y, mouseWorldX() - p.x);
+    if (mouse.down) playerAttack(aim);
+    if (mouseWorldX() > p.x) p.dir = 1; else p.dir = -1;
+  }
 
   p.atkCd = Math.max(0, p.atkCd - dt);
   p.ifr = Math.max(0, p.ifr - dt);
@@ -300,6 +304,11 @@ function render(dt) {
     ctx.fillRect(X + 1, Y + 1, TILE - 2, TILE - 2);
     ctx.fillStyle = pal.accent;
     for (let i = 0; i < 4; i++) ctx.fillRect(X + 2 + i, Y + 3 + i * 3, TILE - 4 - i * 2, 2);
+  }
+
+  // decoración de arena (detrás de las entidades)
+  for (const d of (lvl.decor || [])) {
+    if (d.type === 'postes') drawRugbyPosts(d.x, d.y);
   }
 
   // cofres
@@ -433,6 +442,21 @@ function drawSpriteC(spr, x, y, scale, alpha) {
 }
 
 function drawPlayer(p) {
+  // tackleado: tirado en el piso con estrellitas dando vueltas
+  if (p.stunT > 0) {
+    const spr = playerSprite(p);
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.dir >= 0 ? Math.PI / 2 : -Math.PI / 2);
+    ctx.drawImage(spr, -spr.width / 2, -spr.height / 2);
+    ctx.restore();
+    ctx.fillStyle = '#ffd84f';
+    for (let i = 0; i < 3; i++) {
+      const a = state.time * 7 + i * 2.1;
+      ctx.fillRect(p.x + Math.cos(a) * 7 - 1, p.y - 11 + Math.sin(a) * 2.5 - 1, 2, 2);
+    }
+    return;
+  }
   // parpadeo durante invulnerabilidad
   if (p.ifr > 0 && Math.floor(state.time * 14) % 2 === 0) return;
   drawSpriteC(playerSprite(p), p.x, p.y - 3, 1);
@@ -446,6 +470,23 @@ function drawPlayer(p) {
     ctx.arc(p.x, p.y, weaponDef(p).range - 6, p.swingAng - 0.9, p.swingAng + 0.9);
     ctx.stroke();
   }
+}
+
+// Arco de rugby en H: dos palos altos + travesaño
+function drawRugbyPosts(x, y) {
+  const h = 32, w = 18, barY = y - 15;
+  ctx.fillStyle = '#e8e3d0';
+  ctx.fillRect(x - w / 2 - 1, y - h, 2, h);
+  ctx.fillRect(x + w / 2 - 1, y - h, 2, h);
+  ctx.fillRect(x - w / 2 - 1, barY, w + 2, 2);
+  // protectores acolchados en la base
+  ctx.fillStyle = '#27418f';
+  ctx.fillRect(x - w / 2 - 2, y - 6, 4, 6);
+  ctx.fillRect(x + w / 2 - 2, y - 6, 4, 6);
+  // sombra
+  ctx.fillStyle = '#00000040';
+  ctx.fillRect(x - w / 2 - 2, y, 4, 1);
+  ctx.fillRect(x + w / 2 - 2, y, 4, 1);
 }
 
 // El arma equipada se ve en la mano, apuntando hacia el ratón

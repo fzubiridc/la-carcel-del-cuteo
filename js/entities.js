@@ -11,7 +11,7 @@ function makePlayer(clsId) {
     hp: cls.hp, stats: null,
     equip: { arma: makeStarterWeapon(cls.weapon), casco: null, coraza: null, botas: null, anillo: null, amuleto: null },
     bag: [], coins: 0,
-    atkCd: 0, ifr: 0, dir: 1,
+    atkCd: 0, ifr: 0, stunT: 0, dir: 1,
     kbx: 0, kby: 0,
     swingT: 0, swingAng: 0,
   };
@@ -85,7 +85,19 @@ function updateEnemies(dt) {
     // daño por contacto
     if (e.hitCd <= 0 && Math.abs(dx) < (e.w + p.w) / 2 && Math.abs(dy) < (e.h + p.h) / 2) {
       e.hitCd = 0.8;
+      const eraVulnerable = p.ifr <= 0;
       damagePlayer(e.dmg);
+      // tackle: si te alcanza en plena carga, quedás tirado en el piso
+      if (eraVulnerable && e.charging && e.def.stunOnCharge) {
+        p.stunT = e.def.stunOnCharge;
+        p.ifr = Math.max(p.ifr, e.def.stunOnCharge + 0.2); // que no te pisen mientras estás caído
+        const ang = Math.atan2(e.chargeVY, e.chargeVX);
+        moveWithCollision(state.level, p, Math.cos(ang) * 12, Math.sin(ang) * 12, false);
+        e.charging = false; e.patT = 1.2; // el tackle frena su carrera
+        addFloater(p.x, p.y - 16, '¡Tackleado!', '#ffd84f', true);
+        shake(6);
+        sfx('tackle');
+      }
     }
   }
 }

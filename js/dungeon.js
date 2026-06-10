@@ -77,7 +77,7 @@ function genDungeon(zone, depth, isBoss) {
     });
   }
 
-  return { map, W, H, start, exit, exitOpen: true, spawns, chests, groundItems, isBoss: false, boss: null };
+  return { map, W, H, start, exit, exitOpen: true, spawns, chests, groundItems, decor: [], isBoss: false, boss: null };
 }
 
 function genBossArena(zone, depth) {
@@ -89,14 +89,24 @@ function genBossArena(zone, depth) {
   for (const [px_, py_] of [[7, 7], [W - 8, 7], [7, H - 8], [W - 8, H - 8]]) {
     map[py_][px_] = 0;
   }
+  // Decoración de arena según el jefe (data-driven)
+  const decor = [];
+  const bdef = BOSSES[zone.boss];
+  if (bdef && bdef.arenaDecor === 'rugby') {
+    // dos arcos de rugby enfrentados, uno en cada punta de la cancha
+    decor.push({ type: 'postes', x: (W / 2) * TILE, y: 5.6 * TILE });
+    decor.push({ type: 'postes', x: (W / 2) * TILE, y: (H - 3.6) * TILE });
+  }
   return {
     map, W, H,
-    start: { x: (W / 2) * TILE, y: (H - 5) * TILE },
+    // spawn corrido del centro para no nacer pegado a la decoración del fondo
+    start: { x: (W / 2 - 3) * TILE, y: (H - 5) * TILE },
     exit: { tx: W >> 1, ty: 4 },
     exitOpen: false, // se abre al matar al jefe
     spawns: [],
     chests: [],
     groundItems: [],
+    decor,
     isBoss: true,
     boss: { type: zone.boss, x: (W / 2) * TILE, y: 8 * TILE },
   };
