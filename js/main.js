@@ -435,9 +435,8 @@ function drawSpriteC(spr, x, y, scale, alpha) {
 function drawPlayer(p) {
   // parpadeo durante invulnerabilidad
   if (p.ifr > 0 && Math.floor(state.time * 14) % 2 === 0) return;
-  const cls = CLASSES[p.cls];
-  const spr = Sprites[cls.sprite + (p.dir < 0 ? '_L' : '')];
-  drawSpriteC(spr, p.x, p.y - 2, 1);
+  drawSpriteC(playerSprite(p), p.x, p.y - 3, 1);
+  drawHeldWeapon(p);
 
   // arco del espadazo
   if (p.swingT > 0) {
@@ -447,6 +446,22 @@ function drawPlayer(p) {
     ctx.arc(p.x, p.y, weaponDef(p).range - 6, p.swingAng - 0.9, p.swingAng + 0.9);
     ctx.stroke();
   }
+}
+
+// El arma equipada se ve en la mano, apuntando hacia el ratón
+function drawHeldWeapon(p) {
+  const arma = p.equip.arma;
+  if (!arma) return;
+  const wt = WEAPON_TYPES[arma.weaponType];
+  const icon = Sprites['icon_' + arma.weaponType];
+  const aim = Math.atan2(mouseWorldY() - p.y, mouseWorldX() - p.x);
+  // golpe de muñeca durante el espadazo
+  const swing = p.swingT > 0 ? Math.sin((0.16 - p.swingT) / 0.16 * Math.PI) * 1.1 - 0.55 : 0;
+  ctx.save();
+  ctx.translate(p.x + Math.cos(aim) * 8, p.y - 1 + Math.sin(aim) * 8);
+  ctx.rotate(aim + wt.baseRot + swing);
+  ctx.drawImage(icon, -5, -5);
+  ctx.restore();
 }
 
 function drawEnemy(e) {

@@ -11,8 +11,8 @@ function buildMenu() {
     const card = document.createElement('div');
     card.className = 'classcard panel';
     const icon = document.createElement('canvas');
-    icon.width = 12; icon.height = 12;
-    icon.getContext('2d').drawImage(Sprites[cls.sprite], 0, 0);
+    icon.width = 12; icon.height = 14;
+    icon.getContext('2d').drawImage(composeBase(cls.id, {}), 0, 0);
     card.appendChild(icon);
     const wt = WEAPON_TYPES[cls.weapon];
     card.insertAdjacentHTML('beforeend', `

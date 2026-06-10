@@ -31,8 +31,11 @@ const Sprites = {};
 function buildSprites() {
   const skin = '#e8b88a', eye = '#1d1d22', bone = '#e6e3d6';
 
-  // ----- Clases jugables -----
-  Sprites.guerrero = px([
+  // ----- Clases jugables: cuerpos base (12x14, misma grilla para las 3) -----
+  // filas 0-1: aire para sombreros · 2-6: cabeza · 7-10: torso · 11-13: piernas
+  Sprites.guerrero_body = px([
+    '............',
+    '............',
     '....hhhh....',
     '...hhhhhh...',
     '...ssssss...',
@@ -47,10 +50,12 @@ function buildSprites() {
     '...DD..DD...',
   ], { h:'#6e4528', s:skin, k:eye, A:'#929cab', B:'#4a3424', D:'#33241a' });
 
-  Sprites.arquero = px([
-    '....gggg....',
-    '...gggggg...',
-    '...gssssg...',
+  Sprites.arquero_body = px([
+    '............',
+    '............',
+    '....hhhh....',
+    '...hhhhhh...',
+    '...ssssss...',
     '...sk.ks....',
     '...ssssss...',
     '..GGGGGGGG..',
@@ -60,22 +65,42 @@ function buildSprites() {
     '...BB..BB...',
     '...BB..BB...',
     '...DD..DD...',
-  ], { g:'#41682f', s:skin, k:eye, G:'#54803c', B:'#4a3424', D:'#33241a' });
+  ], { h:'#8a5a2b', s:skin, k:eye, G:'#54803c', B:'#4a3424', D:'#33241a' });
 
-  Sprites.mago = px([
-    '.....pp.....',
-    '....pppp....',
-    '...pppppp...',
-    '..pppppppp..',
+  Sprites.mago_body = px([
+    '............',
+    '............',
+    '....hhhh....',
+    '...hhhhhh...',
     '...ssssss...',
     '...sk.ks....',
     '...ssssss...',
     '..PPPPPPPP..',
     '.sPPPPPPPPs.',
+    '.s.PPPPPP.s.',
+    '...PPPPPP...',
     '...PPPPPP...',
     '...PPPPPP...',
     '....P..P....',
-  ], { p:'#6b3fa0', s:skin, k:eye, P:'#52317c' });
+  ], { h:'#b8b2c8', s:skin, k:eye, P:'#52317c' });
+
+  // Tocados por defecto (identidad de clase cuando no hay casco equipado)
+  Sprites.hat_mago = px([
+    '.....pp.....',
+    '....pppp....',
+    '....pppp....',
+    '...pppppp...',
+    '..pppppppp..',
+  ], { p:'#6b3fa0' });
+
+  Sprites.hood_arquero = px([
+    '....gggg....',
+    '...gggggg...',
+    '...gggggg...',
+    '...gg..gg...',
+    '...g....g...',
+    '...g....g...',
+  ], { g:'#3f6b3a' });
 
   // ----- Enemigos -----
   Sprites.rata = px([
@@ -359,4 +384,103 @@ function buildSprites() {
 function itemIcon(item) {
   if (item.slot === 'arma') return Sprites['icon_' + item.weaponType];
   return Sprites['icon_' + item.slot];
+}
+
+// =====================================================================
+// Equipo visible sobre el personaje: capas teñidas por rareza.
+// P = color primario de la rareza, S = sombra. Cada capa sabe en qué
+// fila (y) del cuerpo se apoya.
+// =====================================================================
+
+const OVERLAY_GRIDS = {
+  eq_yelmo: { y: 1, rows: [
+    '....PPPP....',
+    '...PPPPPP...',
+    '...PPPPPP...',
+    '...PSSSSP...',
+    '...P....P...',
+  ]},
+  eq_capucha: { y: 1, rows: [
+    '....PPPP....',
+    '...PPPPPP...',
+    '...PPPPPP...',
+    '...PP..PP...',
+    '...P....P...',
+    '...S....S...',
+  ]},
+  eq_coraza: { y: 7, rows: [
+    '..PPPPPPPP..',
+    '..SPPPPPPS..',
+    '...PPPPPP...',
+    '...SSSSSS...',
+  ]},
+  eq_tunica: { y: 7, rows: [
+    '...PPPPPP...',
+    '..PPSPPSPP..',
+    '...PPPPPP...',
+    '...PPPPPP...',
+  ]},
+  eq_botas: { y: 11, rows: [
+    '...PP..PP...',
+    '...PP..PP...',
+    '...SS..SS...',
+  ]},
+  eq_amuleto: { y: 7, rows: [
+    '.....PP.....',
+    '.....SS.....',
+  ]},
+  eq_anillo: { y: 8, rows: [
+    '.P..........',
+  ]},
+};
+
+const _overlayCache = {};
+function getOverlay(name, rarity) {
+  const key = name + ':' + rarity;
+  if (!_overlayCache[key]) {
+    const def = OVERLAY_GRIDS[name];
+    _overlayCache[key] = px(def.rows, RARITY_TINTS[rarity]);
+  }
+  return _overlayCache[key];
+}
+
+// Compone cuerpo + tocado + equipo en un solo canvas de 12x14
+function composeBase(clsId, equip) {
+  const c = document.createElement('canvas');
+  c.width = 12; c.height = 14;
+  const g = c.getContext('2d');
+  g.drawImage(Sprites[clsId + '_body'], 0, 0);
+  const put = (img, y) => g.drawImage(img, 0, y);
+
+  const casco = equip.casco;
+  if (casco) put(getOverlay(casco.baseName === 'Yelmo' ? 'eq_yelmo' : 'eq_capucha', casco.rarity), OVERLAY_GRIDS.eq_yelmo.y);
+  else if (clsId === 'mago') put(Sprites.hat_mago, 0);
+  else if (clsId === 'arquero') put(Sprites.hood_arquero, 1);
+
+  if (equip.coraza) {
+    const name = equip.coraza.baseName === 'Coraza' ? 'eq_coraza' : 'eq_tunica';
+    put(getOverlay(name, equip.coraza.rarity), OVERLAY_GRIDS[name].y);
+  }
+  if (equip.botas) put(getOverlay('eq_botas', equip.botas.rarity), OVERLAY_GRIDS.eq_botas.y);
+  if (equip.amuleto) put(getOverlay('eq_amuleto', equip.amuleto.rarity), OVERLAY_GRIDS.eq_amuleto.y);
+  if (equip.anillo) put(getOverlay('eq_anillo', equip.anillo.rarity), OVERLAY_GRIDS.eq_anillo.y);
+  return c;
+}
+
+// Sprite del jugador con caché: se recompone solo si cambia el equipo
+function equipSig(p) {
+  return p.cls + '|' + SLOTS.map(s => {
+    const it = p.equip[s];
+    return it ? it.baseName + ':' + it.rarity : '-';
+  }).join('|');
+}
+
+function playerSprite(p) {
+  const key = equipSig(p);
+  if (p._sprKey !== key) {
+    p._spr = composeBase(p.cls, p.equip);
+    p._sprL = flipH(p._spr);
+    p._sprKey = key;
+  }
+  return p.dir < 0 ? p._sprL : p._spr;
 }

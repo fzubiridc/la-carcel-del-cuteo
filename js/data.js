@@ -25,10 +25,11 @@ const CLASSES = {
 };
 
 // ---------- Armas: el estilo de ataque lo define el arma equipada ----------
+// baseRot: corrección para que el icono apunte hacia donde mira el jugador al dibujarlo en mano
 const WEAPON_TYPES = {
-  espada: { name: 'Espada', dmg: 14, cd: 0.42, style: 'melee', range: 30, icon: 'espada' },
-  arco:   { name: 'Arco',   dmg: 10, cd: 0.50, style: 'arrow', projSpd: 300, icon: 'arco' },
-  baston: { name: 'Bastón', dmg: 15, cd: 0.70, style: 'bolt',  projSpd: 190, splash: 24, icon: 'baston' },
+  espada: { name: 'Espada', dmg: 14, cd: 0.42, style: 'melee', range: 30, icon: 'espada', baseRot: Math.PI / 4 },
+  arco:   { name: 'Arco',   dmg: 10, cd: 0.50, style: 'arrow', projSpd: 300, icon: 'arco', baseRot: 0 },
+  baston: { name: 'Bastón', dmg: 15, cd: 0.70, style: 'bolt',  projSpd: 190, splash: 24, icon: 'baston', baseRot: Math.PI / 2 },
 };
 
 // ---------- Rarezas ----------
@@ -38,6 +39,14 @@ const RARITIES = [
   { id: 'raro',   name: 'Raro',   color: '#ffd84f', mods: 2, mult: 1.38, w: 15 },
   { id: 'epico',  name: 'Épico',  color: '#c45cff', mods: 3, mult: 1.65, w: 5 },
 ];
+
+// Colores con los que se pinta el equipo SOBRE el personaje, según rareza
+const RARITY_TINTS = {
+  comun:  { P: '#8e949c', S: '#62666d' },
+  magico: { P: '#5aa7e8', S: '#39689a' },
+  raro:   { P: '#e0b83f', S: '#9c7c28' },
+  epico:  { P: '#b06ae8', S: '#7a3fa8' },
+};
 
 // ---------- Slots de equipo y bases de armadura ----------
 const SLOTS = ['arma', 'casco', 'coraza', 'botas', 'anillo', 'amuleto'];
