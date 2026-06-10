@@ -10,6 +10,12 @@ function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function genDungeon(zone, depth, isBoss) {
   if (isBoss) return genBossArena(zone, depth);
 
+  // Eventos de piso: oscuro (visión reducida) o embrujado (más élites, más loot)
+  let evento = null;
+  const evRoll = Math.random();
+  if (evRoll < 0.15) evento = 'oscuro';
+  else if (evRoll < 0.30) evento = 'embrujado';
+
   const W = 46, H = 46;
   const map = Array.from({ length: H }, () => new Array(W).fill(0));
   const rooms = [];
@@ -56,7 +62,7 @@ function genDungeon(zone, depth, isBoss) {
         type: pick(zone.enemies),
         x: (randInt(r.x + 1, r.x + r.w - 2) + 0.5) * TILE,
         y: (randInt(r.y + 1, r.y + r.h - 2) + 0.5) * TILE,
-        elite: Math.random() < BALANCE.eliteChance,
+        elite: Math.random() < (evento === 'embrujado' ? 0.25 : BALANCE.eliteChance),
       });
     }
   }
@@ -64,7 +70,7 @@ function genDungeon(zone, depth, isBoss) {
   // Cofres (1-2) y algún ítem suelto en el piso
   const midRooms = rooms.slice(1, -1);
   const chests = [];
-  const nChests = randInt(1, 2);
+  const nChests = randInt(1, 2) + (evento === 'embrujado' ? 1 : 0);
   for (let i = 0; i < nChests && midRooms.length; i++) {
     const r = midRooms.splice(Math.floor(Math.random() * midRooms.length), 1)[0];
     chests.push({ x: (r.cx + 0.5) * TILE, y: (r.cy + 0.5) * TILE, opened: false });
@@ -93,7 +99,7 @@ function genDungeon(zone, depth, isBoss) {
     altar = { x: (r.cx + 0.5) * TILE, y: (r.cy + 0.5) * TILE, used: false };
   }
 
-  return { map, W, H, start, exit, exitOpen: true, spawns, chests, groundItems, lockedChest, altar, decor: [], isBoss: false, boss: null };
+  return { map, W, H, start, exit, exitOpen: true, spawns, chests, groundItems, lockedChest, altar, evento, decor: [], isBoss: false, boss: null };
 }
 
 function genBossArena(zone, depth) {

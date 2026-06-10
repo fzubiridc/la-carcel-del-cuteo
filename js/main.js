@@ -191,6 +191,8 @@ function nextFloor() {
     bigToast(BOSSES[lvl.boss.type].name, '#d8403f');
   } else {
     bigToast(zone.name + ' · Piso ' + run.floorInZone);
+    if (lvl.evento === 'oscuro') toast('Una oscuridad antinatural cubre este piso...', '#8a8496');
+    if (lvl.evento === 'embrujado') toast('Este piso está embrujado: más peligro, más tesoro', '#c45cff');
   }
   for (const g of lvl.groundItems) spawnPickup('item', g.x, g.y, makeItem(run.depth));
   sfx('stairs');
@@ -303,6 +305,7 @@ function loop(t) {
 
 function update(dt) {
   state.time += dt;
+  state.run.time = (state.run.time || 0) + dt;
   const p = state.player, lvl = state.level;
 
   // victoria diferida tras matar al jefe final
@@ -640,8 +643,18 @@ function render(dt) {
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
 
-  // números flotantes (en espacio de pantalla para que el texto sea nítido)
+  // piso oscuro: viñeta que limita la visión alrededor del jugador
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (lvl.evento === 'oscuro') {
+    const sx = (p.x - state.cam.x) * ZOOM, sy = (p.y - state.cam.y) * ZOOM;
+    const grad = ctx.createRadialGradient(sx, sy, 24 * ZOOM, sx, sy, 62 * ZOOM);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(5,4,8,0.94)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // números flotantes (en espacio de pantalla para que el texto sea nítido)
   for (const f of state.floaters) {
     const sx = (f.x - state.cam.x) * ZOOM, sy = (f.y - state.cam.y) * ZOOM;
     ctx.globalAlpha = Math.min(1, f.t * 2.5);
