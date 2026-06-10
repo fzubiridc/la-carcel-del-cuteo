@@ -76,6 +76,16 @@ function makeStarterWeapon(weaponType) {
   };
 }
 
+// Ítem garantizado raro o mejor (altar, cofre dorado)
+function makeItemMinRare(depth) {
+  let it = null;
+  for (let i = 0; i < 8; i++) {
+    it = makeItem(depth);
+    if (it.rarity === 'raro' || it.rarity === 'epico') return it;
+  }
+  return it;
+}
+
 // Stock del mercader: 3 ítems según profundidad + curación
 function makeShopStock(depth) {
   const items = [];

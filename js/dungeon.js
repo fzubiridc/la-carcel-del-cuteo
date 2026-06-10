@@ -78,7 +78,22 @@ function genDungeon(zone, depth, isBoss) {
     });
   }
 
-  return { map, W, H, start, exit, exitOpen: true, spawns, chests, groundItems, decor: [], isBoss: false, boss: null };
+  // Cofre dorado cerrado: la llave la lleva un enemigo aleatorio del piso
+  let lockedChest = null;
+  if (spawns.length && rooms.length > 2 && Math.random() < 0.55) {
+    const r = pick(rooms.slice(1));
+    lockedChest = { x: (randInt(r.x + 1, r.x + r.w - 2) + 0.5) * TILE, y: (randInt(r.y + 1, r.y + r.h - 2) + 0.5) * TILE, opened: false };
+    spawns[Math.floor(Math.random() * spawns.length)].keyCarrier = true;
+  }
+
+  // Altar de sacrificio: vida a cambio de un tesoro
+  let altar = null;
+  if (rooms.length > 2 && Math.random() < 0.45) {
+    const r = pick(rooms.slice(1));
+    altar = { x: (r.cx + 0.5) * TILE, y: (r.cy + 0.5) * TILE, used: false };
+  }
+
+  return { map, W, H, start, exit, exitOpen: true, spawns, chests, groundItems, lockedChest, altar, decor: [], isBoss: false, boss: null };
 }
 
 function genBossArena(zone, depth) {

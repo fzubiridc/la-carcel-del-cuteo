@@ -23,9 +23,9 @@ Plan de trabajo autónomo. Reglas para el agente:
   máx. 3. Drop raro de enemigos + venta en mercader.
 - [x] 4. **Enemigos élite**: ~8% de spawns son élite (aura de color, +100% vida,
   +50% daño, drop garantizado de ítem y más XP).
-- [ ] 5. **Segunda fase de jefes**: al 50% de vida, enfurecen (+velocidad,
+- [x] 5. **Segunda fase de jefes**: al 50% de vida, enfurecen (+velocidad,
   patrones más rápidos). Bucle: tackles dobles. Visual: tinte rojo.
-- [ ] 6. **Salas especiales**: sala del tesoro cerrada con llave (la llave la
+- [x] 6. **Salas especiales**: sala del tesoro cerrada con llave (la llave la
   tiene un enemigo aleatorio del piso) y altar de sacrificio (pagás 25% de
   vida máx., recibís un ítem raro+).
 - [ ] 7. **Meta-progresión**: récords en localStorage (mejor profundidad por
@@ -51,3 +51,12 @@ Plan de trabajo autónomo. Reglas para el agente:
 - **4. Élites** ✔ — 8% de spawns: ×2.2 vida, ×1.5 daño, escala 1.2, aura
   dorada pulsante. Drop garantizado: ítem + 4 orbes XP extra (valor 4) + 3
   monedas.
+- **5. Fase 2 de jefes** ✔ — Al 50%: +30% velocidad, patrones rotan en 2.3 s
+  (antes 3.2), tinte rojo (sprites tintados con caché — de paso corregí el
+  flash de daño que teñía el fondo). Bucle encadena segunda embestida si
+  falla la primera. Verificado: spd 62→81.
+- **6. Cofre dorado + altar** ✔ — Nota: lo implementé como "cofre cerrado con
+  llave" en vez de "sala cerrada" (cirugía de mapa frágil de noche; mismo
+  loop de juego). 55% de pisos: cofre dorado (2 ítems, uno raro+) cuya llave
+  la porta un enemigo (brilla dorado). 45%: altar — 25% de vida por ítem
+  raro+. Verificada la cadena completa llave→cofre y el altar (-33 HP).
