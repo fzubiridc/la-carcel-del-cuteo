@@ -56,6 +56,7 @@ function genDungeon(zone, depth, isBoss) {
         type: pick(zone.enemies),
         x: (randInt(r.x + 1, r.x + r.w - 2) + 0.5) * TILE,
         y: (randInt(r.y + 1, r.y + r.h - 2) + 0.5) * TILE,
+        elite: Math.random() < BALANCE.eliteChance,
       });
     }
   }
