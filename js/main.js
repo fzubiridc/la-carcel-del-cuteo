@@ -50,6 +50,7 @@ function bindInput() {
     }
     if (k === 'e') tryInteract();
     if (k === ' ') { e.preventDefault(); tryDash(); }
+    if (k === 'q') drinkPotion();
   });
   window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
   window.addEventListener('blur', () => { keys.clear(); mouse.down = false; });
@@ -110,7 +111,7 @@ function nextFloor() {
   state.cam.x = p.x - canvas.width / ZOOM / 2;
   state.cam.y = p.y - canvas.height / ZOOM / 2;
 
-  for (const s of lvl.spawns) state.enemies.push(spawnEnemy(s.type, s.x, s.y, run.depth));
+  for (const s of lvl.spawns) state.enemies.push(spawnEnemy(s.type, s.x, s.y, run.depth, false, s.elite));
   if (lvl.boss) {
     state.enemies.push(spawnEnemy(lvl.boss.type, lvl.boss.x, lvl.boss.y, run.depth, true));
     bigToast(BOSSES[lvl.boss.type].name, '#d8403f');
@@ -389,6 +390,7 @@ function render(dt) {
     const bob = Math.sin(pk.t) * 1.5;
     if (pk.kind === 'coin') ctx.drawImage(Sprites.moneda, pk.x - 3, pk.y - 3 + bob);
     else if (pk.kind === 'heart') ctx.drawImage(Sprites.corazon, pk.x - 3.5, pk.y - 3 + bob);
+    else if (pk.kind === 'potion') ctx.drawImage(Sprites.pocion, pk.x - 3, pk.y - 4 + bob);
     else if (pk.kind === 'xp') {
       // puntito rojo de experiencia, titila
       const tw = 1 + Math.sin(pk.t * 2.5) * 0.35;
@@ -611,6 +613,21 @@ function drawHeldWeapon(p) {
 }
 
 function drawEnemy(e) {
+  // aura dorada pulsante de los élite
+  if (e.elite) {
+    const pulse = 1 + Math.sin(state.time * 5) * 0.15;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(255,216,79,0.5)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y + 2, (e.w * e.scale / 2 + 4) * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,216,79,0.08)';
+    ctx.beginPath();
+    ctx.arc(e.x, e.y + 2, (e.w * e.scale / 2 + 4) * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
   // un jefe que pateó su pelota se dibuja sin ella
   const base = (e.hasBall === false && e.def.spriteNoBall) ? e.def.spriteNoBall : e.def.sprite;
   const spr = Sprites[base + (e.dir < 0 ? '_L' : '')];

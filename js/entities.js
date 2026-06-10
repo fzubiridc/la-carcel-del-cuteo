@@ -10,7 +10,7 @@ function makePlayer(clsId) {
     cls: clsId, x: 0, y: 0, w: 10, h: 10,
     hp: cls.hp, stats: null,
     equip: { arma: makeStarterWeapon(cls.weapon), casco: null, coraza: null, botas: null, anillo: null, amuleto: null },
-    bag: [], coins: 0,
+    bag: [], coins: 0, potions: 1,
     level: 1, xp: 0, xpNext: 25,
     bonus: { hp: 0, spd: 0, crit: 0, atkspd: 0, def: 0, dmgMul: 1 },
     atkCd: 0, ifr: 0, stunT: 0, dir: 1,
@@ -23,19 +23,20 @@ function makePlayer(clsId) {
   return p;
 }
 
-function spawnEnemy(typeId, x, y, depth, isBossType) {
+function spawnEnemy(typeId, x, y, depth, isBossType, elite) {
   const def = isBossType ? BOSSES[typeId] : ENEMIES[typeId];
-  const hpMul = 1 + (depth - 1) * BALANCE.depthHpScale;
-  const dmgMul = 1 + (depth - 1) * BALANCE.depthDmgScale;
+  let hpMul = 1 + (depth - 1) * BALANCE.depthHpScale;
+  let dmgMul = 1 + (depth - 1) * BALANCE.depthDmgScale;
+  if (elite) { hpMul *= 2.2; dmgMul *= 1.5; } // élite: mini-jefe con aura
   return {
-    type: typeId, def, x, y,
+    type: typeId, def, x, y, elite: !!elite,
     w: def.size, h: def.size,
     hp: Math.round(def.hp * hpMul), maxhp: Math.round(def.hp * hpMul),
     dmg: Math.round(def.dmg * dmgMul),
-    spd: def.spd, ai: isBossType ? 'boss' : def.ai,
+    spd: def.spd * (elite ? 1.05 : 1), ai: isBossType ? 'boss' : def.ai,
     dir: 1, flashT: 0, hitCd: 0, fireT: Math.random() * 1.5,
     kbx: 0, kby: 0, wobble: Math.random() * Math.PI * 2,
-    isBoss: !!isBossType, scale: def.scale || 1,
+    isBoss: !!isBossType, scale: (def.scale || 1) * (elite ? 1.2 : 1),
     // estado de jefe
     pattern: 0, patT: 2.5, subT: 0, chargeVX: 0, chargeVY: 0, charging: false, telegraphT: 0,
     hasBall: def.kicksBall ? true : undefined, ballPos: null,
@@ -405,10 +406,16 @@ function damagePlayer(dmg) {
 function dropLoot(e) {
   const depth = state.run.depth;
   // orbes de experiencia: siempre, escalan con la dureza del bicho
-  const orbs = e.isBoss ? 12 : Math.min(8, 2 + Math.floor(e.maxhp / 25));
+  const orbs = e.isBoss ? 12 : Math.min(8, 2 + Math.floor(e.maxhp / 25)) + (e.elite ? 4 : 0);
   for (let i = 0; i < orbs; i++) {
     const pk = spawnPickup('xp', e.x + randInt(-12, 12), e.y + randInt(-12, 12));
-    pk.val = e.isBoss ? 6 : 2;
+    pk.val = e.isBoss ? 6 : e.elite ? 4 : 2;
+  }
+  // los élite siempre sueltan un ítem
+  if (e.elite) {
+    spawnPickup('item', e.x, e.y, makeItem(depth + 1));
+    for (let i = 0; i < 3; i++) spawnPickup('coin', e.x + randInt(-10, 10), e.y + randInt(-10, 10));
+    return;
   }
   if (e.isBoss) {
     // los jefes siempre sueltan un ítem bueno + monedas
@@ -423,6 +430,7 @@ function dropLoot(e) {
   if (r < BALANCE.dropItem) spawnPickup('item', e.x, e.y, makeItem(depth));
   else if (r < BALANCE.dropItem + BALANCE.dropCoin) spawnPickup('coin', e.x, e.y);
   else if (r < BALANCE.dropItem + BALANCE.dropCoin + BALANCE.dropHeart) spawnPickup('heart', e.x, e.y);
+  else if (r < BALANCE.dropItem + BALANCE.dropCoin + BALANCE.dropHeart + BALANCE.dropPotion) spawnPickup('potion', e.x, e.y);
 }
 
 // re-tirar mods si subimos la rareza del drop de jefe
@@ -458,6 +466,10 @@ function updatePickups(dt) {
     if (d < 30 && pk.kind !== 'item') { pk.x += dx / d * 130 * dt; pk.y += dy / d * 130 * dt; }
     if (d < 14) {
       if (pk.kind === 'xp') { gainXP(pk.val || 2); pk.dead = true; sfx('xp'); }
+      else if (pk.kind === 'potion') {
+        if (p.potions < BALANCE.maxPotions) { p.potions++; pk.dead = true; sfx('pickup'); toast('Poción de vida (+1) — Q para beber', '#f08a88'); }
+        else if (!pk.warned) { pk.warned = true; toast('Ya llevás ' + BALANCE.maxPotions + ' pociones', '#8a8496'); }
+      }
       else if (pk.kind === 'coin') { p.coins++; pk.dead = true; sfx('coin'); }
       else if (pk.kind === 'heart') {
         if (p.hp < p.stats.maxhp) { p.hp = Math.min(p.stats.maxhp, p.hp + BALANCE.heartHeal); pk.dead = true; sfx('heal'); addFloater(p.x, p.y - 14, '+' + BALANCE.heartHeal, '#7fc97f', false); }
@@ -505,6 +517,20 @@ function shake(n) { state.shake = Math.min(8, state.shake + n); }
 function updateFx(dt) {
   for (const f of state.fx) f.t -= dt;
   state.fx = state.fx.filter(f => f.t > 0);
+}
+
+// Beber poción (tecla Q): cura 40% de la vida máxima
+function drinkPotion() {
+  const p = state.player;
+  if (!p || state.mode !== 'play') return;
+  if (p.potions <= 0) { toast('No tenés pociones', '#8a8496'); return; }
+  if (p.hp >= p.stats.maxhp) { toast('Ya estás al máximo de vida', '#8a8496'); return; }
+  p.potions--;
+  const heal = Math.round(p.stats.maxhp * 0.4);
+  p.hp = Math.min(p.stats.maxhp, p.hp + heal);
+  addFloater(p.x, p.y - 14, '+' + heal, '#7fc97f', true);
+  burst(p.x, p.y, '#f08a88', 10);
+  sfx('heal');
 }
 
 // ---------------- Experiencia y niveles ----------------

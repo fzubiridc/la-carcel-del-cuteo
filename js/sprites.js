@@ -302,6 +302,16 @@ function buildSprites() {
     '....m..m....',
   ], { m:'#6a5a8a', d:'#241c30', k:'#ffd84f', y:'#ffd84f', p:'#7a5230' });
 
+  // Poción de vida
+  Sprites.pocion = px([
+    '..gg..',
+    '.gggg.',
+    '.grrg.',
+    '.rRrr.',
+    '.rrrr.',
+    '..rr..',
+  ], { g:'#b8d2e4', r:'#d8403f', R:'#f08a88' });
+
   // ----- Objetos del mundo -----
   Sprites.cofre = px([
     '.CCCCCCCC.',

@@ -39,6 +39,7 @@ function updateHUD() {
   $('xpfill').style.width = Math.min(100, 100 * p.xp / p.xpNext) + '%';
   $('lvllabel').textContent = 'Nv. ' + p.level;
   $('coinlabel').textContent = '◉ ' + p.coins + ' monedas';
+  $('potlabel').textContent = '⚗ ' + p.potions + '/' + BALANCE.maxPotions + ' [Q]';
   $('dashfill').style.width = (100 * (1 - p.dashCd / 1.2)) + '%';
 }
 
@@ -246,18 +247,18 @@ function renderShop() {
     row.appendChild(card);
   }
 
-  // curación
+  // poción de vida (máx. 3 encima)
   const heal = document.createElement('div');
   heal.className = 'shopcard panel';
-  heal.innerHTML = `<div style="font-size:26px">❤</div>
-    <div class="shopname" style="color:#7fc97f">Curación (+60%)</div>
+  heal.innerHTML = `<div style="font-size:26px">⚗</div>
+    <div class="shopname" style="color:#f08a88">Poción de vida (${p.potions}/${BALANCE.maxPotions})</div>
     <div class="shopprice">◉ ${stock.healPrice}</div>`;
   heal.onclick = () => {
-    if (p.hp >= p.stats.maxhp) { toast('Ya estás al máximo de vida', '#8a8496'); return; }
+    if (p.potions >= BALANCE.maxPotions) { toast('Ya llevás ' + BALANCE.maxPotions + ' pociones', '#8a8496'); return; }
     if (p.coins < stock.healPrice) { toast('No te alcanzan las monedas', '#ff6b6b'); return; }
     p.coins -= stock.healPrice;
-    p.hp = Math.min(p.stats.maxhp, p.hp + Math.round(p.stats.maxhp * 0.6));
-    sfx('heal');
+    p.potions++;
+    sfx('pickup');
     renderShop();
   };
   row.appendChild(heal);

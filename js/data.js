@@ -158,7 +158,10 @@ const BALANCE = {
   dropItem: 0.13,        // prob. de ítem al matar
   dropCoin: 0.30,        // prob. de moneda
   dropHeart: 0.11,       // prob. de corazón
+  dropPotion: 0.04,      // prob. de poción
   heartHeal: 22,
   bagSize: 12,
+  maxPotions: 3,
+  eliteChance: 0.08,     // prob. de que un spawn sea élite
   playerIfr: 0.6,        // segundos de invulnerabilidad tras recibir daño
 };
