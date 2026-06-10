@@ -110,6 +110,16 @@ function updateEnemies(dt) {
 function updateBoss(e, dt, dist, dx, dy) {
   const lvl = state.level, p = state.player;
 
+  // Segunda fase: al 50% de vida el jefe enfurece
+  if (!e.enraged && e.hp <= e.maxhp * 0.5) {
+    e.enraged = true;
+    e.spd *= 1.3;
+    burst(e.x, e.y, '#ff4040', 24);
+    shake(5);
+    bigToast('¡' + e.def.name.toUpperCase() + ' ENFURECE!');
+    sfx('tackle');
+  }
+
   // Sin su pelota el jefe no ataca: primero mira el vuelo de la patada y
   // después corre a buscarla — ahí es vulnerable (recibe daño extra).
   if (e.hasBall === false) {
@@ -127,7 +137,8 @@ function updateBoss(e, dt, dist, dx, dy) {
   e.patT -= dt;
   if (e.patT <= 0 && !e.charging) {
     e.pattern = (e.pattern + 1) % e.def.patterns.length;
-    e.patT = 3.2; e.subT = 0; e.telegraphT = 0;
+    e.patT = e.enraged ? 2.3 : 3.2; // furioso rota patrones más rápido
+    e.subT = 0; e.telegraphT = 0; e.chained = false;
   }
   const pat = e.def.patterns[e.pattern];
 
@@ -166,7 +177,12 @@ function updateBoss(e, dt, dist, dx, dy) {
       const ox = e.x, oy = e.y;
       moveWithCollision(lvl, e, e.chargeVX * dt, e.chargeVY * dt, false);
       if (Math.abs(e.x - ox) < 0.1 && Math.abs(e.y - oy) < 0.1) { // chocó con pared
-        e.charging = false; e.patT = 0; shake(5);
+        e.charging = false; shake(5);
+        if (e.enraged && !e.chained) {
+          e.chained = true; e.telegraphT = 0.35; // furioso: encadena una segunda embestida
+        } else {
+          e.chained = false; e.patT = 0;
+        }
       }
     }
   } else if (pat === 'kickball') {
@@ -405,6 +421,8 @@ function damagePlayer(dmg) {
 
 function dropLoot(e) {
   const depth = state.run.depth;
+  // el portador de la llave siempre la suelta
+  if (e.keyCarrier) spawnPickup('key', e.x, e.y);
   // orbes de experiencia: siempre, escalan con la dureza del bicho
   const orbs = e.isBoss ? 12 : Math.min(8, 2 + Math.floor(e.maxhp / 25)) + (e.elite ? 4 : 0);
   for (let i = 0; i < orbs; i++) {
@@ -466,6 +484,7 @@ function updatePickups(dt) {
     if (d < 30 && pk.kind !== 'item') { pk.x += dx / d * 130 * dt; pk.y += dy / d * 130 * dt; }
     if (d < 14) {
       if (pk.kind === 'xp') { gainXP(pk.val || 2); pk.dead = true; sfx('xp'); }
+      else if (pk.kind === 'key') { p.hasKey = true; pk.dead = true; sfx('pickup'); toast('¡Conseguiste la llave del cofre dorado!', '#ffd84f'); }
       else if (pk.kind === 'potion') {
         if (p.potions < BALANCE.maxPotions) { p.potions++; pk.dead = true; sfx('pickup'); toast('Poción de vida (+1) — Q para beber', '#f08a88'); }
         else if (!pk.warned) { pk.warned = true; toast('Ya llevás ' + BALANCE.maxPotions + ' pociones', '#8a8496'); }

@@ -111,7 +111,12 @@ function nextFloor() {
   state.cam.x = p.x - canvas.width / ZOOM / 2;
   state.cam.y = p.y - canvas.height / ZOOM / 2;
 
-  for (const s of lvl.spawns) state.enemies.push(spawnEnemy(s.type, s.x, s.y, run.depth, false, s.elite));
+  state.player.hasKey = false;
+  for (const s of lvl.spawns) {
+    const en = spawnEnemy(s.type, s.x, s.y, run.depth, false, s.elite);
+    en.keyCarrier = !!s.keyCarrier;
+    state.enemies.push(en);
+  }
   if (lvl.boss) {
     state.enemies.push(spawnEnemy(lvl.boss.type, lvl.boss.x, lvl.boss.y, run.depth, true));
     bigToast(BOSSES[lvl.boss.type].name, '#d8403f');
@@ -174,6 +179,20 @@ function tryInteract() {
   // mercader
   if (lvl.merchant && Math.hypot(p.x - lvl.merchant.x, p.y - lvl.merchant.y) < TILE * 1.5) {
     openShop();
+    return;
+  }
+  // altar de sacrificio: 25% de vida máx. por un tesoro raro+
+  if (lvl.altar && !lvl.altar.used && Math.hypot(p.x - lvl.altar.x, p.y - lvl.altar.y) < TILE * 1.4) {
+    const cost = Math.round(p.stats.maxhp * 0.25);
+    if (p.hp <= cost) { toast('No te queda suficiente vida para el altar', '#ff6b6b'); return; }
+    lvl.altar.used = true;
+    p.hp -= cost;
+    addFloater(p.x, p.y - 14, '-' + cost, '#ff6b6b', true);
+    burst(lvl.altar.x, lvl.altar.y - 4, '#d8403f', 16);
+    shake(3);
+    sfx('summon');
+    spawnPickup('item', lvl.altar.x, lvl.altar.y - 10, makeItemMinRare(state.run.depth + 1));
+    toast('El altar acepta tu sacrificio...', '#d8403f');
     return;
   }
   // escalera
@@ -276,6 +295,18 @@ function update(dt) {
     }
   }
 
+  // cofre dorado: solo se abre con la llave
+  const lc = lvl.lockedChest;
+  if (lc && !lc.opened && Math.hypot(p.x - lc.x, p.y - lc.y) < 16 && p.hasKey) {
+    lc.opened = true;
+    p.hasKey = false;
+    sfx('levelup');
+    burst(lc.x, lc.y, '#ffd84f', 20);
+    spawnPickup('item', lc.x - 8, lc.y - 6, makeItemMinRare(state.run.depth + 1));
+    spawnPickup('item', lc.x + 8, lc.y - 6, makeItem(state.run.depth + 1));
+    for (let i = 0; i < 6; i++) spawnPickup('coin', lc.x + randInt(-14, 14), lc.y + randInt(-10, 10));
+  }
+
   // niebla explorada (para el minimapa)
   const ptx = Math.floor(p.x / TILE), pty = Math.floor(p.y / TILE);
   for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) {
@@ -300,6 +331,10 @@ function updatePrompt() {
   let msg = '';
   if (lvl.merchant && Math.hypot(p.x - lvl.merchant.x, p.y - lvl.merchant.y) < TILE * 1.5)
     msg = '[E] Comerciar';
+  else if (lvl.altar && !lvl.altar.used && Math.hypot(p.x - lvl.altar.x, p.y - lvl.altar.y) < TILE * 1.4)
+    msg = '[E] Sacrificar 25% de vida por un tesoro';
+  else if (lvl.lockedChest && !lvl.lockedChest.opened && Math.hypot(p.x - lvl.lockedChest.x, p.y - lvl.lockedChest.y) < TILE * 1.6 && !p.hasKey)
+    msg = 'Cerrado — la llave la tiene una criatura de este piso';
   else if (lvl.exitOpen) {
     const ex = (lvl.exit.tx + 0.5) * TILE, ey = (lvl.exit.ty + 0.5) * TILE;
     if (Math.hypot(p.x - ex, p.y - ey) < TILE * 1.2)
@@ -374,6 +409,30 @@ function render(dt) {
     ctx.drawImage(spr, ch.x - spr.width / 2, ch.y - spr.height / 2);
   }
 
+  // cofre dorado y altar
+  if (lvl.lockedChest) {
+    const lc = lvl.lockedChest;
+    const spr = lc.opened ? Sprites.cofre_abierto : Sprites.cofre_dorado;
+    if (!lc.opened) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255,216,79,0.08)';
+      ctx.beginPath(); ctx.arc(lc.x, lc.y, 10 + Math.sin(state.time * 3) * 2, 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.drawImage(spr, lc.x - spr.width / 2, lc.y - spr.height / 2);
+  }
+  if (lvl.altar) {
+    const al = lvl.altar;
+    if (!al.used) {
+      // llama de la vela parpadeando
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255,177,63,' + (0.12 + Math.sin(state.time * 9) * 0.05) + ')';
+      ctx.beginPath(); ctx.arc(al.x, al.y - 5, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.drawImage(Sprites.altar, al.x - 5, al.y - 5);
+  }
+
   // mercader (flota suavemente, con brillo de linterna)
   if (lvl.merchant) {
     const m = lvl.merchant;
@@ -391,6 +450,13 @@ function render(dt) {
     if (pk.kind === 'coin') ctx.drawImage(Sprites.moneda, pk.x - 3, pk.y - 3 + bob);
     else if (pk.kind === 'heart') ctx.drawImage(Sprites.corazon, pk.x - 3.5, pk.y - 3 + bob);
     else if (pk.kind === 'potion') ctx.drawImage(Sprites.pocion, pk.x - 3, pk.y - 4 + bob);
+    else if (pk.kind === 'key') {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255,216,79,0.2)';
+      ctx.beginPath(); ctx.arc(pk.x, pk.y + bob, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(Sprites.llave, pk.x - 4, pk.y - 2 + bob);
+    }
     else if (pk.kind === 'xp') {
       // puntito rojo de experiencia, titila
       const tw = 1 + Math.sin(pk.t * 2.5) * 0.35;
@@ -630,20 +696,19 @@ function drawEnemy(e) {
   }
   // un jefe que pateó su pelota se dibuja sin ella
   const base = (e.hasBall === false && e.def.spriteNoBall) ? e.def.spriteNoBall : e.def.sprite;
-  const spr = Sprites[base + (e.dir < 0 ? '_L' : '')];
+  let spr = Sprites[base + (e.dir < 0 ? '_L' : '')];
+  if (e.flashT > 0) spr = tintedSprite(spr, '#ffffff', 0.8);
+  else if (e.enraged) spr = tintedSprite(spr, '#ff3030', 0.3); // segunda fase: teñido de furia
   const alpha = e.def.ghost ? 0.75 : 1;
   // telegrafiado de carga del jefe: tiembla y se tiñe
   const ox = (e.telegraphT > 0) ? (Math.random() - 0.5) * 2 : 0;
   drawSpriteC(spr, e.x + ox, e.y - 2, e.scale, alpha);
-  if (e.flashT > 0) {
-    ctx.globalCompositeOperation = 'source-atop';
-    ctx.globalAlpha = 0.6;
-    ctx.fillStyle = '#fff';
-    const w = spr.width * e.scale, h = spr.height * e.scale;
-    ctx.fillRect(e.x - w / 2, e.y - 2 - h / 2, w, h);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
+  // el portador de la llave brilla dorado sobre la cabeza
+  if (e.keyCarrier && Math.floor(state.time * 4) % 2 === 0) {
+    ctx.fillStyle = '#ffd84f';
+    ctx.fillRect(e.x - 1, e.y - e.h * e.scale - 7, 2, 2);
   }
+
   // mini barra de vida si está herido (no jefes: ellos tienen la grande)
   if (!e.isBoss && e.hp < e.maxhp) {
     const w = 12;

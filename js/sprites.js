@@ -322,6 +322,35 @@ function buildSprites() {
     'CCCCCCCCCC',
   ], { C:'#7a5230', c:'#9a6c40', s:'#9a6c40', y:'#ffd84f' });
 
+  // Cofre dorado cerrado con llave
+  Sprites.cofre_dorado = px([
+    '.YYYYYYYY.',
+    'YyyyyyyyyY',
+    'YYYYYYYYYY',
+    'YY..kk..YY',
+    'YYYYkkYYYY',
+    'YYYYYYYYYY',
+  ], { Y:'#c8922a', y:'#ffd84f', k:'#3a2a10' });
+
+  // Llave del cofre dorado
+  Sprites.llave = px([
+    'yyy.....',
+    'y.yyyyyy',
+    'yyy..y.y',
+    '.....y.y',
+  ], { y:'#ffd84f' });
+
+  // Altar de sacrificio: piedra con gema y vela
+  Sprites.altar = px([
+    '....ff....',
+    '....ww....',
+    '.GGGGGGGG.',
+    '.GGGRRGGG.',
+    '..GGGGGG..',
+    '..GGGGGG..',
+    '.GGGGGGGG.',
+  ], { f:'#ffb13f', w:'#e8e3d0', G:'#6d7a85', R:'#d8403f' });
+
   Sprites.cofre_abierto = px([
     '.cccccccc.',
     'c........c',
@@ -434,6 +463,27 @@ function buildSprites() {
   for (const k of Object.keys(Sprites)) {
     if (!k.startsWith('icon_')) Sprites[k + '_L'] = flipH(Sprites[k]);
   }
+}
+
+// Versión tintada de un sprite (flash de daño, jefes furiosos), con caché
+let _tidSeq = 0;
+const _tintCache = new Map();
+function tintedSprite(spr, color, alpha) {
+  if (!spr._tid) spr._tid = ++_tidSeq;
+  const key = spr._tid + '|' + color + '|' + alpha;
+  let c = _tintCache.get(key);
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = spr.width; c.height = spr.height;
+    const g = c.getContext('2d');
+    g.drawImage(spr, 0, 0);
+    g.globalCompositeOperation = 'source-atop';
+    g.globalAlpha = alpha;
+    g.fillStyle = color;
+    g.fillRect(0, 0, c.width, c.height);
+    _tintCache.set(key, c);
+  }
+  return c;
 }
 
 // Icono según slot/arma de un ítem
