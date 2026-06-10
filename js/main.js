@@ -172,6 +172,12 @@ function nextFloor() {
   state.level = lvl;
   state.enemies = []; state.projs = []; state.pickups = [];
   state.particles = []; state.floaters = []; state.fx = [];
+  // motas de polvo flotando con el color de la zona
+  state.motes = Array.from({ length: 16 }, () => ({
+    x: Math.random() * lvl.W * TILE, y: Math.random() * lvl.H * TILE,
+    vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 4,
+    ph: Math.random() * Math.PI * 2,
+  }));
   state.explored = Array.from({ length: lvl.H }, () => new Array(lvl.W).fill(false));
 
   const p = state.player;
@@ -336,6 +342,7 @@ function update(dt) {
     if (keys.has('w') || keys.has('arrowup')) my--;
     if (keys.has('s') || keys.has('arrowdown')) my++;
     if (touch.stickId !== null) { mx += touch.vx; my += touch.vy; }
+    p.moving = !!(mx || my);
     if (mx || my) {
       const n = Math.max(1, Math.hypot(mx, my)); // el joystick permite caminar lento
       moveWithCollision(lvl, p, (mx / n) * p.stats.spd * dt, (my / n) * p.stats.spd * dt, false);
@@ -361,6 +368,13 @@ function update(dt) {
   updateParticles(dt);
   updateFloaters(dt);
   updateFx(dt);
+
+  // deriva de las motas ambientales
+  for (const m of state.motes) {
+    m.x += m.vx * dt; m.y += m.vy * dt; m.ph += dt;
+    if (m.x < 0) m.x += lvl.W * TILE; if (m.x > lvl.W * TILE) m.x -= lvl.W * TILE;
+    if (m.y < 0) m.y += lvl.H * TILE; if (m.y > lvl.H * TILE) m.y -= lvl.H * TILE;
+  }
 
   // cofres: se abren al tocarlos
   for (const ch of lvl.chests) {
@@ -442,29 +456,62 @@ function render(dt) {
   const x1 = Math.min(lvl.W - 1, Math.ceil((state.cam.x + canvas.width / ZOOM) / TILE) + 1);
   const y1 = Math.min(lvl.H - 1, Math.ceil((state.cam.y + canvas.height / ZOOM) / TILE) + 1);
 
+  const torches = []; // antorchas visibles, para dibujar su luz después
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
       const solid = lvl.map[ty][tx] === 0;
       const X = tx * TILE, Y = ty * TILE;
+      const hash = (tx * 7 + ty * 13) % 5;
+      const bigHash = (tx * 73 + ty * 37) % 23;
       if (!solid) {
-        const hash = (tx * 7 + ty * 13) % 5;
         ctx.fillStyle = hash === 0 ? pal.floorAlt : pal.floor;
         ctx.fillRect(X, Y, TILE, TILE);
-        if (hash === 3) { // decal sutil
+        if (hash === 3) { // grieta sutil
           ctx.fillStyle = pal.wallDark;
           ctx.fillRect(X + ((tx * 11) % 12), Y + ((ty * 7) % 12), 2, 1);
         }
+        if (bigHash === 5) drawFloorDecal(X, Y, tx, ty); // decoración de zona
       } else {
         // pared con cara frontal si abajo hay piso
         const floorBelow = ty + 1 < lvl.H && lvl.map[ty + 1][tx] === 1;
         ctx.fillStyle = floorBelow ? pal.wall : pal.wallDark;
         ctx.fillRect(X, Y, TILE, TILE);
         if (floorBelow) {
+          // textura de ladrillos: hiladas + juntas verticales alternadas
           ctx.fillStyle = pal.wallDark;
+          ctx.fillRect(X, Y + 4, TILE, 1);
+          ctx.fillRect(X, Y + 9, TILE, 1);
+          ctx.fillRect(X + ((tx + ty) % 2 ? 4 : 10), Y, 1, 4);
+          ctx.fillRect(X + ((tx + ty) % 2 ? 11 : 5), Y + 5, 1, 4);
           ctx.fillRect(X, Y + TILE - 3, TILE, 3);
+          // antorcha cada tanto
+          if (bigHash === 0) torches.push([X + TILE / 2, Y, tx * 31 + ty]);
+        } else if (hash === 1) {
+          // textura tenue en el techo de los muros
+          ctx.fillStyle = pal.wall;
+          ctx.fillRect(X + (tx % 3) * 4 + 2, Y + (ty % 3) * 4 + 2, 2, 1);
         }
       }
     }
+  }
+
+  // antorchas: palo, llama animada y luz cálida parpadeante
+  for (const [tX, tY, seed] of torches) {
+    ctx.fillStyle = '#6b4a2b';
+    ctx.fillRect(tX - 1, tY + 7, 2, 4);
+    const fl = Math.floor(state.time * 9 + seed) % 3;
+    ctx.fillStyle = fl === 0 ? '#ffb13f' : fl === 1 ? '#ff7b2f' : '#ffd84f';
+    ctx.fillRect(tX - 1, tY + 4 + (fl === 1 ? 1 : 0), 2, 3);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(tX - 0.5, tY + 5.5, 1, 1);
+    ctx.globalCompositeOperation = 'lighter';
+    const r = 13 + Math.sin(state.time * 7 + seed) * 2;
+    const g = ctx.createRadialGradient(tX, tY + 8, 2, tX, tY + 8, r);
+    g.addColorStop(0, 'rgba(255,160,60,0.13)');
+    g.addColorStop(1, 'rgba(255,160,60,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(tX, tY + 8, r, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   // escalera de salida
@@ -484,6 +531,7 @@ function render(dt) {
   // cofres
   for (const ch of lvl.chests) {
     const spr = ch.opened ? Sprites.cofre_abierto : Sprites.cofre;
+    drawShadow(ch.x, ch.y - 1, 5);
     ctx.drawImage(spr, ch.x - spr.width / 2, ch.y - spr.height / 2);
   }
 
@@ -491,6 +539,7 @@ function render(dt) {
   if (lvl.lockedChest) {
     const lc = lvl.lockedChest;
     const spr = lc.opened ? Sprites.cofre_abierto : Sprites.cofre_dorado;
+    drawShadow(lc.x, lc.y - 1, 5);
     if (!lc.opened) {
       ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = 'rgba(255,216,79,0.08)';
@@ -501,6 +550,7 @@ function render(dt) {
   }
   if (lvl.altar) {
     const al = lvl.altar;
+    drawShadow(al.x, al.y - 1, 5);
     if (!al.used) {
       // llama de la vela parpadeando
       ctx.globalCompositeOperation = 'lighter';
@@ -515,6 +565,7 @@ function render(dt) {
   if (lvl.merchant) {
     const m = lvl.merchant;
     const bob = Math.sin(state.time * 2.5) * 1.2;
+    drawShadow(m.x, m.y + 1, 5.5);
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = 'rgba(255,216,79,0.10)';
     ctx.beginPath(); ctx.arc(m.x, m.y + bob, 14, 0, Math.PI * 2); ctx.fill();
@@ -621,6 +672,16 @@ function render(dt) {
     ctx.globalAlpha = 1;
   }
 
+  // motas de polvo flotando (color de acento de la zona)
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = pal.accent;
+  for (const m of (state.motes || [])) {
+    ctx.globalAlpha = 0.08 + 0.07 * Math.sin(m.ph * 1.6);
+    ctx.fillRect(m.x, m.y + Math.sin(m.ph) * 2, 1, 1);
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+
   // efectos: ondas expansivas y destellos
   ctx.globalCompositeOperation = 'lighter';
   for (const f of state.fx) {
@@ -643,8 +704,28 @@ function render(dt) {
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
 
-  // piso oscuro: viñeta que limita la visión alrededor del jugador
+  // luz cálida alrededor del jugador + viñeta suave de profundidad
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  {
+    const sx = (p.x - state.cam.x) * ZOOM, sy = (p.y - state.cam.y) * ZOOM;
+    ctx.globalCompositeOperation = 'lighter';
+    const warm = ctx.createRadialGradient(sx, sy, 4 * ZOOM, sx, sy, 38 * ZOOM);
+    warm.addColorStop(0, 'rgba(255,190,110,0.07)');
+    warm.addColorStop(1, 'rgba(255,190,110,0)');
+    ctx.fillStyle = warm;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = 'source-over';
+    if (lvl.evento !== 'oscuro') {
+      const vig = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.45,
+        canvas.width / 2, canvas.height / 2, canvas.height * 0.95);
+      vig.addColorStop(0, 'rgba(0,0,0,0)');
+      vig.addColorStop(1, 'rgba(5,4,8,0.42)');
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+
+  // piso oscuro: viñeta que limita la visión alrededor del jugador
   if (lvl.evento === 'oscuro') {
     const sx = (p.x - state.cam.x) * ZOOM, sy = (p.y - state.cam.y) * ZOOM;
     const grad = ctx.createRadialGradient(sx, sy, 24 * ZOOM, sx, sy, 62 * ZOOM);
@@ -684,6 +765,38 @@ function render(dt) {
   renderMinimap();
 }
 
+// Decoración de piso según la zona: huesos, hongos o runas
+function drawFloorDecal(X, Y, tx, ty) {
+  const zoneId = ZONES[state.run.zoneIdx].id;
+  const ox = 3 + (tx * 5) % 8, oy = 3 + (ty * 3) % 8;
+  if (zoneId === 'catacumbas') {
+    // huesito
+    ctx.fillStyle = '#b8b4a4';
+    ctx.fillRect(X + ox, Y + oy, 4, 1);
+    ctx.fillRect(X + ox - 1, Y + oy - 1, 1, 1);
+    ctx.fillRect(X + ox + 4, Y + oy + 1, 1, 1);
+  } else if (zoneId === 'cavernas') {
+    // honguito
+    ctx.fillStyle = '#c77b3f';
+    ctx.fillRect(X + ox, Y + oy, 3, 1);
+    ctx.fillStyle = '#e8a86a';
+    ctx.fillRect(X + ox + 1, Y + oy + 1, 1, 1);
+  } else {
+    // runa que brilla apenas
+    ctx.fillStyle = 'rgba(160,107,212,' + (0.4 + Math.sin(state.time * 2 + tx) * 0.2) + ')';
+    ctx.fillRect(X + ox + 1, Y + oy, 1, 3);
+    ctx.fillRect(X + ox, Y + oy + 1, 3, 1);
+  }
+}
+
+// Sombra elíptica que asienta a las entidades en el piso
+function drawShadow(x, y, w) {
+  ctx.fillStyle = 'rgba(0,0,0,0.30)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 5, w, w * 0.35, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawSpriteC(spr, x, y, scale, alpha) {
   if (alpha !== undefined) ctx.globalAlpha = alpha;
   const w = spr.width * scale, h = spr.height * scale;
@@ -692,6 +805,7 @@ function drawSpriteC(spr, x, y, scale, alpha) {
 }
 
 function drawPlayer(p) {
+  drawShadow(p.x, p.y, 5);
   // tackleado: tirado en el piso con estrellitas dando vueltas
   if (p.stunT > 0) {
     const spr = playerSprite(p);
@@ -709,7 +823,15 @@ function drawPlayer(p) {
   }
   // parpadeo durante invulnerabilidad
   if (p.ifr > 0 && Math.floor(state.time * 14) % 2 === 0) return;
-  drawSpriteC(playerSprite(p), p.x, p.y - 3, 1);
+  // caminata: rebote e inclinación; en reposo, respiración sutil
+  const spr = playerSprite(p);
+  const bob = p.moving ? -Math.abs(Math.sin(state.time * 10)) * 1.5 : Math.sin(state.time * 2.2) * 0.5;
+  const tilt = p.moving ? Math.sin(state.time * 10) * 0.07 : 0;
+  ctx.save();
+  ctx.translate(p.x, p.y - 3 + bob);
+  ctx.rotate(tilt);
+  ctx.drawImage(spr, -spr.width / 2, -spr.height / 2);
+  ctx.restore();
   drawHeldWeapon(p);
 
   // tajo de la espada: barrido animado con estela que se desvanece
@@ -782,15 +904,25 @@ function drawEnemy(e) {
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
   }
+  if (!e.def.ghost) drawShadow(e.x, e.y, e.w * e.scale * 0.45);
   // un jefe que pateó su pelota se dibuja sin ella
   const base = (e.hasBall === false && e.def.spriteNoBall) ? e.def.spriteNoBall : e.def.sprite;
   let spr = Sprites[base + (e.dir < 0 ? '_L' : '')];
   if (e.flashT > 0) spr = tintedSprite(spr, '#ffffff', 0.8);
   else if (e.enraged) spr = tintedSprite(spr, '#ff3030', 0.3); // segunda fase: teñido de furia
   const alpha = e.def.ghost ? 0.75 : 1;
-  // telegrafiado de carga del jefe: tiembla y se tiñe
+  // telegrafiado de carga del jefe: tiembla
   const ox = (e.telegraphT > 0) ? (Math.random() - 0.5) * 2 : 0;
-  drawSpriteC(spr, e.x + ox, e.y - 2, e.scale, alpha);
+  // bob de vida propia + squash al recibir un golpe
+  const bob = Math.sin(e.wobble * 1.1) * 0.8;
+  const sq = e.flashT > 0 ? 0.16 : 0;
+  ctx.save();
+  ctx.translate(e.x + ox, e.y - 2 + bob);
+  ctx.scale(e.scale * (1 + sq), e.scale * (1 - sq));
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(spr, -spr.width / 2, -spr.height / 2);
+  ctx.globalAlpha = 1;
+  ctx.restore();
   // el portador de la llave brilla dorado sobre la cabeza
   if (e.keyCarrier && Math.floor(state.time * 4) % 2 === 0) {
     ctx.fillStyle = '#ffd84f';
