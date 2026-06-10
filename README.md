@@ -2,7 +2,26 @@
 
 Action roguelike 2D de fantasía medieval: dungeon crawler con mazmorras procedurales y combate en tiempo real sobre el mapa.
 
-**Cómo jugar:** abrir `index.html` en el navegador (doble clic alcanza).
+**Cómo jugar:** abrir `index.html` en el navegador (doble clic alcanza), o
+servirlo (`python3 -m http.server 8417`) y abrirlo desde el iPhone en la misma
+red — tiene controles táctiles.
+
+**Controles:** WASD mover · ratón apuntar · clic atacar · Espacio dash ·
+Q poción · E interactuar · I inventario · Esc pausa.
+
+## Qué tiene hoy
+
+- 3 clases (Guerrero, Arquero, Mago) con 2 tipos de arma exclusivos cada una
+  (espada/martillo, arco/ballesta, bastón/varita).
+- Equipo de 6 slots visible sobre el personaje, materiales (Madera→Adamantio)
+  + rarezas con mods, tooltips comparativos con veredicto ▲/▼.
+- XP con orbes magnéticos, niveles con elección de mejora (1 de 3).
+- Dash invulnerable, pociones (Q), mercader entre zonas.
+- 3 zonas × (2 pisos + jefe) procedurales; jefes con patrones y segunda fase
+  furiosa. Bucle, el rugbier maldito, patea su pelota y queda vulnerable al
+  ir a buscarla; su tackle te deja en el piso.
+- Élites con aura, cofre dorado con llave, altar de sacrificio, eventos de
+  piso (oscuro/embrujado), récords persistentes, audio 100% sintetizado.
 
 ## Decisiones de diseño
 

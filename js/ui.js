@@ -399,11 +399,17 @@ function showEnd(victory) {
   $('endtitle').textContent = victory ? '¡VICTORIA!' : 'HAS CAÍDO';
   $('endtitle').style.color = victory ? '#ffd84f' : '#d8403f';
   const zone = ZONES[run.zoneIdx];
+  const t = Math.round(run.time || 0);
+  const equipo = SLOTS.map(slot => {
+    const it = p.equip[slot];
+    return it ? `<span style="color:${rarityOf(it).color}">${it.name}</span>` : null;
+  }).filter(Boolean).join(' · ');
   $('endstats').innerHTML = `
     ${victory ? 'Purificaste la Cripta Olvidada con tu ' + CLASSES[p.cls].name.toLowerCase() + '.' : 'Tu historia termina en ' + zone.name + '.'}<br><br>
-    Profundidad alcanzada: <b>piso ${run.depth}</b><br>
-    Criaturas eliminadas: <b>${run.kills}</b><br>
-    Monedas reunidas: <b>${p.coins}</b>
+    Profundidad alcanzada: <b>piso ${run.depth}</b> · Nivel <b>${p.level}</b><br>
+    Criaturas eliminadas: <b>${run.kills}</b> · Monedas: <b>${p.coins}</b><br>
+    Duración: <b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>
+    <span style="font-size:11px">${equipo}</span>
   `;
   $('endscreen').classList.remove('hidden');
 }

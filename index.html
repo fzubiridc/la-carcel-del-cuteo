@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cripta Olvidada</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
 <style>
   :root{
     --comun:#9aa0a6; --magico:#4f9dff; --raro:#ffd84f; --epico:#c45cff;
@@ -63,6 +64,11 @@
   .screen{ position:absolute; inset:0; display:flex; flex-direction:column;
     align-items:center; justify-content:center; gap:18px; background:#0b0a0fe6; z-index:10; }
   h1.title{ font-size:42px; letter-spacing:6px; color:#ffd84f; text-shadow:3px 3px 0 #4a2a10; }
+  #menu .title{ animation:titlefloat 3.5s ease-in-out infinite; }
+  @keyframes titlefloat{
+    0%,100%{ transform:translateY(0); text-shadow:3px 3px 0 #4a2a10, 0 0 18px #ffd84f22; }
+    50%{ transform:translateY(-6px); text-shadow:3px 3px 0 #4a2a10, 0 0 34px #ffd84f55; }
+  }
   .subtitle{ color:#8a8496; font-size:14px; letter-spacing:2px; }
   #classes{ display:flex; gap:16px; margin-top:10px; }
   .classcard{ width:190px; padding:14px; cursor:pointer; text-align:center;

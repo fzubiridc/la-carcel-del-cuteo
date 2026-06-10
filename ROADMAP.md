@@ -43,10 +43,10 @@ Plan de trabajo autónomo. Reglas para el agente:
   guerrero, ballesta (perfora enemigos) para arquero, varita (rápida, débil)
   para mago. Aparecen como drops igual que las armas base.
 - [x] 12. **Pausa con resumen de run**: stats actuales, equipo, nivel, kills.
-- [ ] 13. **Eventos de piso**: al generar, 15% de que el piso sea "oscuro"
+- [x] 13. **Eventos de piso**: al generar, 15% de que el piso sea "oscuro"
   (visión reducida con viñeta) o "embrujado" (más élites, más loot). Anunciado
   al entrar.
-- [ ] 14. **Pulido final**: favicon, animación sutil del título, pantalla de
+- [x] 14. **Pulido final**: favicon, animación sutil del título, pantalla de
   victoria con resumen completo de la run, y actualizar README.
 
 ## Notas de la noche
@@ -93,3 +93,21 @@ Plan de trabajo autónomo. Reglas para el agente:
   perforación en línea. Los drops reparten entre las armas de tu clase.
 - **12. Pausa con resumen** ✔ — Zona/piso/profundidad, nivel, kills, monedas,
   pociones, stats de combate y equipo con colores de rareza.
+- **13. Eventos de piso** ✔ — 15% oscuro (viñeta radial de visión, muy
+  atmosférico), 15% embrujado (élites al 25%, cofre extra). Tasas verificadas
+  sobre 60 generaciones.
+- **14. Pulido** ✔ — Favicon ⚔️, título con flotación y brillo, pantalla
+  final con nivel/duración/equipo, README actualizado con controles y
+  features.
+
+## Cierre de la noche
+
+14/14 features completas, todas verificadas en el navegador y commiteadas
+una por una. Decisión: parar acá — el juego está completo y cohesivo
+(3 clases × 2 armas, equipo con materiales y rarezas, XP/niveles/mejoras,
+mercader, dash, pociones, élites, 3 jefes con fase 2, cofres con llave,
+altares, eventos de piso, récords, audio y soporte táctil). Agregar más
+sería engordarlo sin mejorarlo.
+
+Ideas que QUEDARON AFUERA a propósito (por si algún día se quiere más):
+4ª zona, logros, gamepad, modo daily-run con semilla compartida.
