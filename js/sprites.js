@@ -37,70 +37,75 @@ function buildSprites() {
     '............',
     '............',
     '....hhhh....',
-    '...hhhhhh...',
+    '...hHHhhh...',
     '...ssssss...',
     '...sk.ks....',
-    '...ssssss...',
-    '..AAAAAAAA..',
+    '...ssmmss...',
+    '..aAAAAAAa..',
     '.sAAAAAAAAs.',
     '.s.AAAAAA.s.',
-    '...AAAAAA...',
-    '...BB..BB...',
-    '...BB..BB...',
+    '...uuYYuu...',
+    '...Bb..Bb...',
+    '...Bb..Bb...',
     '...DD..DD...',
-  ], { h:'#6e4528', s:skin, k:eye, A:'#929cab', B:'#4a3424', D:'#33241a' });
+  ], { h:'#6e4528', H:'#8a5a36', s:skin, k:eye, m:'#c89066',
+       A:'#929cab', a:'#b4bcc8', u:'#5c3e24', Y:'#c8922a',
+       B:'#4a3424', b:'#5c4430', D:'#33241a' });
 
   Sprites.arquero_body = px([
     '............',
     '............',
     '....hhhh....',
-    '...hhhhhh...',
+    '...hHHhhh...',
     '...ssssss...',
     '...sk.ks....',
-    '...ssssss...',
-    '..GGGGGGGG..',
+    '...ssmmss...',
+    '..gGGGGGGg..',
     '.sGGGGGGGGs.',
     '.s.GGGGGG.s.',
-    '...GGGGGG...',
-    '...BB..BB...',
-    '...BB..BB...',
+    '...uuYYuu...',
+    '...Bb..Bb...',
+    '...Bb..Bb...',
     '...DD..DD...',
-  ], { h:'#8a5a2b', s:skin, k:eye, G:'#54803c', B:'#4a3424', D:'#33241a' });
+  ], { h:'#8a5a2b', H:'#a8743c', s:skin, k:eye, m:'#c89066',
+       G:'#54803c', g:'#6a9a4c', u:'#5c3e24', Y:'#c8922a',
+       B:'#4a3424', b:'#5c4430', D:'#33241a' });
 
   Sprites.mago_body = px([
     '............',
     '............',
     '....hhhh....',
-    '...hhhhhh...',
+    '...hHHhhh...',
     '...ssssss...',
     '...sk.ks....',
-    '...ssssss...',
-    '..PPPPPPPP..',
+    '...ssmmss...',
+    '..qPPPPPPq..',
     '.sPPPPPPPPs.',
     '.s.PPPPPP.s.',
+    '...PPYYPP...',
     '...PPPPPP...',
-    '...PPPPPP...',
-    '...PPPPPP...',
+    '...qPPPPq...',
     '....P..P....',
-  ], { h:'#b8b2c8', s:skin, k:eye, P:'#52317c' });
+  ], { h:'#b8b2c8', H:'#d8d2e4', s:skin, k:eye, m:'#c89066',
+       P:'#52317c', q:'#6a4496', Y:'#c8922a' });
 
   // Tocados por defecto (identidad de clase cuando no hay casco equipado)
   Sprites.hat_mago = px([
-    '.....pp.....',
+    '.....qp.....',
+    '....qppp....',
     '....pppp....',
-    '....pppp....',
-    '...pppppp...',
+    '...ppYppp...',
     '..pppppppp..',
-  ], { p:'#6b3fa0' });
+  ], { p:'#6b3fa0', q:'#8a5cc0', Y:'#ffd84f' });
 
   Sprites.hood_arquero = px([
     '....gggg....',
-    '...gggggg...',
-    '...gggggg...',
+    '...gGGGGg...',
+    '...gGGGGg...',
     '...gg..gg...',
     '...g....g...',
     '...g....g...',
-  ], { g:'#3f6b3a' });
+  ], { g:'#3f6b3a', G:'#4f7d48' });
 
   // ----- Enemigos -----
   Sprites.rata = px([

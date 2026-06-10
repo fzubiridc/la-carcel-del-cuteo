@@ -364,6 +364,11 @@ function render(dt) {
       ctx.fillStyle = pr.color;
       ctx.fillRect(-4, -0.5, 8, 1);
       ctx.fillRect(2, -1.5, 2, 3);
+      // punta con brillo
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255,240,200,0.55)';
+      ctx.fillRect(2, -2, 3, 4);
+      ctx.globalCompositeOperation = 'source-over';
       ctx.restore();
     } else if (pr.style === 'bolt') {
       // orbe arcano: halo pulsante + núcleo + chispas orbitando
@@ -487,13 +492,24 @@ function drawPlayer(p) {
   drawSpriteC(playerSprite(p), p.x, p.y - 3, 1);
   drawHeldWeapon(p);
 
-  // arco del espadazo
+  // tajo de la espada: barrido animado con estela que se desvanece
   if (p.swingT > 0) {
-    ctx.strokeStyle = '#ffffffaa';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, weaponDef(p).range - 6, p.swingAng - 0.9, p.swingAng + 0.9);
-    ctx.stroke();
+    const wt = weaponDef(p);
+    const k = 1 - p.swingT / 0.16;            // progreso del tajo 0→1
+    const dir = p.swingDir || 1;
+    const cur = p.swingAng + dir * (k * 2 - 1); // barre 2 radianes
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 5; i++) {
+      const a = cur - dir * i * 0.14;
+      ctx.globalAlpha = (1 - i / 5) * 0.55;
+      ctx.strokeStyle = i === 0 ? '#ffffff' : '#9ab8d8';
+      ctx.lineWidth = 3 - i * 0.45;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, wt.range - 7, a - 0.14, a + 0.14);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
   }
 }
 
@@ -521,8 +537,8 @@ function drawHeldWeapon(p) {
   const wt = WEAPON_TYPES[arma.weaponType];
   const icon = Sprites['icon_' + arma.weaponType];
   const aim = Math.atan2(mouseWorldY() - p.y, mouseWorldX() - p.x);
-  // golpe de muñeca durante el espadazo
-  const swing = p.swingT > 0 ? Math.sin((0.16 - p.swingT) / 0.16 * Math.PI) * 1.1 - 0.55 : 0;
+  // golpe de muñeca durante el espadazo (sigue la dirección del tajo)
+  const swing = p.swingT > 0 ? (Math.sin((0.16 - p.swingT) / 0.16 * Math.PI) * 1.1 - 0.55) * (p.swingDir || 1) : 0;
   ctx.save();
   ctx.translate(p.x + Math.cos(aim) * 8, p.y - 1 + Math.sin(aim) * 8);
   ctx.rotate(aim + wt.baseRot + swing);
@@ -531,7 +547,9 @@ function drawHeldWeapon(p) {
 }
 
 function drawEnemy(e) {
-  const spr = Sprites[e.def.sprite + (e.dir < 0 ? '_L' : '')];
+  // un jefe que pateó su pelota se dibuja sin ella
+  const base = (e.hasBall === false && e.def.spriteNoBall) ? e.def.spriteNoBall : e.def.sprite;
+  const spr = Sprites[base + (e.dir < 0 ? '_L' : '')];
   const alpha = e.def.ghost ? 0.75 : 1;
   // telegrafiado de carga del jefe: tiembla y se tiñe
   const ox = (e.telegraphT > 0) ? (Math.random() - 0.5) * 2 : 0;

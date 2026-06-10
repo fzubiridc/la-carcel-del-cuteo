@@ -234,6 +234,18 @@ function updateProjectiles(dt) {
         });
       }
     }
+    // estela sutil de la flecha
+    else if (pr.style === 'arrow' && pr.friendly) {
+      pr.trailT -= dt;
+      if (pr.trailT <= 0) {
+        pr.trailT = 0.03;
+        state.particles.push({
+          x: pr.x, y: pr.y,
+          vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8,
+          t: 0.16, color: '#e8d8a0', glow: true,
+        });
+      }
+    }
     if (rectHitsWall(lvl, pr.x, pr.y, 4, 4)) {
       pr.dead = true;
       if (pr.splash) explode(pr);
@@ -305,6 +317,8 @@ function playerAttack(aimAng) {
 
   if (wt.style === 'melee') {
     p.swingT = 0.16; p.swingAng = aimAng;
+    p.swingFlip = !p.swingFlip; // tajos alternados (revés y derecho)
+    p.swingDir = p.swingFlip ? 1 : -1;
     sfx('swing');
     let hitAny = false;
     for (const e of state.enemies) {
@@ -316,12 +330,27 @@ function playerAttack(aimAng) {
       while (diff < -Math.PI) diff += Math.PI * 2;
       if (Math.abs(diff) < 1.15) {
         damageEnemy(e, dmg, crit, Math.cos(aimAng) * 160, Math.sin(aimAng) * 160);
+        // chispas metálicas en el impacto
+        for (let i = 0; i < 6; i++) {
+          const a = aimAng + (Math.random() - 0.5) * 1.4;
+          const v = 60 + Math.random() * 120;
+          state.particles.push({ x: e.x, y: e.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+            t: 0.15 + Math.random() * 0.15, color: i % 2 ? '#ffffff' : '#ffd84f', glow: true });
+        }
         hitAny = true;
       }
     }
     if (hitAny) sfx('hit');
   } else if (wt.style === 'arrow') {
     fireProj({ x: p.x, y: p.y, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#e8d8a0', style: 'arrow', crit });
+    // chasquido de la cuerda: destello corto en la boca del arco
+    const hx = p.x + Math.cos(aimAng) * 9, hy = p.y + Math.sin(aimAng) * 9;
+    for (let i = 0; i < 4; i++) {
+      const a = aimAng + (Math.random() - 0.5) * 0.5;
+      const v = 80 + Math.random() * 60;
+      state.particles.push({ x: hx, y: hy, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+        t: 0.12, color: '#ffffff', glow: true });
+    }
     sfx('shoot');
   } else if (wt.style === 'bolt') {
     fireProj({ x: p.x, y: p.y, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit });
