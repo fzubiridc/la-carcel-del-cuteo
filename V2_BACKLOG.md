@@ -13,10 +13,10 @@
 
 ## 🎮 Pendientes — IA de mobs ("mobs más inteligentes")
 
-- [ ] **Wander**: que deambulen solos hasta detectarte (hoy están quietos sin aggro).
-- [ ] **Verte un poco más de lejos** (ampliar la detección, afinar con la sala).
-- [ ] **Leash**: si te alejás mucho de su zona de origen, vuelven/sueltan (hoy: 1.5s al salir de la sala — afinar si alcanza).
-- [ ] **Pausas de ataque**: al atacar/disparar se quedan clavados un instante (anticipación + recovery — estándar del género).
+- [x] **Wander** (11-jun): deambulan cerca de su origen sin aggro (caminan/pausan al azar, radio `BALANCE.wanderHome`).
+- [x] **Verte un poco más de lejos** (11-jun): detección 4 → 5.5 tiles (`BALANCE.aggroRadius`).
+- [x] **Leash** (11-jun): a más de 11 tiles de su origen sueltan y vuelven en escalera; si quedan encerrados, adoptan el lugar como nuevo hogar.
+- [x] **Pausas de ataque** (11-jun): recovery 0.45s tras golpe de contacto; shooters telegrafian 0.3s (anillo naranja) antes de disparar al ángulo congelado + 0.35s de recovery. Jefes exentos.
 - [x] **Movimiento ortogonal SOLO de mobs** (decidido 11-jun): chasers persiguen en escalera, no en diagonal recta.
 
 ## 🏰 Pisos con memoria (decidido 11-jun)
