@@ -32,7 +32,11 @@
 - [ ] Tirar ítems / arrastrar (drag & drop).
 - [ ] **Mobile: no se puede abrir el inventario** (falta botón táctil de inventario).
 - [ ] Mejorar la UI de las mejoras de nivel.
-- [ ] **HUD nuevo** (pedido para Claude Design, su cancha): pixel art con
+- [x] **HUD nuevo** (11-jun): assets de Claude Design integrados en `assets/ui/hud/`
+  (marco de pantalla 9-slice, barras vital/maná por capas, XP de cadena, 6 runas
+  por buff, títulos Cinzel). Pedido en `DESIGN_HUD_REQUEST.md`. **Maná = placeholder
+  100%** hasta definir mecánica. Detalle del diseño original abajo:
+- [ ] ~~HUD nuevo~~ (pedido para Claude Design, su cancha): pixel art con
   marcos de piedra/madera — vida con textura de lava (abajo-izq), recurso azul
   místico (abajo-der), XP tipo cadena (centro-abajo), runas de buff circulares.
   Fuentes: Cinzel/Marcellus (títulos), Inter/Noto Sans (texto).
