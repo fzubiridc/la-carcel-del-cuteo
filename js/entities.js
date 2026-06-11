@@ -9,7 +9,8 @@ function makePlayer(clsId) {
   const p = {
     cls: clsId, x: 0, y: 0, w: 10, h: 10,
     hp: cls.hp, stats: null,
-    equip: { arma: makeStarterWeapon(cls.weapon), casco: null, coraza: null, botas: null, anillo: null, amuleto: null },
+    equip: { arma: makeStarterWeapon(cls.weapon), casco: null, coraza: null, botas: null, anillo: null, amuleto: null,
+      foco: null, guantes: null, cinturon: null, anillo2: null },
     bag: [], coins: 0, potions: 1,
     level: 1, xp: 0, xpNext: 25,
     bonus: { hp: 0, spd: 0, crit: 0, atkspd: 0, def: 0, dmgMul: 1 },

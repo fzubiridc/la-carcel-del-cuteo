@@ -64,15 +64,21 @@ const RARITY_TINTS = {
 };
 
 // ---------- Slots de equipo y bases de armadura ----------
-const SLOTS = ['arma', 'casco', 'coraza', 'botas', 'anillo', 'amuleto'];
-const SLOT_LABELS = { arma:'Arma', casco:'Cabeza', coraza:'Torso', botas:'Pies', anillo:'Anillo', amuleto:'Amuleto' };
+// 10 slots de equipo (los 6 clásicos + 4 nuevos del inventario v2). Los nuevos
+// todavía NO dropean (makeItem no los genera): quedan listos para activar luego.
+const SLOTS = ['arma', 'casco', 'coraza', 'botas', 'anillo', 'amuleto', 'foco', 'guantes', 'cinturon', 'anillo2'];
+const SLOT_LABELS = { arma:'Arma', casco:'Cabeza', coraza:'Torso', botas:'Pies', anillo:'Anillo', amuleto:'Amuleto',
+  foco:'Foco', guantes:'Guantes', cinturon:'Cinturón', anillo2:'Anillo' };
 
 const ARMOR_BASES = {
-  casco:  [ { name: 'Capucha', def: 1 }, { name: 'Yelmo', def: 2 } ],
-  coraza: [ { name: 'Túnica', def: 2 }, { name: 'Coraza', def: 3 } ],
-  botas:  [ { name: 'Botas', def: 1, spd: 5 } ],
-  anillo: [ { name: 'Anillo', def: 0, dmg: 2 } ],   // los anillos dan daño base según material
-  amuleto:[ { name: 'Amuleto', def: 0, hp: 8 } ],   // los amuletos dan vida base según material
+  casco:   [ { name: 'Capucha', def: 1 }, { name: 'Yelmo', def: 2 } ],
+  coraza:  [ { name: 'Túnica', def: 2 }, { name: 'Coraza', def: 3 } ],
+  botas:   [ { name: 'Botas', def: 1, spd: 5 } ],
+  anillo:  [ { name: 'Anillo', def: 0, dmg: 2 } ],   // los anillos dan daño base según material
+  amuleto: [ { name: 'Amuleto', def: 0, hp: 8 } ],   // los amuletos dan vida base según material
+  foco:    [ { name: 'Orbe', def: 0, dmg: 3 } ],     // foco arcano: daño mágico
+  guantes: [ { name: 'Guantes', def: 1 } ],
+  cinturon:[ { name: 'Faja', def: 1, hp: 6 } ],
 };
 
 // Sufijos: cada mod posible da nombre al ítem ("Yelmo del Oso")
@@ -166,7 +172,7 @@ const BALANCE = {
   dropHeart: 0.11,       // prob. de corazón
   dropPotion: 0.04,      // prob. de poción
   heartHeal: 22,
-  bagSize: 12,
+  bagSize: 24,
   maxPotions: 3,
   eliteChance: 0.08,     // prob. de que un spawn sea élite
   playerIfr: 0.6,        // segundos de invulnerabilidad tras recibir daño

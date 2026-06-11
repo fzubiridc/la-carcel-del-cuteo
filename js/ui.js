@@ -243,54 +243,91 @@ function slotDiv(item, placeholder, onclick) {
   return d;
 }
 
+// slot del inventario v2: la pieza recortada es el background, el ícono va centrado
+function invSlotDiv(item, slotImg, extraClass, onclick) {
+  const d = document.createElement('div');
+  d.className = 'invslot ' + extraClass + (item ? ' r-' + item.rarity : '');
+  d.style.backgroundImage = `url(assets/ui/hud/inv/${slotImg}.png)`;
+  if (item) {
+    const c = iconCanvasFor(item); c.className = 'invicon';
+    d.appendChild(c);
+    d.onmouseenter = ev => showTooltip(item, ev);
+    d.onmousemove = ev => moveTooltip(ev);
+    d.onmouseleave = hideTooltip;
+  }
+  if (onclick) d.onclick = ev => { hideTooltip(); onclick(ev); };
+  return d;
+}
+
+// 10 slots de equipo alrededor del mago (5 por lado, de arriba a abajo)
+const EQ_LAYOUT = [
+  ['casco', 'left', 0], ['amuleto', 'left', 1], ['coraza', 'left', 2], ['guantes', 'left', 3], ['cinturon', 'left', 4],
+  ['arma', 'right', 0], ['foco', 'right', 1], ['anillo', 'right', 2], ['anillo2', 'right', 3], ['botas', 'right', 4],
+];
+
 function renderInv() {
   const p = state.player;
   const inv = $('inv');
-  inv.innerHTML = '<h2>INVENTARIO</h2>';
-  const body = document.createElement('div');
-  body.id = 'invbody';
+  inv.innerHTML = '';
 
-  // Equipo: los slots replican el cuerpo (casco arriba, anillo/arma en las manos...)
-  const eq = document.createElement('div');
-  eq.innerHTML = '<div style="font-size:11px;color:#8a8496;margin-bottom:6px">EQUIPADO</div>';
-  const eqGrid = document.createElement('div');
-  eqGrid.className = 'slotgrid';
-  for (const slot of SLOTS) {
+  const title = document.createElement('div');
+  title.className = 'invtitle'; title.textContent = 'INVENTARIO';
+  const hint = document.createElement('div');
+  hint.className = 'invhint';
+  hint.textContent = 'clic: equipar / desequipar · shift+clic: tirar al piso · I o Esc: cerrar';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'invwrap';
+
+  // --- zona del mago: columna izq · (mago + quick) · columna der ---
+  const hero = document.createElement('div');
+  hero.className = 'invhero';
+  const colL = document.createElement('div'); colL.className = 'eqcol';
+  const colR = document.createElement('div'); colR.className = 'eqcol';
+  const center = document.createElement('div'); center.className = 'herocenter';
+  const himg = document.createElement('img');
+  himg.className = 'invheroimg'; himg.src = 'assets/ui/hud/inv/inv_hero.png';
+  const quick = document.createElement('div');
+  quick.className = 'invquick';
+  for (let i = 0; i < 5; i++) quick.appendChild(invSlotDiv(null, 'slot_round', 'qslot', null));
+  center.appendChild(himg); center.appendChild(quick);
+  for (const [slot, side] of EQ_LAYOUT) {
     const it = p.equip[slot];
-    const d = slotDiv(it, SLOT_LABELS[slot], () => unequipItem(slot));
-    d.style.gridArea = slot;
-    eqGrid.appendChild(d);
+    const d = invSlotDiv(it, 'slot_octagon', 'eqslot', it ? () => unequipItem(slot) : null);
+    d.title = SLOT_LABELS[slot];
+    (side === 'left' ? colL : colR).appendChild(d);
   }
-  eq.appendChild(eqGrid);
+  hero.appendChild(colL); hero.appendChild(center); hero.appendChild(colR);
 
-  // Mochila
+  // --- zona de la mochila (marco + grilla 4×6) ---
   const bag = document.createElement('div');
-  bag.innerHTML = `<div style="font-size:11px;color:#8a8496;margin-bottom:6px">MOCHILA (${p.bag.length}/${BALANCE.bagSize})</div>`;
-  const bagGrid = document.createElement('div');
-  bagGrid.id = 'baggrid';
+  bag.className = 'invbag';
+  const fimg = document.createElement('img');
+  fimg.className = 'invframeimg'; fimg.src = 'assets/ui/hud/inv/inv_frame.png';
+  bag.appendChild(fimg);
+  const grid = document.createElement('div');
+  grid.className = 'baggrid';
   for (let i = 0; i < BALANCE.bagSize; i++) {
     const it = p.bag[i];
-    bagGrid.appendChild(slotDiv(it, '', ev => { if (it) ev.shiftKey ? dropItem(i) : equipItem(i); }));
+    const d = invSlotDiv(it, 'slot_square', 'bagcell', it ? ev => ev.shiftKey ? dropItem(i) : equipItem(i) : null);
+    grid.appendChild(d);
   }
-  bag.appendChild(bagGrid);
+  bag.appendChild(grid);
 
-  // Stats totales
+  wrap.appendChild(hero); wrap.appendChild(bag);
+
+  // --- atributos (franja abajo) ---
+  const s = p.stats;
   const st = document.createElement('div');
   st.id = 'statpanel';
-  const s = p.stats;
-  st.innerHTML = `
-    <div style="font-size:11px;color:#8a8496;margin-bottom:6px">ATRIBUTOS</div>
-    Daño: <b>${playerDamage(p)}</b><br>
-    Vida: <b>${Math.ceil(p.hp)} / ${s.maxhp}</b><br>
-    Defensa: <b>${s.def}</b><br>
-    Velocidad: <b>${Math.round(s.spd)}</b><br>
-    Crítico: <b>${s.crit}%</b><br>
-    Vel. ataque: <b>${(1 / attackCooldown(p)).toFixed(1)}/s</b>
-  `;
+  st.innerHTML = `<span>Daño <b>${playerDamage(p)}</b></span>
+    <span>Vida <b>${Math.ceil(p.hp)}/${s.maxhp}</b></span>
+    <span>Defensa <b>${s.def}</b></span>
+    <span>Vel. <b>${Math.round(s.spd)}</b></span>
+    <span>Crítico <b>${s.crit}%</b></span>
+    <span>Vel.atq <b>${(1 / attackCooldown(p)).toFixed(1)}/s</b></span>`;
 
-  body.appendChild(eq); body.appendChild(bag); body.appendChild(st);
-  inv.appendChild(body);
-  inv.insertAdjacentHTML('beforeend', '<div class="invhint">clic: equipar / desequipar · shift+clic: tirar al piso · I o Esc: cerrar</div>');
+  inv.appendChild(title); inv.appendChild(hint); inv.appendChild(wrap); inv.appendChild(st);
 }
 
 function equipItem(bagIdx) {
@@ -305,9 +342,12 @@ function equipItem(bagIdx) {
       return;
     }
   }
+  // anillos: hay dos slots; si el primero está ocupado y el segundo libre, va al segundo
+  let dest = it.slot;
+  if (it.slot === 'anillo' && p.equip.anillo && !p.equip.anillo2) dest = 'anillo2';
   p.bag.splice(bagIdx, 1);
-  const prev = p.equip[it.slot];
-  p.equip[it.slot] = it;
+  const prev = p.equip[dest];
+  p.equip[dest] = it;
   if (prev) p.bag.push(prev);
   calcStats(p);
   sfx('equip');
