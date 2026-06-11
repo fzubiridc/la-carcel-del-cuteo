@@ -38,9 +38,23 @@ pose-offsets (idle 2 / run 4 / attack 3 / hurt 2).
   en vivo al equipar + grilla de mochila + panel de stats. Colores de rareza
   en bordes. Solo diseño visual; la lógica la cablea el código.
 
+## 🎨 Pendiente — PEDIDO 3: "Weapon attack animations" (por arma a distancia/mágica)
+
+Las armas hoy reusan el espadazo. Las a distancia/mágicas necesitan su propio
+movimiento (DISEÑO, no código — animar el sprite del arma).
+
+- [ ] **Arco (bow): "tira y suelte"** — reposo → cuerda tensada con flecha
+  (windup) → soltar (la cuerda chasquea, la flecha se va). ~3 frames.
+- [ ] **Ballesta**: cargar/montar → disparar.
+- [ ] **Bastón y varita**: cargar (el orbe/gema de la punta brilla juntando
+  energía) → lanzar (flash/release).
+- Parametrizado sobre las draw functions por tier (un "draw/charge 0→1") para
+  que ande en los 6 tiers, no 18 sprites a mano.
+
 ## 🕓 Diferido (más adelante, pedido aparte)
 
 - [ ] **Efectos de armas/poderes** como sprite sheets (estela del tajo,
   explosión del bastón, rayo, etc.). Hoy resueltos por código y quedan bien;
   solo si queremos subirlos de nivel. Cada uno con sus specs de mecánica
-  (radio de área, perforación...).
+  (radio de área, perforación...). OJO: esto es el EFECTO (proyectil/explosión),
+  distinto del movimiento del arma del Pedido 3.
