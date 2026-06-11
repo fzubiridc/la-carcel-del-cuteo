@@ -40,33 +40,51 @@ function buildMenu() {
   } else {
     rl.classList.add('hidden');
   }
-  for (const cls of Object.values(CLASSES)) {
-    const card = document.createElement('div');
-    card.className = 'classcard panel';
-    const icon = document.createElement('canvas');
-    icon.width = 12; icon.height = 14;
-    icon.getContext('2d').drawImage(composeBase(cls.id, {}), 0, 0);
-    card.appendChild(icon);
-    const wt = WEAPON_TYPES[cls.weapon];
-    card.insertAdjacentHTML('beforeend', `
-      <h3>${cls.name}</h3>
-      <p>${cls.desc}</p>
-      <div class="statline"><span>Vida</span><b>${cls.hp}</b></div>
-      <div class="statline"><span>Velocidad</span><b>${cls.spd}</b></div>
-      <div class="statline"><span>Defensa</span><b>${cls.def}</b></div>
-      <div class="statline"><span>Crítico</span><b>${cls.crit}%</b></div>
-      <div class="statline"><span>Arma</span><b>${wt.name}</b></div>
-    `);
-    const cr = (rec.clases || {})[cls.id];
-    if (cr && cr.mejor) {
-      card.insertAdjacentHTML('beforeend',
-        `<div class="statline" style="margin-top:4px;border-top:1px solid var(--borde);padding-top:4px">
-           <span>Mejor</span><b>piso ${cr.mejor}${cr.victorias ? ' · ' + cr.victorias + '🏆' : ''}</b>
-         </div>`);
-    }
-    card.onclick = () => startRun(cls.id);
-    wrap.appendChild(card);
+  // v2: una sola clase — el Archimago. Card única con el sprite idle animado.
+  const cls = CLASSES.mago;
+  const card = document.createElement('div');
+  card.className = 'classcard panel';
+  card.style.cursor = 'pointer';
+  const portrait = document.createElement('canvas');
+  portrait.width = 128; portrait.height = 152;
+  portrait.style.imageRendering = 'pixelated';
+  portrait.style.width = '128px'; portrait.style.height = '152px'; // pisa el width:72px del CSS de v1
+  card.appendChild(portrait);
+  // retrato animado: idle south del pack v2; si aún no cargó, reintenta
+  const pg = portrait.getContext('2d');
+  pg.imageSmoothingEnabled = false;
+  let pf = 0;
+  const drawPortrait = () => {
+    if (typeof V2H === 'undefined' || !V2H.ready) return;
+    const img = V2H.imgs[`idle_south_${pf % 4}`];
+    pg.clearRect(0, 0, 128, 152);
+    // recorte del personaje dentro del frame 120×120 (x 28-92, y 18-94), escalado ×2
+    pg.drawImage(img, 28, 18, 64, 76, 0, 0, 128, 152);
+    pf++;
+  };
+  drawPortrait();
+  const portraitTimer = setInterval(() => {
+    if (!document.body.contains(portrait)) { clearInterval(portraitTimer); return; }
+    drawPortrait();
+  }, 220);
+  card.insertAdjacentHTML('beforeend', `
+    <h3>El Archimago</h3>
+    <p>Viejo, lento y absolutamente letal. Su energyblast revienta lo que toca.</p>
+    <div class="statline"><span>Vida</span><b>${cls.hp}</b></div>
+    <div class="statline"><span>Velocidad</span><b>${cls.spd}</b></div>
+    <div class="statline"><span>Crítico</span><b>${cls.crit}%</b></div>
+  `);
+  const cr = (rec.clases || {}).mago;
+  if (cr && cr.mejor) {
+    card.insertAdjacentHTML('beforeend',
+      `<div class="statline" style="margin-top:4px;border-top:1px solid var(--borde);padding-top:4px">
+         <span>Mejor</span><b>piso ${cr.mejor}${cr.victorias ? ' · ' + cr.victorias + '🏆' : ''}</b>
+       </div>`);
   }
+  card.insertAdjacentHTML('beforeend',
+    `<div style="margin-top:10px;text-align:center;color:#ffd84f;font-weight:bold;letter-spacing:1px">▶ ENTRAR A LA CÁRCEL</div>`);
+  card.onclick = () => startRun('mago');
+  wrap.appendChild(card);
 }
 
 function updateHUD() {
@@ -81,6 +99,45 @@ function updateHUD() {
   $('coinlabel').textContent = '◉ ' + p.coins + ' monedas';
   $('potlabel').textContent = '⚗ ' + p.potions + '/' + BALANCE.maxPotions + ' [Q]';
   $('dashfill').style.width = (100 * (1 - p.dashCd / 1.2)) + '%';
+  updateBossBar();
+}
+
+// Cada jefe lleva su propio marco decorativo (PixelLab) con geometría propia:
+// slice = esquinas del PNG (px), width = border-width CSS calculado para
+// escala 1:1 vertical con el track de 20px (sliceTop + 20 + sliceBottom = alto PNG).
+const BOSS_FRAMES = {
+  bucle:         { url: 'assets/ui/boss_frame_bucle.png',         slice: '14 17',    width: '14px 17px' },
+  golem_anciano: { url: 'assets/ui/boss_frame_golem_anciano.png', slice: '18 20',    width: '18px 20px' },
+  liche:         { url: 'assets/ui/boss_frame_liche.png',         slice: '31 26 32', width: '31px 26px 32px' },
+};
+
+// Barra del jefe: aparece al entrar a la sala de boss y desaparece al matarlo.
+// Fill rojo encima de un "bleed" amarillo que cae más lento (efecto fighting game).
+function updateBossBar() {
+  const el = $('bossbar');
+  if (!el) return;
+  const boss = state.enemies && state.enemies.find(e => e.isBoss);
+  if (!boss) {
+    el.classList.remove('show');
+    el.classList.add('hidden');
+    return;
+  }
+  if (el.classList.contains('hidden')) {
+    el.classList.remove('hidden');
+    const f = BOSS_FRAMES[boss.type] || BOSS_FRAMES.bucle;
+    const fr = $('bossframe');
+    fr.style.borderImageSource = `url('${f.url}')`;
+    fr.style.borderImageSlice = f.slice;
+    fr.style.borderWidth = f.width;
+    void el.offsetWidth; // reflow para que la transición arranque
+    el.classList.add('show');
+  }
+  const pct = Math.max(0, 100 * boss.hp / boss.maxhp);
+  $('bossbarfill').style.width = pct + '%';
+  $('bossbarbleed').style.width = pct + '%';
+  $('bossname').textContent = boss.def.name;
+  $('bosshptext').textContent = Math.max(0, Math.ceil(boss.hp)) + ' / ' + boss.maxhp;
+  el.classList.toggle('crit', pct < 25);
 }
 
 // Al subir de nivel: elegir 1 de 3 mejoras al azar (pausa el juego)

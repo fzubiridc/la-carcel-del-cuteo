@@ -245,7 +245,7 @@ function fireProj(o) {
     color: o.color || '#fff', style: o.style || 'dot',
     splash: o.splash || 0, crit: o.crit || false,
     life, dead: false, t: 0, trailT: 0, owner: o.owner || null,
-    pierce: o.pierce || 0, hitSet: null,
+    pierce: o.pierce || 0, hitSet: null, size: o.size || 6,
   });
 }
 
@@ -290,7 +290,7 @@ function updateProjectiles(dt) {
         });
       }
     }
-    if (rectHitsWall(lvl, pr.x, pr.y, 4, 4)) {
+    if (rectHitsWall(lvl, pr.x, pr.y, Math.max(4, pr.size - 4), Math.max(4, pr.size - 4))) {
       pr.dead = true;
       if (pr.splash) explode(pr);
       else burst(pr.x, pr.y, pr.color, 3);
@@ -300,7 +300,7 @@ function updateProjectiles(dt) {
       for (const e of state.enemies) {
         if (e.hp <= 0) continue;
         if (pr.hitSet && pr.hitSet.has(e)) continue; // la ballesta no pega dos veces al mismo
-        const r = (e.w * e.scale + 6) / 2;
+        const r = (e.w * e.scale + pr.size) / 2;
         if (Math.abs(pr.x - e.x) < r && Math.abs(pr.y - e.y) < r) {
           if (pr.splash) { pr.dead = true; explode(pr); break; }
           damageEnemy(e, pr.dmg, pr.crit, pr.vx * 0.4, pr.vy * 0.4);
@@ -332,10 +332,17 @@ function updateProjectiles(dt) {
 
 // Explosión con área (bastón de mago)
 function explode(pr) {
-  // destello + onda expansiva + chispas arcanas
-  state.fx.push({ type: 'flash', x: pr.x, y: pr.y, t: 0.12, t0: 0.12, r: Math.max(10, pr.splash * 0.8) });
-  state.fx.push({ type: 'ring', x: pr.x, y: pr.y, t: 0.32, t0: 0.32, maxR: pr.splash + 10, color: '#9ad8ff' });
-  state.fx.push({ type: 'ring', x: pr.x, y: pr.y, t: 0.45, t0: 0.45, maxR: pr.splash * 0.6, color: '#b14fff' });
+  const v2boom = typeof V2H !== 'undefined' && V2H.ready && V2H.fx.boom.length;
+  if (v2boom) {
+    // explosión sprite del energyblast: trae sus propios anillos horneados —
+    // los anillos/flash del motor (el "arco blanco") se omiten para no duplicar
+    state.fx.push({ type: 'v2boom', x: pr.x, y: pr.y, start: state.time, t: 0.5, t0: 0.5 });
+  } else {
+    // fallback por código: destello + onda expansiva
+    state.fx.push({ type: 'flash', x: pr.x, y: pr.y, t: 0.12, t0: 0.12, r: Math.max(10, pr.splash * 0.8) });
+    state.fx.push({ type: 'ring', x: pr.x, y: pr.y, t: 0.32, t0: 0.32, maxR: pr.splash + 10, color: '#9ad8ff' });
+    state.fx.push({ type: 'ring', x: pr.x, y: pr.y, t: 0.45, t0: 0.45, maxR: pr.splash * 0.6, color: '#b14fff' });
+  }
   for (let i = 0; i < 18; i++) {
     const a = Math.random() * Math.PI * 2, s = 40 + Math.random() * 110;
     state.particles.push({
@@ -427,7 +434,7 @@ function playerAttack(aimAng) {
   } else if (wt.style === 'bolt') {
     // el hechizo sale de la punta del bastón/varita, no del cuerpo
     const mx = p.x + Math.cos(aimAng) * 16, my = p.y - 6 + Math.sin(aimAng) * 16;
-    fireProj({ x: mx, y: my, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit });
+    fireProj({ x: mx, y: my, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit, size: wt.projSize || 6, range: wt.projRange });
     // destello de lanzamiento en la punta del bastón
     const hx = p.x + Math.cos(aimAng) * 9, hy = p.y + Math.sin(aimAng) * 9;
     for (let i = 0; i < 5; i++) {

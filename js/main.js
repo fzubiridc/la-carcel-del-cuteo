@@ -27,6 +27,7 @@ window.addEventListener('load', () => {
   buildSprites();
   if (typeof buildHero === 'function') buildHero();
   if (typeof loadHeroPack === 'function') loadHeroPack(); // asset pack final del héroe (reemplaza en caliente)
+  if (typeof loadV2Hero === 'function') loadV2Hero(); // mago v2 experimental (PixelLab)
   loadAssets(); // los CC0 de 32px reemplazan en caliente; hay fallback por código
   canvas = $('game'); ctx = canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
@@ -72,6 +73,12 @@ function bindInput() {
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   $('endbtn').onclick = () => { $('endscreen').classList.add('hidden'); backToMenu(); };
   $('resumebtn').onclick = togglePause;
+  // Botón debug: salta directo a la sala de jefe de la zona actual
+  $('debugboss').onclick = () => {
+    if (!state.run) return;
+    state.run.floorInZone = ZONES[state.run.zoneIdx].floors;
+    nextFloor();
+  };
   bindTouch();
 }
 
@@ -697,6 +704,9 @@ function render(dt) {
       ctx.fillRect(2, -2, 3, 4);
       ctx.globalCompositeOperation = 'source-over';
       ctx.restore();
+    } else if (pr.style === 'bolt' && typeof V2H !== 'undefined' && V2H.ready && V2H.fx.power.length) {
+      // energyblast v2 (PixelLab): sprite rotado hacia el ángulo de vuelo
+      drawV2Bolt(pr);
     } else if (pr.style === 'bolt') {
       // orbe arcano: halo pulsante + núcleo + chispas orbitando
       const pulse = 1 + Math.sin(pr.t * 22) * 0.25;
@@ -759,6 +769,14 @@ function render(dt) {
 
   // polvo del tackle: 4 frames, se reproduce una vez y muere (pivote en el piso)
   for (const f of state.fx) {
+    if (f.type === 'v2boom' && typeof V2H !== 'undefined' && V2H.fx.boom.length) {
+      // explosión del energyblast: one-shot de 8 frames, muere al terminar
+      const bi = Math.min(7, Math.floor((state.time - f.start) * 1000 / 60));
+      const img = V2H.fx.boom[bi];
+      const S = 0.6;
+      ctx.drawImage(img, f.x - 20 * S, f.y - 20 * S, 40 * S, 40 * S);
+      continue;
+    }
     if (f.type !== 'dust' || !Sprites.anim_dust) continue;
     const fi = Math.min(3, Math.floor((state.time - f.start) * 1000 / 70));
     ctx.drawImage(Sprites.anim_dust[fi], f.x - 4, f.y - 8, 8, 8);
@@ -847,21 +865,6 @@ function render(dt) {
     ctx.fillStyle = f.color;
     ctx.fillText(f.txt, sx, sy);
     ctx.globalAlpha = 1;
-  }
-
-  // barra de vida del jefe
-  const boss = state.enemies.find(e => e.isBoss);
-  if (boss) {
-    const bw = Math.min(420, canvas.width * 0.5);
-    const bx = (canvas.width - bw) / 2, by = canvas.height - 46;
-    ctx.fillStyle = '#000a'; ctx.fillRect(bx - 3, by - 3, bw + 6, 20);
-    ctx.fillStyle = '#3a1216'; ctx.fillRect(bx, by, bw, 14);
-    ctx.fillStyle = '#c0392b'; ctx.fillRect(bx, by, bw * boss.hp / boss.maxhp, 14);
-    ctx.font = 'bold 12px "Courier New", monospace';
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
-    ctx.fillText(boss.def.name, canvas.width / 2, by - 8);
-    ctx.textAlign = 'left';
   }
 
   renderMinimap();
@@ -965,8 +968,11 @@ function drawHeroWeaponArm(p, fi, flip, footY, ws) {
   if (!wframes) return;
   const wspr = wframes[hpTier(arma)], grip = HP.grip[wtype];
   const rawAim = aimAngle();
-  // arma relajada en reposo: si no te movés ni atacás, el arma baja al costado
-  const resting = !p.moving && p.attackT <= 0 && p.swingT <= 0;
+  // arma relajada en reposo: el arma baja al costado mientras no estás atacando.
+  // Considera todas las armas (melee usa swingT/attackT, ranged/magic usan atkCd) y
+  // sigue apuntando mientras el jugador mantiene el clic, aunque atkCd llegue a 0.
+  const aiming = mouse.down || touch.attacking;
+  const resting = !aiming && p.atkCd <= 0 && p.swingT <= 0 && (p.attackT || 0) <= 0;
   const restDir = p.dir > 0 ? 1.15 : (Math.PI - 1.15); // apunta hacia abajo-adelante
   const target = resting ? restDir : rawAim;
   if (p._armAim === undefined) p._armAim = target;
@@ -1049,6 +1055,11 @@ function drawPlayer(p) {
   }
   // parpadeo durante invulnerabilidad
   if (p.ifr > 0 && Math.floor(state.time * 14) % 2 === 0) return;
+  // mago v2 (PixelLab, 8 direcciones): tiene prioridad si sus assets cargaron
+  if (typeof V2H !== 'undefined' && V2H.ready) {
+    drawV2Hero(p);
+    return;
+  }
   if (HP.ready) {
     drawHeroPack(p);
   } else if (Sprites.hero_idle) {

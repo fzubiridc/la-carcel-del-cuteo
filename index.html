@@ -52,6 +52,11 @@
     border-radius:3px; overflow:hidden; }
   #dashfill{ height:100%; width:100%; background:#9ab8d8; transition:width .1s; }
   #dashlabel{ font-size:9px; color:#9ab8d8; letter-spacing:1px; }
+  #debugboss{ pointer-events:auto; align-self:flex-start; margin-top:4px;
+    font-family:inherit; font-size:10px; padding:3px 8px; cursor:pointer;
+    background:#2a1a08; color:#ffb04f; border:1px solid #5a3a18; border-radius:3px;
+    letter-spacing:1px; opacity:.7; }
+  #debugboss:hover{ opacity:1; border-color:#ffb04f; }
   #hint{ position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
     font-size:12px; color:#8a8496; pointer-events:none; text-shadow:1px 1px 0 #000; }
   #prompt{ position:absolute; bottom:60px; left:50%; transform:translateX(-50%);
@@ -69,6 +74,46 @@
     pointer-events:none; opacity:0; }
   #bigtoast.show{ animation:bigfade 2.4s forwards; }
   @keyframes bigfade{ 0%{opacity:0} 15%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
+
+  /* Barra de boss (arriba centrada): nombre AFUERA (arriba), y el marco
+     PixelLab pegado a la barra vía border-image 9-slice. Los números van
+     DENTRO de la barra. Slice 28/78 = esquinas del PNG recortado (254x64). */
+  #bossbar{ position:absolute; top:8px; left:50%;
+    transform:translateX(-50%) translateY(-12px);
+    width:min(460px, 84vw); display:flex; flex-direction:column;
+    align-items:center; gap:2px; pointer-events:none;
+    text-shadow:1px 1px 0 #000; opacity:0;
+    transition:opacity .45s ease-out, transform .45s ease-out; z-index:6;
+    --frame-url:none; }
+  #bossbar.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  #bossname{ font-size:14px; font-weight:bold; letter-spacing:3px;
+    color:#fff; text-transform:uppercase; }
+  /* El marco se aplica como border-image 9-slice. Cada jefe tiene su PNG con
+     geometría propia, así que slice y border-width los setea updateBossBar()
+     desde BOSS_FRAMES (js/ui.js), calculados para escala 1:1 vertical con el
+     track de 20px. */
+  #bossframe{ box-sizing:border-box; width:100%;
+    border-style:solid; border-color:transparent;
+    border-image-repeat:stretch;
+    image-rendering:pixelated; }
+  .bossbartrack{ position:relative; width:100%; height:20px;
+    background:#2a1216; overflow:hidden; }
+  #bossbarbleed{ position:absolute; left:0; top:0; bottom:0; width:100%;
+    background:linear-gradient(#ffd84f,#d8a82f);
+    transition:width .7s ease-out .18s; }
+  #bossbarfill{ position:absolute; left:0; top:0; bottom:0; width:100%;
+    background:linear-gradient(#e4504f,#a32430);
+    transition:width .12s ease-out; }
+  #bosshptext{ position:absolute; inset:0; display:flex; align-items:center;
+    justify-content:center; font-size:11px; font-weight:bold; color:#fff;
+    letter-spacing:1px; }
+  @keyframes bosscrit{
+    0%,100%{ box-shadow:0 0 6px #c0392b88; }
+    50%{ box-shadow:0 0 22px #ff2d2dcc, 0 0 6px #ff6b6b; } }
+  #bossbar.crit .bossbartrack{
+    animation:bosscrit .9s ease-in-out infinite;
+    border-color:#ff6b6b; }
+  #bossbar.crit #bossname{ color:#ff8a82; }
 
   /* Pantallas centradas */
   .screen{ position:absolute; inset:0; display:flex; flex-direction:column;
@@ -196,6 +241,17 @@
     <div id="coinlabel"></div>
     <div id="potlabel" style="font-size:13px;color:#f08a88"></div>
     <div id="dashwrap"><div id="dashbar"><div id="dashfill"></div></div><span id="dashlabel">DASH</span></div>
+    <button id="debugboss" type="button">→ JEFE (debug)</button>
+  </div>
+  <div id="bossbar" class="hidden">
+    <div id="bossname"></div>
+    <div id="bossframe">
+      <div class="bossbartrack">
+        <div id="bossbarbleed"></div>
+        <div id="bossbarfill"></div>
+        <div id="bosshptext"></div>
+      </div>
+    </div>
   </div>
   <div id="touchui" class="hidden">
     <div id="joyzone"><div id="joybase" class="hidden"><div id="joyknob"></div></div></div>
@@ -213,7 +269,7 @@
     <h1 class="title">LA CÁRCEL DEL CUTEO</h1>
     <div class="subtitle">un roguelike de fantasía medieval</div>
     <div class="subtitle hidden" id="recordline" style="color:#ffd84f"></div>
-    <div class="subtitle">Elegí tu clase:</div>
+    <div class="subtitle">El Archimago espera su condena:</div>
     <div id="classes"></div>
   </div>
 
@@ -241,15 +297,16 @@
 </div>
 
 <!-- ?v=N evita que el navegador sirva JS viejo de caché; subir N al editar -->
-<script src="js/data.js?v=19"></script>
-<script src="js/sprites.js?v=19"></script>
-<script src="js/anim-rig.js?v=19"></script>
-<script src="js/hero.js?v=19"></script>
-<script src="js/heropack.js?v=19"></script>
-<script src="js/dungeon.js?v=19"></script>
-<script src="js/items.js?v=19"></script>
-<script src="js/entities.js?v=19"></script>
-<script src="js/ui.js?v=19"></script>
-<script src="js/main.js?v=19"></script>
+<script src="js/data.js?v=40"></script>
+<script src="js/sprites.js?v=40"></script>
+<script src="js/anim-rig.js?v=40"></script>
+<script src="js/hero.js?v=40"></script>
+<script src="js/heropack.js?v=40"></script>
+<script src="js/v2hero.js?v=40"></script>
+<script src="js/dungeon.js?v=40"></script>
+<script src="js/items.js?v=40"></script>
+<script src="js/entities.js?v=40"></script>
+<script src="js/ui.js?v=40"></script>
+<script src="js/main.js?v=40"></script>
 </body>
 </html>

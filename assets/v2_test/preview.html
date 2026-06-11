@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mago v2 — preview animada</title>
+<style>
+  body { background: #15171c; color: #cfd3da; font-family: "Courier New", monospace; text-align: center; }
+  h1 { font-size: 18px; margin: 18px 0 4px; }
+  .sub { color: #7a8089; font-size: 12px; margin-bottom: 14px; }
+  .row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
+  .cell { background: #1d2026; border: 1px solid #2a2e36; border-radius: 6px; padding: 6px; }
+  .cell canvas { image-rendering: pixelated; display: block; }
+  .cell .lbl { font-size: 10px; color: #8a90a0; margin-top: 4px; }
+  h2 { font-size: 14px; color: #9ab8d8; margin: 10px 0 8px; }
+</style>
+</head>
+<body>
+<h1>Mago v2 — La Cárcel del Cuteo</h1>
+<div class="sub">PixelLab · 8 direcciones · canvas 120px mostrado a 2× (las secciones aparecen según haya frames descargados)</div>
+<div id="sections"></div>
+<script>
+const DIRS = ['south','south-east','east','north-east','north','north-west','west','south-west'];
+const ANIMS = [
+  { id: 'idle', label: 'IDLE (breathing)', frames: 4, ms: 220 },
+  { id: 'walk', label: 'WALK (6 frames)', frames: 6, ms: 120 },
+  { id: 'power', label: 'ENERGYBLAST — vuelo (loop)', frames: 4, ms: 110 },
+  { id: 'powerboom', label: 'ENERGYBLAST — explosión (one-shot)', frames: 8, ms: 90 },
+  { id: 'hurt', label: 'HURT', frames: 4, ms: 140 },
+];
+const SCALE = 2;
+
+async function loadImg(src) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => res(null);
+    im.src = src;
+  });
+}
+
+(async () => {
+  const root = document.getElementById('sections');
+  for (const anim of ANIMS) {
+    // probar si existe el primer frame de south
+    const probe = await loadImg(`mage/${anim.id}/south_0.png`);
+    if (!probe) continue;
+    const h2 = document.createElement('h2');
+    h2.textContent = anim.label;
+    root.appendChild(h2);
+    const row = document.createElement('div');
+    row.className = 'row';
+    root.appendChild(row);
+    for (const d of DIRS) {
+      const frames = [];
+      for (let f = 0; f < anim.frames; f++) {
+        const im = await loadImg(`mage/${anim.id}/${d}_${f}.png`);
+        if (im) frames.push(im);
+      }
+      if (!frames.length) continue;
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const cv = document.createElement('canvas');
+      const sz = frames[0].width;
+      cv.width = sz * SCALE; cv.height = sz * SCALE;
+      cv.style.width = cv.width + 'px';
+      const lbl = document.createElement('div');
+      lbl.className = 'lbl'; lbl.textContent = d;
+      cell.appendChild(cv); cell.appendChild(lbl);
+      row.appendChild(cell);
+      const ctx = cv.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      let i = 0;
+      setInterval(() => {
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        ctx.drawImage(frames[i % frames.length], 0, 0, cv.width, cv.height);
+        i++;
+      }, anim.ms);
+    }
+  }
+})();
+</script>
+</body>
+</html>
