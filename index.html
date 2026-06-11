@@ -37,8 +37,9 @@
   /* ===== HUD v2 — pixel art (assets de Claude Design, capas + 9-slice) ===== */
   /* --huds: factor de escala (diseñado a 1920 de ancho); lo setea resize() */
   #hud{ position:absolute; inset:0; pointer-events:none;
-    /* barras: alto, separación del borde inferior y lateral (despegan del marco) */
-    --barH:calc(70px * var(--huds,1)); --barBottom:max(40px, 2.4vw); --barMargin:max(50px, 2.8vw); }
+    /* barras: ancho fijo, alto deriva del aspect 1956/347; separación de los bordes */
+    --bw:calc(460px * var(--huds,1)); --barH:calc(82px * var(--huds,1));
+    --barBottom:max(36px, 2.2vw); --barMargin:max(46px, 2.6vw); }
   .px{ image-rendering:pixelated; image-rendering:crisp-edges; }
 
   /* marco de pantalla completa (border-image 9-slice, slice 64) */
@@ -46,17 +47,22 @@
     border:clamp(20px,2.6vw,46px) solid transparent;
     border-image:url(assets/ui/hud/screen_frame.png) 64 stretch; }
 
-  /* barras vital / maná: 3 capas (empty -> fill recortado -> frame) */
-  .hudbar{ position:absolute; bottom:var(--barBottom);
-    width:calc(420px * var(--huds,1)); height:var(--barH); z-index:2; }
+  /* barras vital / maná: marco con punta (barv2_frame) + relleno tileado en la ventana.
+     Ventana interior medida: x 17.3%–94%, y 32%–70.3%. Maná = marco espejado. */
+  .hudbar{ position:absolute; bottom:var(--barBottom); width:var(--bw);
+    aspect-ratio:1956/347; z-index:2; }
   .hudbar.left{ left:var(--barMargin); }
-  .hudbar.right{ right:var(--barMargin); }
-  .hudbar > img{ position:absolute; inset:0; width:100%; height:100%; }
-  .hudbar .fillclip{ position:absolute; left:0; top:0; bottom:0; overflow:hidden;
-    width:100%; transition:width .18s ease-out; }
-  .hudbar .fillclip img{ position:absolute; left:0; top:0; height:100%;
-    width:calc(420px * var(--huds,1)); max-width:none; }
-  #hptext{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  .hudbar.right{ right:var(--barMargin); transform:scaleX(-1); }
+  .hudbar .barwin{ position:absolute; left:17.3%; right:6%; top:32%; bottom:29.7%; overflow:hidden; }
+  .hudbar .fillclip{ position:absolute; left:0; top:0; bottom:0; width:100%;
+    overflow:hidden; transition:width .18s ease-out; }
+  .hudbar .filltex{ position:absolute; left:0; top:0; height:100%; width:calc(var(--bw) * 0.767);
+    background-repeat:repeat-x; background-size:auto 100%; }
+  .hudbar.left .filltex{ background-image:url(assets/ui/hud/bar_hp_fill.png); }
+  .hudbar.right .filltex{ background-image:url(assets/ui/hud/bar_mana_fill.png); }
+  .hudbar .barframe{ position:absolute; inset:0; width:100%; height:100%; }
+  #hptext{ position:absolute; left:17.3%; right:6%; top:32%; bottom:29.7%;
+    display:flex; align-items:center; justify-content:center;
     font-family:Inter,sans-serif; font-size:calc(20px * var(--huds,1)); font-weight:600;
     color:#fff; text-shadow:0 2px 3px #000; z-index:3; pointer-events:none; }
 
@@ -309,17 +315,15 @@
 
     <div id="lvltitle" class="hudtitle"></div>
     <div class="hudbar left" id="hpbar">
-      <img class="px" src="assets/ui/hud/bar_hp_empty.png" alt="">
-      <div class="fillclip"><img class="px" src="assets/ui/hud/bar_hp_fill.png" alt=""></div>
-      <img class="px" src="assets/ui/hud/bar_hp_frame.png" alt="">
+      <div class="barwin"><div class="fillclip"><div class="filltex"></div></div></div>
+      <img class="barframe px" src="assets/ui/hud/barv2_frame.png" alt="">
       <div id="hptext"></div>
     </div>
 
     <div id="manatitle" class="hudtitle"></div>
     <div class="hudbar right" id="manabar">
-      <img class="px" src="assets/ui/hud/bar_mana_empty.png" alt="">
-      <div class="fillclip"><img class="px" src="assets/ui/hud/bar_mana_fill.png" alt=""></div>
-      <img class="px" src="assets/ui/hud/bar_mana_frame.png" alt="">
+      <div class="barwin"><div class="fillclip"><div class="filltex"></div></div></div>
+      <img class="barframe px" src="assets/ui/hud/barv2_frame.png" alt="">
     </div>
 
     <div id="xpwrap">
@@ -381,16 +385,16 @@
 </div>
 
 <!-- ?v=N evita que el navegador sirva JS viejo de caché; subir N al editar -->
-<script src="js/data.js?v=58"></script>
-<script src="js/sprites.js?v=58"></script>
-<script src="js/anim-rig.js?v=58"></script>
-<script src="js/hero.js?v=58"></script>
-<script src="js/heropack.js?v=58"></script>
-<script src="js/v2hero.js?v=58"></script>
-<script src="js/dungeon.js?v=58"></script>
-<script src="js/items.js?v=58"></script>
-<script src="js/entities.js?v=58"></script>
-<script src="js/ui.js?v=58"></script>
-<script src="js/main.js?v=58"></script>
+<script src="js/data.js?v=59"></script>
+<script src="js/sprites.js?v=59"></script>
+<script src="js/anim-rig.js?v=59"></script>
+<script src="js/hero.js?v=59"></script>
+<script src="js/heropack.js?v=59"></script>
+<script src="js/v2hero.js?v=59"></script>
+<script src="js/dungeon.js?v=59"></script>
+<script src="js/items.js?v=59"></script>
+<script src="js/entities.js?v=59"></script>
+<script src="js/ui.js?v=59"></script>
+<script src="js/main.js?v=59"></script>
 </body>
 </html>

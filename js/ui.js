@@ -94,6 +94,11 @@ function setBarFill(sel, off, win, total, pct) {
   const clip = document.querySelector(sel + ' .fillclip');
   if (clip) clip.style.width = ((off + win * Math.max(0, Math.min(1, pct))) / total * 100) + '%';
 }
+// barras vida/maná v2: la ventana ya está delimitada por CSS (.barwin) → clip directo
+function setBarPct(sel, pct) {
+  const clip = document.querySelector(sel + ' .fillclip');
+  if (clip) clip.style.width = (Math.max(0, Math.min(1, pct)) * 100) + '%';
+}
 
 // Runas según buffs activos del jugador (solo reconstruye si cambió el set)
 function updateRunes(p) {
@@ -117,13 +122,13 @@ function updateHUD() {
   const p = state.player, run = state.run;
   if (!p) return;
   const zone = ZONES[run.zoneIdx];
-  // barra vital (ventana 420×100: x=40 w=340)
-  setBarFill('#hpbar', 40, 340, 420, p.hp / p.stats.maxhp);
+  // barra vital (marco v2: ventana delimitada por CSS)
+  setBarPct('#hpbar', p.hp / p.stats.maxhp);
   $('hptext').textContent = Math.ceil(p.hp) + ' / ' + p.stats.maxhp;
   $('lvltitle').textContent = 'ARCHIMAGO · NIVEL ' + p.level;
   // barra de maná — PLACEHOLDER: el cast aún no consume maná (ver V2_BACKLOG)
   const manaPct = 1;
-  setBarFill('#manabar', 40, 340, 420, manaPct);
+  setBarPct('#manabar', manaPct);
   $('manatitle').textContent = 'MANÁ ' + Math.round(350 * manaPct) + ' / 350';
   // XP (ventana 1000×40: x=28 w=944)
   setBarFill('#xpwrap', 28, 944, 1000, p.xp / p.xpNext);
