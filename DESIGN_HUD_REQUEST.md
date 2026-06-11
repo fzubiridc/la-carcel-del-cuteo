@@ -7,9 +7,22 @@ en CAPAS** para que el motor recorte el relleno dinámicamente (no entregar barr
 fill aparte, 9-slice). Todo PNG con **transparencia real (alpha)**, fondo
 transparente, pixel art nítido (sin anti-aliasing borroso), cada pieza su archivo.
 
-**Resolución de referencia del mockup: 1920×1080.** Las posiciones/tamaños abajo
-son de ese mockup; en el juego se anclan a las esquinas (es responsive), pero las
-**proporciones** y los tamaños relativos importan.
+### ⚠️ RESOLUCIÓN Y ESCALADO (leer primero)
+
+**El pixel art se entrega a RESOLUCIÓN NATIVA BAJA, no a tamaño de pantalla.** El
+juego escala cada asset ×4 con nearest-neighbor (`image-rendering: pixelated`) para
+que se vea chunky y coherente con los sprites de personajes (~64px). **NO pidas ni
+generes nada a 1920×1080** — eso hace que el arte salga fino/diminuto o que la
+herramienta lo genere chiquito. Diseñá a la resolución base que se indica en cada
+pieza (abajo), pensando que en pantalla se verá ×4 más grande.
+
+- Pantalla de referencia: 1920×1080 → **el marco se diseña a 480×270** (×4).
+- Barras 420×100 en pantalla → **se diseñan a 105×25** (×4).
+- XP 1000×40 en pantalla → **se diseña a 250×10** (×4).
+- Runas: 32×32 nativo (en pantalla se ven ~×2).
+
+Las posiciones del mockup (1920×1080) son para ubicar/anclar; en el juego se anclan
+a las esquinas (es responsive). Importan las **proporciones**, no los px absolutos.
 
 ---
 
@@ -30,35 +43,36 @@ son de ese mockup; en el juego se anclan a las esquinas (es responsive), pero la
 > - Borde decorativo que enmarca toda la vista de juego: **piedra labrada + vigas
 >   de madera**, con **herrajes/escuadras metálicas en las cuatro esquinas**.
 >   Interior totalmente transparente (se ve el juego a través). Pensado para
->   **9-slice** (bordes y esquinas se escalan sin deformarse). Canvas grande, p.ej.
->   1920×1080 con el centro vacío; o entregá las 9 piezas (4 esquinas, 4 lados, el
->   centro transparente) por separado si te resulta más limpio.
+>   **9-slice** (bordes y esquinas se escalan sin deformarse). **Resolución nativa
+>   480×270** (el juego lo escala ×4 a pantalla completa). NO lo generes a 1920×1080.
+>   Mejor aún: entregá las 9 piezas por separado (4 esquinas ~48×48 nativo, 4 lados
+>   delgados tileables, centro transparente) — escala mejor a cualquier pantalla.
 >
 > ### 2) BARRA VITAL — cápsula horizontal (abajo-izquierda, ~420×100 en mockup)
 > - **2a. Marco/cápsula** — cápsula horizontal de **piedra gris** con herrajes en
 >   las puntas y **ventana interior totalmente transparente** (el relleno se ve a
->   través). Pensada para 9-slice horizontal. Canvas 420×100.
+>   través). Pensada para 9-slice horizontal. **Nativo 105×25** (escala ×4 → 420×100).
 > - **2b. Relleno de lava ("Rojo Sangre")** — textura llena al 100% de lava
 >   roja-anaranjada con vetas y brillo, que se vea viva. Debe tolerar **recorte por
 >   ancho** (de izquierda a derecha, mi motor baja el nivel según la vida) y también
->   leerse bien tileada/desplazada. Mismo alto que la ventana. Canvas 420×100.
+>   leerse bien tileada/desplazada. Mismo alto que la ventana. **Nativo 105×25**.
 > - **2c. Fondo vacío (opcional)** — interior oscuro/apagado de la cápsula sin
 >   relleno, para ver detrás cuando la vida está baja. 420×100.
 >
 > ### 3) BARRA DE MANÁ — cápsula horizontal (abajo-derecha, ~420×100), gemela de la vital
 > - **3a. Marco/cápsula** — mismo formato que 2a, con **filigrana dorada** en las
->   esquinas para diferenciarla (acento mágico). Puede ser espejada. 420×100.
+>   esquinas para diferenciarla (acento mágico). Puede ser espejada. **Nativo 105×25**.
 > - **3b. Relleno "Azul Místico"** — líquido/energía **azul cósmico** (azul profundo
 >   con destellos de estrellas y brillo arcano violáceo). Mismas reglas de recorte
->   horizontal que la lava. 420×100.
+>   horizontal que la lava. **Nativo 105×25**.
 > - **3c. Fondo vacío (opcional)** — igual que 2c. 420×100.
 >
 > ### 4) BARRA DE EXPERIENCIA — cadena fina (centro inferior, ~1000×15 en mockup)
 > - **4a. Riel/marco** — barra horizontal **fina y larga** con **eslabones de cadena
 >   metálica** y herrajes dorados en las puntas, **ventana interior transparente**.
->   Apaisada y bajita. Canvas 1000×40 (con la ventana centrada vertical).
+>   Apaisada y bajita. **Nativo 250×10** (escala ×4 → 1000×40), ventana centrada.
 > - **4b. Relleno de XP** — textura **dorada brillante** (eslabones/energía) que
->   llena el riel, para **recortarse por ancho** según el progreso. 1000×40.
+>   llena el riel, para **recortarse por ancho** según el progreso. **Nativo 250×10**.
 >
 > ### 5) RUNAS DE ESTADO — iconos circulares individuales 32×32
 > - Set de **6 runas** circulares de 32×32 (en el mockup se ven 4: león dorado,
