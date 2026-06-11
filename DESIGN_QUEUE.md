@@ -46,6 +46,25 @@ movimiento (DISEÑO, no código — animar el sprite del arma).
 - Parametrizado sobre las draw functions por tier (un "draw/charge 0→1") para
   que ande en los 6 tiers, no 18 sprites a mano.
 
+## 🔧 Code TODO (feel/gameplay — los hago yo, no diseño)
+
+- [ ] **Arma relajada en reposo**: en idle, el brazo baja el arma al costado en
+  vez de apuntar al cursor (el guerrero no estira la mano sin motivo).
+- [ ] **Slash adelante del cuerpo**: el tajo debe leerse barriendo ADELANTE del
+  personaje (radio fijo + lunge), no solo el largo brazo+espada. Clave cuando
+  un mob está encima. (Propuesta en charla.)
+- [ ] **Brazo por detrás (experimento)**: dibujar brazo+arma detrás del cuerpo
+  para esconder la raíz y que no se lea desde el pecho. Probar si mejora.
+- [ ] **Aggro por sala / línea de vista**: los mobs no persiguen hasta que
+  entrás a su sala (o los ves). Hoy es por radio. (Room-based recomendado.)
+
+## 🗂️ Para el REDISEÑO de un día (tocan el arte base — solo si rediseñamos todo)
+
+- [ ] **Ojos del personaje** poco visibles (chicos/oscuros, y algunos cascos
+  los tapan). Hacerlos más legibles / visera más alta.
+- [ ] **Brazo-arma** se lee largo y su anatomía/raíz no es ideal en 360°. Un
+  rediseño podría plantear brazo más corto o sistema distinto.
+
 ## 🕓 Diferido (más adelante, pedido aparte)
 
 - [ ] **Efectos de armas/poderes** como sprite sheets (estela del tajo,
