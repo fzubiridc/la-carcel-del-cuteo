@@ -38,7 +38,7 @@
   /* --huds: factor de escala (diseñado a 1920 de ancho); lo setea resize() */
   #hud{ position:absolute; inset:0; pointer-events:none;
     /* barras: ancho fijo, alto deriva del aspect 1956/347; separación de los bordes */
-    --bw:calc(460px * var(--huds,1)); --barH:calc(82px * var(--huds,1));
+    --bw:calc(380px * var(--huds,1)); --barH:calc(95px * var(--huds,1));
     --barBottom:max(36px, 2.2vw); --barMargin:max(46px, 2.6vw); }
   .px{ image-rendering:pixelated; image-rendering:crisp-edges; }
 
@@ -47,21 +47,22 @@
     border:clamp(20px,2.6vw,46px) solid transparent;
     border-image:url(assets/ui/hud/screen_frame.png) 64 stretch; }
 
-  /* barras vital / maná: marco con punta (barv2_frame) + relleno tileado en la ventana.
-     Ventana interior medida: x 17.3%–94%, y 32%–70.3%. Maná = marco espejado. */
+  /* barras vital / maná: marco pixel-art de PixelLab (barv2_frame, punta a la izq) +
+     relleno tileado en la ventana. Ventana medida: x 15.2%–93.8%, y 25%–73.2%.
+     Maná = marco espejado. */
   .hudbar{ position:absolute; bottom:var(--barBottom); width:var(--bw);
-    aspect-ratio:1956/347; z-index:2; }
+    aspect-ratio:224/56; z-index:2; }
   .hudbar.left{ left:var(--barMargin); }
   .hudbar.right{ right:var(--barMargin); transform:scaleX(-1); }
-  .hudbar .barwin{ position:absolute; left:17.3%; right:6%; top:32%; bottom:29.7%; overflow:hidden; }
+  .hudbar .barwin{ position:absolute; left:15.2%; right:6.2%; top:25%; bottom:26.8%; overflow:hidden; }
   .hudbar .fillclip{ position:absolute; left:0; top:0; bottom:0; width:100%;
     overflow:hidden; transition:width .18s ease-out; }
-  .hudbar .filltex{ position:absolute; left:0; top:0; height:100%; width:calc(var(--bw) * 0.767);
+  .hudbar .filltex{ position:absolute; left:0; top:0; height:100%; width:calc(var(--bw) * 0.786);
     background-repeat:repeat-x; background-size:auto 100%; }
   .hudbar.left .filltex{ background-image:url(assets/ui/hud/bar_hp_fill.png); }
   .hudbar.right .filltex{ background-image:url(assets/ui/hud/bar_mana_fill.png); }
   .hudbar .barframe{ position:absolute; inset:0; width:100%; height:100%; }
-  #hptext{ position:absolute; left:17.3%; right:6%; top:32%; bottom:29.7%;
+  #hptext{ position:absolute; left:15.2%; right:6.2%; top:25%; bottom:26.8%;
     display:flex; align-items:center; justify-content:center;
     font-family:Inter,sans-serif; font-size:calc(20px * var(--huds,1)); font-weight:600;
     color:#fff; text-shadow:0 2px 3px #000; z-index:3; pointer-events:none; }
@@ -385,16 +386,16 @@
 </div>
 
 <!-- ?v=N evita que el navegador sirva JS viejo de caché; subir N al editar -->
-<script src="js/data.js?v=59"></script>
-<script src="js/sprites.js?v=59"></script>
-<script src="js/anim-rig.js?v=59"></script>
-<script src="js/hero.js?v=59"></script>
-<script src="js/heropack.js?v=59"></script>
-<script src="js/v2hero.js?v=59"></script>
-<script src="js/dungeon.js?v=59"></script>
-<script src="js/items.js?v=59"></script>
-<script src="js/entities.js?v=59"></script>
-<script src="js/ui.js?v=59"></script>
-<script src="js/main.js?v=59"></script>
+<script src="js/data.js?v=60"></script>
+<script src="js/sprites.js?v=60"></script>
+<script src="js/anim-rig.js?v=60"></script>
+<script src="js/hero.js?v=60"></script>
+<script src="js/heropack.js?v=60"></script>
+<script src="js/v2hero.js?v=60"></script>
+<script src="js/dungeon.js?v=60"></script>
+<script src="js/items.js?v=60"></script>
+<script src="js/entities.js?v=60"></script>
+<script src="js/ui.js?v=60"></script>
+<script src="js/main.js?v=60"></script>
 </body>
 </html>
