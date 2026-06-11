@@ -402,7 +402,9 @@ function playerAttack(aimAng) {
     }
     if (hitAny) sfx('hit');
   } else if (wt.style === 'arrow') {
-    fireProj({ x: p.x, y: p.y, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#e8d8a0', style: 'arrow', crit, pierce: wt.pierce || 0 });
+    // sale de la punta del arma, no del cuerpo
+    const mx = p.x + Math.cos(aimAng) * 16, my = p.y - 6 + Math.sin(aimAng) * 16;
+    fireProj({ x: mx, y: my, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#e8d8a0', style: 'arrow', crit, pierce: wt.pierce || 0 });
     // chasquido de la cuerda: destello corto en la boca del arco
     const hx = p.x + Math.cos(aimAng) * 9, hy = p.y + Math.sin(aimAng) * 9;
     for (let i = 0; i < 4; i++) {
@@ -413,7 +415,9 @@ function playerAttack(aimAng) {
     }
     sfx('shoot');
   } else if (wt.style === 'bolt') {
-    fireProj({ x: p.x, y: p.y, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit });
+    // el hechizo sale de la punta del bastón/varita, no del cuerpo
+    const mx = p.x + Math.cos(aimAng) * 16, my = p.y - 6 + Math.sin(aimAng) * 16;
+    fireProj({ x: mx, y: my, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit });
     // destello de lanzamiento en la punta del bastón
     const hx = p.x + Math.cos(aimAng) * 9, hy = p.y + Math.sin(aimAng) * 9;
     for (let i = 0; i < 5; i++) {

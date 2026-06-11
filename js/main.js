@@ -997,7 +997,13 @@ function drawHeldWeapon(p) {
   const arma = p.equip.arma;
   if (!arma) return;
   const aim = aimAngle();
-  const swing = p.swingT > 0 ? (Math.sin((0.16 - p.swingT) / 0.16 * Math.PI) * 1.1 - 0.55) * (p.swingDir || 1) : 0;
+  // slash: el arma barre un arco real de windup (-1.3) a follow-through (+1.3)
+  let swing = 0;
+  if (p.swingT > 0) {
+    const k = 1 - p.swingT / 0.16;          // 0 → 1 a lo largo del golpe
+    const eased = k * k * (3 - 2 * k);       // smoothstep para que acelere en el medio
+    swing = (eased * 2.6 - 1.3) * (p.swingDir || 1);
+  }
 
   // sprite del rig si está disponible (arma "vertical, punta arriba" + grip)
   const rigType = WEAPON_RIG[arma.weaponType];
@@ -1005,8 +1011,35 @@ function drawHeldWeapon(p) {
   if (rigArr) {
     const spr = rigArr[weaponTier(arma)];
     const ws = spr.ws || 1;
-    // mano: punto de agarre saliendo del hombro hacia el apuntado
-    const hx = p.x + Math.cos(aim) * 5, hy = p.y - 6 + Math.sin(aim) * 5;
+    // agarre anclado a la MANO real del frame de animación actual (no flotando)
+    let hx, hy;
+    if (typeof ARIG !== 'undefined') {
+      const ha = ARIG.handAnchor(p._heroAnim || 'idle', p._heroFrame || 0);
+      let ax = ha.x; if (p.dir < 0) ax = 48 - ax; // espejar con el cuerpo
+      hx = p.x - 12 + ax * 0.5;        // sprite 48px (ws .5, ancho 24) → mundo
+      hy = (p.y + 5 - 24) + ha.y * 0.5;
+    } else { hx = p.x + Math.cos(aim) * 5; hy = p.y - 6 + Math.sin(aim) * 5; }
+
+    // glow de rareza: las armas raras+ irradian su color (se nota que son especiales)
+    const rar = rarityOf(arma);
+    const rank = RARITIES.findIndex(r => r.id === arma.rarity);
+    if (rank >= 2) { // raro, épico (y futuras legendary/mythic)
+      const tipL = 13 * (spr.gy / 24);
+      const tx = hx + Math.cos(aim) * 16, ty = hy + Math.sin(aim) * 16;
+      const pulse = 0.6 + Math.sin(state.time * 5) * 0.25;
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(tx, ty, 0, tx, ty, (6 + rank * 2) * pulse);
+      g.addColorStop(0, rar.color + 'cc');
+      g.addColorStop(1, rar.color + '00');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(tx, ty, (6 + rank * 2) * pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      // chispas para épico+
+      if (rank >= 3 && Math.random() < 0.4)
+        state.particles.push({ x: tx + (Math.random() - 0.5) * 6, y: ty + (Math.random() - 0.5) * 6,
+          vx: (Math.random() - 0.5) * 20, vy: -10 - Math.random() * 15, t: 0.4, color: rar.color, glow: true });
+    }
+
     ctx.save();
     ctx.translate(hx, hy);
     ctx.rotate(aim + Math.PI / 2 + swing); // punta-arriba (-y) → dirección de apuntado
