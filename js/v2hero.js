@@ -12,6 +12,10 @@ const V2H = {
   // efectos del poder (energyblast): vuelo en loop + explosión one-shot
   fx: { power: [], boom: [] },
 };
+// versión de assets: subir al reemplazar PNGs para invalidar el caché del
+// navegador (los scripts usan ?v=N pero las imágenes no lo tenían — un PNG
+// corrupto cacheado nos dejó clavados en el héroe viejo)
+const V2_ASSET_V = 2;
 
 function loadV2Hero() {
   const dirs = ['south', 'south-east', 'east', 'north-east', 'north', 'north-west', 'west', 'south-west'];
@@ -23,7 +27,7 @@ function loadV2Hero() {
         const im = new Image();
         im.onload = () => { if (--left === 0) V2H.ready = true; };
         im.onerror = () => { left = Infinity; }; // falta un frame → nunca ready, fallback v1
-        im.src = `assets/v2_test/mage/${a}/${d}_${f}.png`;
+        im.src = `assets/v2_test/mage/${a}/${d}_${f}.png?v=${V2_ASSET_V}`;
         V2H.imgs[`${a}_${d}_${f}`] = im;
       }
     }
@@ -32,14 +36,14 @@ function loadV2Hero() {
   for (let f = 0; f < 4; f++) {
     const im = new Image();
     im.onload = () => V2H.fx.power.push(im) && V2H.fx.power.sort((a, b) => a._f - b._f);
-    im._f = f; im.src = `assets/v2_test/mage/power/south_${f}.png`;
+    im._f = f; im.src = `assets/v2_test/mage/power/south_${f}.png?v=${V2_ASSET_V}`;
   }
   const boomTmp = [];
   for (let f = 0; f < 8; f++) {
     const im = new Image();
     im._f = f;
     im.onload = () => { boomTmp.push(im); if (boomTmp.length === 8) V2H.fx.boom = boomTmp.sort((a, b) => a._f - b._f); };
-    im.src = `assets/v2_test/mage/powerboom/south_${f}.png`;
+    im.src = `assets/v2_test/mage/powerboom/south_${f}.png?v=${V2_ASSET_V}`;
   }
 }
 
