@@ -1,0 +1,856 @@
+{
+  "name": "Dungeon Crawler — Animated Paper-Doll Asset Pack",
+  "version": "1.0.0",
+  "frameSize": 48,
+  "facing": "south",
+  "note": "Front-facing only; mirror horizontally in-engine for left/right. All sprites are transparent-background, nearest-neighbor (no anti-aliasing), and share one 48x48 canvas and pivot. Composite layers by drawing each at (0,0) over the body.",
+  "palette": {
+    "0": "#140e1a",
+    "1": "#251c30",
+    "2": "#3d2c47",
+    "3": "#574066",
+    "4": "#8a4d76",
+    "5": "#b06a8f",
+    ".": null,
+    "a": "#33231d",
+    "b": "#553a2b",
+    "c": "#7a543a",
+    "d": "#a3764e",
+    "e": "#c97b63",
+    "f": "#e8c170",
+    "g": "#f6e3a9",
+    "h": "#2c2735",
+    "i": "#453f54",
+    "j": "#676078",
+    "k": "#938da6",
+    "l": "#c6c1d6",
+    "m": "#8a5a44",
+    "n": "#c08a64",
+    "o": "#e6b48c",
+    "p": "#33402a",
+    "q": "#52653c",
+    "r": "#7c8d57",
+    "s": "#7fd4cf",
+    "t": "#3e7f8a",
+    "u": "#1f4750",
+    "w": "#efe9dc",
+    "A": "#5b5666",
+    "B": "#8d8a99",
+    "C": "#bdbac8",
+    "D": "#2f6b34",
+    "E": "#5b9e54",
+    "F": "#86c46f",
+    "G": "#27568f",
+    "H": "#3f7cc4",
+    "I": "#74a9e6",
+    "J": "#5a2f8f",
+    "K": "#9b59c4",
+    "L": "#c79ae6",
+    "M": "#a8641b",
+    "N": "#e0922f",
+    "O": "#f6c46a",
+    "P": "#8f2020",
+    "Q": "#d83a3a",
+    "R": "#f47a5a"
+  },
+  "rarity": [
+    {
+      "tier": 1,
+      "key": "common",
+      "name": "Common",
+      "color": "#8d8a99"
+    },
+    {
+      "tier": 2,
+      "key": "uncommon",
+      "name": "Uncommon",
+      "color": "#5b9e54"
+    },
+    {
+      "tier": 3,
+      "key": "rare",
+      "name": "Rare",
+      "color": "#3f7cc4"
+    },
+    {
+      "tier": 4,
+      "key": "epic",
+      "name": "Epic",
+      "color": "#9b59c4"
+    },
+    {
+      "tier": 5,
+      "key": "legendary",
+      "name": "Legendary",
+      "color": "#e0922f"
+    },
+    {
+      "tier": 6,
+      "key": "mythic",
+      "name": "Mythic",
+      "color": "#d83a3a"
+    }
+  ],
+  "totalFramesPerLayer": 11,
+  "animations": {
+    "idle": {
+      "label": "Idle",
+      "note": "Gentle breathing",
+      "stripStart": 0,
+      "frameCount": 2,
+      "frameDurationsMs": [
+        620,
+        620
+      ],
+      "loop": true,
+      "damageFlash": [
+        0,
+        0
+      ]
+    },
+    "run": {
+      "label": "Run",
+      "note": "Full cycle: knee lift + arm swing + body bob",
+      "stripStart": 2,
+      "frameCount": 4,
+      "frameDurationsMs": [
+        110,
+        110,
+        110,
+        110
+      ],
+      "loop": true,
+      "damageFlash": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "attack": {
+      "label": "Attack",
+      "note": "Overhead swing — melee; ranged/magic reuse it",
+      "stripStart": 6,
+      "frameCount": 3,
+      "frameDurationsMs": [
+        80,
+        70,
+        150
+      ],
+      "loop": false,
+      "damageFlash": [
+        0,
+        0,
+        0
+      ]
+    },
+    "hurt": {
+      "label": "Hurt",
+      "note": "Recoil flinch with damage flash",
+      "stripStart": 9,
+      "frameCount": 2,
+      "frameDurationsMs": [
+        90,
+        170
+      ],
+      "loop": false,
+      "damageFlash": [
+        0.55,
+        0.18
+      ]
+    }
+  },
+  "compositingOrder": [
+    "cloak",
+    "body",
+    "boots",
+    "chest",
+    "belt",
+    "gloves",
+    "helmet",
+    "weapon",
+    "weapon_arm"
+  ],
+  "body": {
+    "strip": "body/body.png",
+    "holdStrip": "body/body_hold.png",
+    "holdStripNote": "Use body_hold.png (right arm omitted) whenever a weapon + weapon_arm are equipped, so the static arm doesn't show through.",
+    "shoulderPivot": [
+      {
+        "x": 30,
+        "y": 23
+      },
+      {
+        "x": 30,
+        "y": 23
+      },
+      {
+        "x": 30,
+        "y": 23
+      },
+      {
+        "x": 30,
+        "y": 22
+      },
+      {
+        "x": 30,
+        "y": 23
+      },
+      {
+        "x": 30,
+        "y": 22
+      },
+      {
+        "x": 29,
+        "y": 23
+      },
+      {
+        "x": 32,
+        "y": 24
+      },
+      {
+        "x": 31,
+        "y": 23
+      },
+      {
+        "x": 27,
+        "y": 23
+      },
+      {
+        "x": 29,
+        "y": 23
+      }
+    ],
+    "handAnchorBase": [
+      {
+        "x": 33,
+        "y": 30.5
+      },
+      {
+        "x": 33,
+        "y": 29.5
+      },
+      {
+        "x": 34,
+        "y": 31.5
+      },
+      {
+        "x": 33,
+        "y": 29.5
+      },
+      {
+        "x": 34,
+        "y": 28.5
+      },
+      {
+        "x": 33,
+        "y": 29.5
+      },
+      {
+        "x": 33,
+        "y": 23.5
+      },
+      {
+        "x": 36,
+        "y": 35.5
+      },
+      {
+        "x": 35,
+        "y": 32.5
+      },
+      {
+        "x": 30,
+        "y": 30.5
+      },
+      {
+        "x": 32,
+        "y": 30.5
+      }
+    ]
+  },
+  "weaponArm": {
+    "sprite": "arm/weapon_arm.png",
+    "note": "Single canonical sprite, drawn pointing UP. Pivot at shoulder; rotate about it toward the aim/cursor. The gripping hand then sits at 'hand'. Place the weapon's gripPivot at the rotated hand point and rotate the weapon by the same angle.",
+    "shoulder": {
+      "x": 24,
+      "y": 31
+    },
+    "hand": {
+      "x": 23.5,
+      "y": 13
+    },
+    "handWorldFormula": "handWorld = shoulderPivot[frame] + rotate(hand - shoulder, aimAngle)"
+  },
+  "equipment": {
+    "helmet": {
+      "label": "Helmet",
+      "attachRegion": "head",
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Padded Cap",
+          "rarity": "Common",
+          "strip": "equipment/helmet_t0.png"
+        },
+        {
+          "tier": 2,
+          "name": "Iron Helm",
+          "rarity": "Uncommon",
+          "strip": "equipment/helmet_t1.png"
+        },
+        {
+          "tier": 3,
+          "name": "Knight's Sallet",
+          "rarity": "Rare",
+          "strip": "equipment/helmet_t2.png"
+        },
+        {
+          "tier": 4,
+          "name": "Runed Greathelm",
+          "rarity": "Epic",
+          "strip": "equipment/helmet_t3.png"
+        },
+        {
+          "tier": 5,
+          "name": "Crown of Valor",
+          "rarity": "Legendary",
+          "strip": "equipment/helmet_t4.png"
+        },
+        {
+          "tier": 6,
+          "name": "Dread Visage",
+          "rarity": "Mythic",
+          "strip": "equipment/helmet_t5.png"
+        }
+      ]
+    },
+    "chest": {
+      "label": "Chest",
+      "attachRegion": "torso",
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Leather Jerkin",
+          "rarity": "Common",
+          "strip": "equipment/chest_t0.png"
+        },
+        {
+          "tier": 2,
+          "name": "Iron Cuirass",
+          "rarity": "Uncommon",
+          "strip": "equipment/chest_t1.png"
+        },
+        {
+          "tier": 3,
+          "name": "Steel Plate",
+          "rarity": "Rare",
+          "strip": "equipment/chest_t2.png"
+        },
+        {
+          "tier": 4,
+          "name": "Runed Hauberk",
+          "rarity": "Epic",
+          "strip": "equipment/chest_t3.png"
+        },
+        {
+          "tier": 5,
+          "name": "Aegis Plate",
+          "rarity": "Legendary",
+          "strip": "equipment/chest_t4.png"
+        },
+        {
+          "tier": 6,
+          "name": "Heart of the Wyrm",
+          "rarity": "Mythic",
+          "strip": "equipment/chest_t5.png"
+        }
+      ]
+    },
+    "gloves": {
+      "label": "Gloves",
+      "attachRegion": "hands",
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Hide Wraps",
+          "rarity": "Common",
+          "strip": "equipment/gloves_t0.png"
+        },
+        {
+          "tier": 2,
+          "name": "Iron Gauntlets",
+          "rarity": "Uncommon",
+          "strip": "equipment/gloves_t1.png"
+        },
+        {
+          "tier": 3,
+          "name": "Steel Grips",
+          "rarity": "Rare",
+          "strip": "equipment/gloves_t2.png"
+        },
+        {
+          "tier": 4,
+          "name": "Runed Gauntlets",
+          "rarity": "Epic",
+          "strip": "equipment/gloves_t3.png"
+        },
+        {
+          "tier": 5,
+          "name": "Hands of Glory",
+          "rarity": "Legendary",
+          "strip": "equipment/gloves_t4.png"
+        },
+        {
+          "tier": 6,
+          "name": "Doomgrip",
+          "rarity": "Mythic",
+          "strip": "equipment/gloves_t5.png"
+        }
+      ]
+    },
+    "belt": {
+      "label": "Belt",
+      "attachRegion": "torso",
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Rope Belt",
+          "rarity": "Common",
+          "strip": "equipment/belt_t0.png"
+        },
+        {
+          "tier": 2,
+          "name": "Iron Girdle",
+          "rarity": "Uncommon",
+          "strip": "equipment/belt_t1.png"
+        },
+        {
+          "tier": 3,
+          "name": "Studded Belt",
+          "rarity": "Rare",
+          "strip": "equipment/belt_t2.png"
+        },
+        {
+          "tier": 4,
+          "name": "Runed Girdle",
+          "rarity": "Epic",
+          "strip": "equipment/belt_t3.png"
+        },
+        {
+          "tier": 5,
+          "name": "Sash of Kings",
+          "rarity": "Legendary",
+          "strip": "equipment/belt_t4.png"
+        },
+        {
+          "tier": 6,
+          "name": "Cinch of Souls",
+          "rarity": "Mythic",
+          "strip": "equipment/belt_t5.png"
+        }
+      ]
+    },
+    "boots": {
+      "label": "Boots",
+      "attachRegion": "feet",
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Worn Boots",
+          "rarity": "Common",
+          "strip": "equipment/boots_t0.png"
+        },
+        {
+          "tier": 2,
+          "name": "Iron Sabatons",
+          "rarity": "Uncommon",
+          "strip": "equipment/boots_t1.png"
+        },
+        {
+          "tier": 3,
+          "name": "Steel Greaves",
+          "rarity": "Rare",
+          "strip": "equipment/boots_t2.png"
+        },
+        {
+          "tier": 4,
+          "name": "Runed Striders",
+          "rarity": "Epic",
+          "strip": "equipment/boots_t3.png"
+        },
+        {
+          "tier": 5,
+          "name": "Boots of the Gale",
+          "rarity": "Legendary",
+          "strip": "equipment/boots_t4.png"
+        },
+        {
+          "tier": 6,
+          "name": "Voidwalkers",
+          "rarity": "Mythic",
+          "strip": "equipment/boots_t5.png"
+        }
+      ]
+    },
+    "cloak": {
+      "label": "Cloak",
+      "attachRegion": "torso",
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Frayed Cloak",
+          "rarity": "Common",
+          "strip": "equipment/cloak_t0.png"
+        },
+        {
+          "tier": 2,
+          "name": "Wool Mantle",
+          "rarity": "Uncommon",
+          "strip": "equipment/cloak_t1.png"
+        },
+        {
+          "tier": 3,
+          "name": "Ranger's Cloak",
+          "rarity": "Rare",
+          "strip": "equipment/cloak_t2.png"
+        },
+        {
+          "tier": 4,
+          "name": "Runed Shroud",
+          "rarity": "Epic",
+          "strip": "equipment/cloak_t3.png"
+        },
+        {
+          "tier": 5,
+          "name": "Mantle of Stars",
+          "rarity": "Legendary",
+          "strip": "equipment/cloak_t4.png"
+        },
+        {
+          "tier": 6,
+          "name": "Shroud of the Void",
+          "rarity": "Mythic",
+          "strip": "equipment/cloak_t5.png"
+        }
+      ]
+    }
+  },
+  "weapons": {
+    "sword": {
+      "label": "Sword",
+      "strip": "weapons/sword.png",
+      "gripPivot": {
+        "x": 23.5,
+        "y": 33
+      },
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Rusted Shortsword",
+          "rarity": "Common"
+        },
+        {
+          "tier": 2,
+          "name": "Iron Arming Sword",
+          "rarity": "Uncommon"
+        },
+        {
+          "tier": 3,
+          "name": "Knight's Longsword",
+          "rarity": "Rare"
+        },
+        {
+          "tier": 4,
+          "name": "Runed Falchion",
+          "rarity": "Epic"
+        },
+        {
+          "tier": 5,
+          "name": "Oathkeeper",
+          "rarity": "Legendary"
+        },
+        {
+          "tier": 6,
+          "name": "Bloodsong",
+          "rarity": "Mythic"
+        }
+      ]
+    },
+    "hammer": {
+      "label": "Hammer",
+      "strip": "weapons/hammer.png",
+      "gripPivot": {
+        "x": 24,
+        "y": 34
+      },
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Wooden Maul",
+          "rarity": "Common"
+        },
+        {
+          "tier": 2,
+          "name": "Iron Warhammer",
+          "rarity": "Uncommon"
+        },
+        {
+          "tier": 3,
+          "name": "Steel Maul",
+          "rarity": "Rare"
+        },
+        {
+          "tier": 4,
+          "name": "Runic Crusher",
+          "rarity": "Epic"
+        },
+        {
+          "tier": 5,
+          "name": "Dawnbreaker",
+          "rarity": "Legendary"
+        },
+        {
+          "tier": 6,
+          "name": "Skullrender",
+          "rarity": "Mythic"
+        }
+      ]
+    },
+    "bow": {
+      "label": "Bow",
+      "strip": "weapons/bow.png",
+      "gripPivot": {
+        "x": 20,
+        "y": 24
+      },
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Hunting Bow",
+          "rarity": "Common"
+        },
+        {
+          "tier": 2,
+          "name": "Ash Longbow",
+          "rarity": "Uncommon"
+        },
+        {
+          "tier": 3,
+          "name": "Recurve Warbow",
+          "rarity": "Rare"
+        },
+        {
+          "tier": 4,
+          "name": "Heartwood Bow",
+          "rarity": "Epic"
+        },
+        {
+          "tier": 5,
+          "name": "Windsinger",
+          "rarity": "Legendary"
+        },
+        {
+          "tier": 6,
+          "name": "Doomnock",
+          "rarity": "Mythic"
+        }
+      ]
+    },
+    "crossbow": {
+      "label": "Crossbow",
+      "strip": "weapons/crossbow.png",
+      "gripPivot": {
+        "x": 24,
+        "y": 30
+      },
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Light Crossbow",
+          "rarity": "Common"
+        },
+        {
+          "tier": 2,
+          "name": "Hunter's Crossbow",
+          "rarity": "Uncommon"
+        },
+        {
+          "tier": 3,
+          "name": "Steel Repeater",
+          "rarity": "Rare"
+        },
+        {
+          "tier": 4,
+          "name": "Runed Arbalest",
+          "rarity": "Epic"
+        },
+        {
+          "tier": 5,
+          "name": "Stormbolt",
+          "rarity": "Legendary"
+        },
+        {
+          "tier": 6,
+          "name": "Soulpiercer",
+          "rarity": "Mythic"
+        }
+      ]
+    },
+    "staff": {
+      "label": "Staff",
+      "strip": "weapons/staff.png",
+      "gripPivot": {
+        "x": 24,
+        "y": 32
+      },
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Gnarled Stick",
+          "rarity": "Common"
+        },
+        {
+          "tier": 2,
+          "name": "Apprentice Staff",
+          "rarity": "Uncommon"
+        },
+        {
+          "tier": 3,
+          "name": "Oaken Staff",
+          "rarity": "Rare"
+        },
+        {
+          "tier": 4,
+          "name": "Runed Staff",
+          "rarity": "Epic"
+        },
+        {
+          "tier": 5,
+          "name": "Staff of Stars",
+          "rarity": "Legendary"
+        },
+        {
+          "tier": 6,
+          "name": "Voidcaller",
+          "rarity": "Mythic"
+        }
+      ]
+    },
+    "wand": {
+      "label": "Wand",
+      "strip": "weapons/wand.png",
+      "gripPivot": {
+        "x": 24,
+        "y": 32
+      },
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Whittled Wand",
+          "rarity": "Common"
+        },
+        {
+          "tier": 2,
+          "name": "Birch Wand",
+          "rarity": "Uncommon"
+        },
+        {
+          "tier": 3,
+          "name": "Silver Wand",
+          "rarity": "Rare"
+        },
+        {
+          "tier": 4,
+          "name": "Runic Wand",
+          "rarity": "Epic"
+        },
+        {
+          "tier": 5,
+          "name": "Starcaller",
+          "rarity": "Legendary"
+        },
+        {
+          "tier": 6,
+          "name": "Hexwand",
+          "rarity": "Mythic"
+        }
+      ]
+    }
+  },
+  "trinkets": {
+    "ring": {
+      "label": "Ring",
+      "strip": "trinkets/ring.png",
+      "iconsOnly": true,
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Copper Band",
+          "rarity": "Common"
+        },
+        {
+          "tier": 2,
+          "name": "Iron Signet",
+          "rarity": "Uncommon"
+        },
+        {
+          "tier": 3,
+          "name": "Silver Ring",
+          "rarity": "Rare"
+        },
+        {
+          "tier": 4,
+          "name": "Runed Loop",
+          "rarity": "Epic"
+        },
+        {
+          "tier": 5,
+          "name": "Royal Signet",
+          "rarity": "Legendary"
+        },
+        {
+          "tier": 6,
+          "name": "Band of the Abyss",
+          "rarity": "Mythic"
+        }
+      ]
+    },
+    "amulet": {
+      "label": "Amulet",
+      "strip": "trinkets/amulet.png",
+      "iconsOnly": true,
+      "tiers": [
+        {
+          "tier": 1,
+          "name": "Bone Charm",
+          "rarity": "Common"
+        },
+        {
+          "tier": 2,
+          "name": "Iron Pendant",
+          "rarity": "Uncommon"
+        },
+        {
+          "tier": 3,
+          "name": "Silver Locket",
+          "rarity": "Rare"
+        },
+        {
+          "tier": 4,
+          "name": "Runed Talisman",
+          "rarity": "Epic"
+        },
+        {
+          "tier": 5,
+          "name": "Heart of the Sun",
+          "rarity": "Legendary"
+        },
+        {
+          "tier": 6,
+          "name": "Eye of the Void",
+          "rarity": "Mythic"
+        }
+      ]
+    }
+  }
+}

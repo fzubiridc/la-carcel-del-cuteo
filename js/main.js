@@ -26,6 +26,7 @@ const touch = { enabled: false, stickId: null, baseX: 0, baseY: 0, vx: 0, vy: 0,
 window.addEventListener('load', () => {
   buildSprites();
   if (typeof buildHero === 'function') buildHero();
+  if (typeof loadHeroPack === 'function') loadHeroPack(); // asset pack final del héroe (reemplaza en caliente)
   loadAssets(); // los CC0 de 32px reemplazan en caliente; hay fallback por código
   canvas = $('game'); ctx = canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
@@ -904,15 +905,102 @@ function drawSpriteC(spr, x, y, scale, alpha) {
   ctx.globalAlpha = 1;
 }
 
+let hpTmp = null;
+
+// Render del asset pack final (cuerpo + equipo + brazo + arma)
+function drawHeroPack(p) {
+  let name = 'idle';
+  if ((p.hurtT || 0) > 0) name = 'hurt';
+  else if ((p.attackT || 0) > 0) name = 'attack';
+  else if (p.moving) name = 'run';
+  if (p._hpAnim !== name) { p._hpAnim = name; p._hpStart = state.time; }
+  const fi = hpFrame(name, (state.time - p._hpStart) * 1000); // 0-10
+  const flip = p.dir < 0 ? -1 : 1, ws = 0.5, footY = p.y + 5;
+  const hasWeapon = !!p.equip.arma;
+  const hurtIdx = name === 'hurt' ? fi - HP.anims.hurt.start : -1;
+  const flash = hurtIdx >= 0 ? (HP.hurtFlash[hurtIdx] || 0) : 0;
+
+  // componer cuerpo + equipo en un canvas 48×48 (flip y flash se aplican una vez)
+  if (!hpTmp) { hpTmp = document.createElement('canvas'); hpTmp.width = hpTmp.height = 48; }
+  const tg = hpTmp.getContext('2d');
+  tg.clearRect(0, 0, 48, 48);
+  tg.drawImage((hasWeapon ? HP.bodyHold : HP.body)[fi], 0, 0);
+  for (const slot of HP.layerOrder) {
+    const ourSlot = Object.keys(HP_SLOT).find(k => HP_SLOT[k] === slot);
+    if (!ourSlot) continue;                 // gloves/cloak/belt: sin slot en el juego aún
+    const it = p.equip[ourSlot];
+    if (!it) continue;
+    const arr = HP.equip[slot] && HP.equip[slot][hpTier(it)];
+    if (arr && arr[fi]) tg.drawImage(arr[fi], 0, 0);
+  }
+  if (flash > 0) {
+    tg.globalCompositeOperation = 'source-atop'; tg.globalAlpha = flash;
+    tg.fillStyle = '#e84848'; tg.fillRect(0, 0, 48, 48);
+    tg.globalAlpha = 1; tg.globalCompositeOperation = 'source-over';
+  }
+  ctx.save();
+  ctx.translate(p.x, footY); ctx.scale(ws * flip, ws);
+  ctx.drawImage(hpTmp, -24, -48);
+  ctx.restore();
+
+  if (hasWeapon) drawHeroWeaponArm(p, fi, flip, footY, ws);
+}
+
+function drawHeroWeaponArm(p, fi, flip, footY, ws) {
+  const arma = p.equip.arma;
+  const wtype = HP_WEAP[arma.weaponType];
+  const wframes = HP.weap[wtype];
+  if (!wframes) return;
+  const wspr = wframes[hpTier(arma)], grip = HP.grip[wtype];
+  const aim = aimAngle();
+  // slash: el brazo+arma barren un arco real durante el golpe melee
+  let swing = 0;
+  if (p.swingT > 0) {
+    const k = 1 - p.swingT / 0.16, e = k * k * (3 - 2 * k);
+    swing = (e * 2.6 - 1.3) * (p.swingDir || 1);
+  }
+  const armAng = aim + Math.PI / 2 + swing;
+
+  // hombro del frame (subido 2px para que no se lea desde el pecho), mirror-aware
+  const sx = HP.shoulder[fi][0], sy = HP.shoulder[fi][1] - 2;
+  const shWX = p.x + (flip > 0 ? (sx - 24) : (24 - sx)) * ws;
+  const shWY = footY + (sy - 48) * ws;
+  // mano = hombro + rotar(offset mano) por el ángulo del brazo
+  const hlx = HP.armHand[0] - HP.armShoulder[0], hly = HP.armHand[1] - HP.armShoulder[1];
+  const ca = Math.cos(armAng), sa = Math.sin(armAng);
+  const hWX = shWX + (hlx * ca - hly * sa) * ws, hWY = shWY + (hlx * sa + hly * ca) * ws;
+
+  // glow de rareza en la punta (las raras+ irradian su color)
+  const rank = RARITIES.findIndex(r => r.id === arma.rarity);
+  if (rank >= 2) {
+    const rar = rarityOf(arma), pulse = 0.6 + Math.sin(state.time * 5) * 0.25;
+    const tx = hWX + Math.cos(aim) * 14, ty = hWY + Math.sin(aim) * 14;
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(tx, ty, 0, tx, ty, (6 + rank * 2) * pulse);
+    g.addColorStop(0, rar.color + 'cc'); g.addColorStop(1, rar.color + '00');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(tx, ty, (6 + rank * 2) * pulse, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    if (rank >= 3 && Math.random() < 0.4)
+      state.particles.push({ x: tx + (Math.random() - 0.5) * 6, y: ty, vx: (Math.random() - 0.5) * 20, vy: -12, t: 0.4, color: rar.color, glow: true });
+  }
+
+  // arma (detrás), luego brazo (encima, lo empuña) — orden del manifest
+  ctx.save(); ctx.translate(hWX, hWY); ctx.rotate(armAng); ctx.scale(ws, ws);
+  ctx.drawImage(wspr, -grip[0], -grip[1]); ctx.restore();
+  ctx.save(); ctx.translate(shWX, shWY); ctx.rotate(armAng); ctx.scale(ws, ws);
+  ctx.drawImage(HP.arm, -HP.armShoulder[0], -HP.armShoulder[1]); ctx.restore();
+}
+
 function drawPlayer(p) {
   drawShadow(p.x, p.y, 5);
   // tackleado: tirado en el piso con estrellitas dando vueltas
   if (p.stunT > 0) {
-    const spr = playerSprite(p);
+    const spr = HP.ready ? HP.body[0] : playerSprite(p);
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.dir >= 0 ? Math.PI / 2 : -Math.PI / 2);
-    ctx.drawImage(spr, -spr.width / 2, -spr.height / 2);
+    const k = HP.ready ? 0.5 : 1;
+    ctx.drawImage(spr, -spr.width * k / 2, -spr.height * k / 2, spr.width * k, spr.height * k);
     ctx.restore();
     ctx.fillStyle = '#ffd84f';
     for (let i = 0; i < 3; i++) {
@@ -923,7 +1011,9 @@ function drawPlayer(p) {
   }
   // parpadeo durante invulnerabilidad
   if (p.ifr > 0 && Math.floor(state.time * 14) % 2 === 0) return;
-  if (Sprites.hero_idle) {
+  if (HP.ready) {
+    drawHeroPack(p);
+  } else if (Sprites.hero_idle) {
     // héroe animado 48px (rig de Claude Design): hurt > attack > run > idle
     let name = 'idle';
     if ((p.hurtT || 0) > 0) name = 'hurt';
