@@ -452,6 +452,7 @@ function damageEnemy(e, dmg, crit, kx, ky) {
   const weak = e.isBoss && e.hasBall === false;
   if (weak) dmg = Math.round(dmg * 1.75);
   e.hp -= dmg;
+  e.aggroT = Math.max(e.aggroT || 0, 4); // si le pegás, viene a buscarte (aunque no te haya visto)
   e.flashT = 0.1;
   e.kbx += (kx || 0) * (e.isBoss ? 0.15 : 1);
   e.kby += (ky || 0) * (e.isBoss ? 0.15 : 1);
