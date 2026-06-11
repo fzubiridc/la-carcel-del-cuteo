@@ -627,4 +627,22 @@ const SFX = {
   levelup:() => { beep(440, 0.12, 'square', 0.06); setTimeout(() => beep(554, 0.12, 'square', 0.06), 100); setTimeout(() => beep(659, 0.22, 'square', 0.07, 120), 200); },
 };
 
-function sfx(name) { if (SFX[name]) SFX[name](); }
+// Sonidos por archivo (assets/sfx/*.m4a): pisan al sintetizado si existen.
+// Volumen por sonido porque los packs vienen a niveles distintos.
+const SFX_FILES = { cast: { vol: 0.4 }, boom: { vol: 0.55 } };
+for (const name in SFX_FILES) {
+  const a = new Audio('assets/sfx/' + name + '.m4a');
+  a.preload = 'auto';
+  a.addEventListener('canplaythrough', () => { SFX_FILES[name].audio = a; }, { once: true });
+  a.onerror = () => { delete SFX_FILES[name]; }; // sin archivo → queda el sintetizado
+}
+function sfx(name) {
+  const f = SFX_FILES[name];
+  if (f && f.audio) {
+    const inst = f.audio.cloneNode(); // permite solaparse (disparos seguidos)
+    inst.volume = f.vol;
+    inst.play().catch(() => { });
+    return;
+  }
+  if (SFX[name]) SFX[name]();
+}

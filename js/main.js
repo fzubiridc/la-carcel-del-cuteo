@@ -1201,21 +1201,6 @@ function drawHeldWeapon(p) {
 }
 
 function drawEnemy(e) {
-  // aura dorada pulsante de los élite
-  if (e.elite) {
-    const pulse = 1 + Math.sin(state.time * 5) * 0.15;
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = 'rgba(255,216,79,0.5)';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.arc(e.x, e.y + 2, (e.w * e.scale / 2 + 4) * pulse, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(255,216,79,0.08)';
-    ctx.beginPath();
-    ctx.arc(e.x, e.y + 2, (e.w * e.scale / 2 + 4) * pulse, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-  }
   if (!e.def.ghost) drawShadow(e.x, e.y, e.w * e.scale * 0.45);
 
   // jefes con pack de animaciones (sheets): elegir anim según su estado
@@ -1262,6 +1247,14 @@ function drawEnemy(e) {
   ctx.save();
   ctx.translate(e.x + ox, e.y - 2 + bob);
   ctx.scale(e.scale * k * (1 + sq), e.scale * k * (1 - sq));
+  // élite: contorno dorado pulsante que recorre la silueta del sprite
+  // (la silueta teñida se dibuja desplazada 1px en 8 direcciones, debajo)
+  if (e.elite) {
+    const sil = tintedSprite(spr, '#ffd84f', 1);
+    ctx.globalAlpha = 0.55 + Math.sin(state.time * 5) * 0.3;
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]])
+      ctx.drawImage(sil, -spr.width / 2 + dx, -spr.height / 2 + dy);
+  }
   ctx.globalAlpha = alpha;
   ctx.drawImage(spr, -spr.width / 2, -spr.height / 2);
   ctx.globalAlpha = 1;
