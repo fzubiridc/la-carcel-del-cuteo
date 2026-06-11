@@ -354,7 +354,8 @@ function playerAttack(aimAng) {
   if (p.atkCd > 0) return;
   const wt = weaponDef(p);
   p.atkCd = attackCooldown(p);
-  p.attackT = 0.30; // dispara la animación de ataque del héroe
+  // sólo melee hace el golpe del cuerpo; magia/distancia no "cortan"
+  if (wt.style === 'melee') p.attackT = 0.30;
   const crit = Math.random() * 100 < p.stats.crit;
   const dmg = Math.round(playerDamage(p) * (crit ? 2 : 1));
 

@@ -1,9 +1,31 @@
 {
   "name": "Dungeon Crawler — Animated Paper-Doll Asset Pack",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "frameSize": 48,
   "facing": "south",
-  "note": "Front-facing only; mirror horizontally in-engine for left/right. All sprites are transparent-background, nearest-neighbor (no anti-aliasing), and share one 48x48 canvas and pivot. Composite layers by drawing each at (0,0) over the body.",
+  "note": "Front-facing only; mirror horizontally in-engine for left/right. Transparent background, nearest-neighbor, one shared 48x48 canvas + pivot. Composite layers by drawing each at (0,0) over the body. Equipment is namespaced per class (warrior/mage/ranger); the weapon is class-locked (see classWeapon). Trinkets and weapons are shared across classes.",
+  "classes": [
+    {
+      "key": "warrior",
+      "label": "Warrior",
+      "weapon": "sword"
+    },
+    {
+      "key": "mage",
+      "label": "Mage",
+      "weapon": "staff"
+    },
+    {
+      "key": "ranger",
+      "label": "Ranger",
+      "weapon": "bow"
+    }
+  ],
+  "classWeapon": {
+    "warrior": "sword",
+    "mage": "staff",
+    "ranger": "bow"
+  },
   "palette": {
     "0": "#140e1a",
     "1": "#251c30",
@@ -174,7 +196,7 @@
   "body": {
     "strip": "body/body.png",
     "holdStrip": "body/body_hold.png",
-    "holdStripNote": "Use body_hold.png (right arm omitted) whenever a weapon + weapon_arm are equipped, so the static arm doesn't show through.",
+    "holdStripNote": "Use body_hold.png (right arm omitted) whenever a weapon + weapon_arm are equipped.",
     "shoulderPivot": [
       {
         "x": 30,
@@ -270,7 +292,7 @@
   },
   "weaponArm": {
     "sprite": "arm/weapon_arm.png",
-    "note": "Single canonical sprite, drawn pointing UP. Pivot at shoulder; rotate about it toward the aim/cursor. The gripping hand then sits at 'hand'. Place the weapon's gripPivot at the rotated hand point and rotate the weapon by the same angle.",
+    "note": "Single canonical sprite, drawn pointing UP. Pivot at shoulder, rotate toward aim. Place the weapon's gripPivot at the rotated hand and rotate the weapon by the same angle.",
     "shoulder": {
       "x": 24,
       "y": 31
@@ -279,260 +301,770 @@
       "x": 23.5,
       "y": 13
     },
-    "handWorldFormula": "handWorld = shoulderPivot[frame] + rotate(hand - shoulder, aimAngle)"
+    "handWorldFormula": "handWorld = body.shoulderPivot[frame] + rotate(hand - shoulder, aimAngle)"
   },
   "equipment": {
-    "helmet": {
-      "label": "Helmet",
-      "attachRegion": "head",
-      "tiers": [
-        {
-          "tier": 1,
-          "name": "Padded Cap",
-          "rarity": "Common",
-          "strip": "equipment/helmet_t0.png"
-        },
-        {
-          "tier": 2,
-          "name": "Iron Helm",
-          "rarity": "Uncommon",
-          "strip": "equipment/helmet_t1.png"
-        },
-        {
-          "tier": 3,
-          "name": "Knight's Sallet",
-          "rarity": "Rare",
-          "strip": "equipment/helmet_t2.png"
-        },
-        {
-          "tier": 4,
-          "name": "Runed Greathelm",
-          "rarity": "Epic",
-          "strip": "equipment/helmet_t3.png"
-        },
-        {
-          "tier": 5,
-          "name": "Crown of Valor",
-          "rarity": "Legendary",
-          "strip": "equipment/helmet_t4.png"
-        },
-        {
-          "tier": 6,
-          "name": "Dread Visage",
-          "rarity": "Mythic",
-          "strip": "equipment/helmet_t5.png"
-        }
-      ]
+    "warrior": {
+      "helmet": {
+        "label": "Helmet",
+        "attachRegion": "head",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Padded Cap",
+            "rarity": "Common",
+            "strip": "equipment/warrior/helmet_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Iron Helm",
+            "rarity": "Uncommon",
+            "strip": "equipment/warrior/helmet_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Knight's Sallet",
+            "rarity": "Rare",
+            "strip": "equipment/warrior/helmet_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Greathelm",
+            "rarity": "Epic",
+            "strip": "equipment/warrior/helmet_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Crown of Valor",
+            "rarity": "Legendary",
+            "strip": "equipment/warrior/helmet_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Dread Visage",
+            "rarity": "Mythic",
+            "strip": "equipment/warrior/helmet_t5.png"
+          }
+        ]
+      },
+      "chest": {
+        "label": "Chest",
+        "attachRegion": "torso",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Leather Jerkin",
+            "rarity": "Common",
+            "strip": "equipment/warrior/chest_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Iron Cuirass",
+            "rarity": "Uncommon",
+            "strip": "equipment/warrior/chest_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Steel Plate",
+            "rarity": "Rare",
+            "strip": "equipment/warrior/chest_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Hauberk",
+            "rarity": "Epic",
+            "strip": "equipment/warrior/chest_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Aegis Plate",
+            "rarity": "Legendary",
+            "strip": "equipment/warrior/chest_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Heart of the Wyrm",
+            "rarity": "Mythic",
+            "strip": "equipment/warrior/chest_t5.png"
+          }
+        ]
+      },
+      "gloves": {
+        "label": "Gloves",
+        "attachRegion": "hands",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Hide Wraps",
+            "rarity": "Common",
+            "strip": "equipment/warrior/gloves_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Iron Gauntlets",
+            "rarity": "Uncommon",
+            "strip": "equipment/warrior/gloves_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Steel Grips",
+            "rarity": "Rare",
+            "strip": "equipment/warrior/gloves_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Gauntlets",
+            "rarity": "Epic",
+            "strip": "equipment/warrior/gloves_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Hands of Glory",
+            "rarity": "Legendary",
+            "strip": "equipment/warrior/gloves_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Doomgrip",
+            "rarity": "Mythic",
+            "strip": "equipment/warrior/gloves_t5.png"
+          }
+        ]
+      },
+      "belt": {
+        "label": "Belt",
+        "attachRegion": "torso",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Rope Belt",
+            "rarity": "Common",
+            "strip": "equipment/warrior/belt_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Iron Girdle",
+            "rarity": "Uncommon",
+            "strip": "equipment/warrior/belt_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Studded Belt",
+            "rarity": "Rare",
+            "strip": "equipment/warrior/belt_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Girdle",
+            "rarity": "Epic",
+            "strip": "equipment/warrior/belt_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Sash of Kings",
+            "rarity": "Legendary",
+            "strip": "equipment/warrior/belt_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Cinch of Souls",
+            "rarity": "Mythic",
+            "strip": "equipment/warrior/belt_t5.png"
+          }
+        ]
+      },
+      "boots": {
+        "label": "Boots",
+        "attachRegion": "feet",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Worn Boots",
+            "rarity": "Common",
+            "strip": "equipment/warrior/boots_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Iron Sabatons",
+            "rarity": "Uncommon",
+            "strip": "equipment/warrior/boots_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Steel Greaves",
+            "rarity": "Rare",
+            "strip": "equipment/warrior/boots_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Striders",
+            "rarity": "Epic",
+            "strip": "equipment/warrior/boots_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Boots of the Gale",
+            "rarity": "Legendary",
+            "strip": "equipment/warrior/boots_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Voidwalkers",
+            "rarity": "Mythic",
+            "strip": "equipment/warrior/boots_t5.png"
+          }
+        ]
+      },
+      "cloak": {
+        "label": "Cloak",
+        "attachRegion": "torso",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Frayed Cloak",
+            "rarity": "Common",
+            "strip": "equipment/warrior/cloak_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Wool Mantle",
+            "rarity": "Uncommon",
+            "strip": "equipment/warrior/cloak_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Ranger's Cloak",
+            "rarity": "Rare",
+            "strip": "equipment/warrior/cloak_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Shroud",
+            "rarity": "Epic",
+            "strip": "equipment/warrior/cloak_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Mantle of Stars",
+            "rarity": "Legendary",
+            "strip": "equipment/warrior/cloak_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Shroud of the Void",
+            "rarity": "Mythic",
+            "strip": "equipment/warrior/cloak_t5.png"
+          }
+        ]
+      }
     },
-    "chest": {
-      "label": "Chest",
-      "attachRegion": "torso",
-      "tiers": [
-        {
-          "tier": 1,
-          "name": "Leather Jerkin",
-          "rarity": "Common",
-          "strip": "equipment/chest_t0.png"
-        },
-        {
-          "tier": 2,
-          "name": "Iron Cuirass",
-          "rarity": "Uncommon",
-          "strip": "equipment/chest_t1.png"
-        },
-        {
-          "tier": 3,
-          "name": "Steel Plate",
-          "rarity": "Rare",
-          "strip": "equipment/chest_t2.png"
-        },
-        {
-          "tier": 4,
-          "name": "Runed Hauberk",
-          "rarity": "Epic",
-          "strip": "equipment/chest_t3.png"
-        },
-        {
-          "tier": 5,
-          "name": "Aegis Plate",
-          "rarity": "Legendary",
-          "strip": "equipment/chest_t4.png"
-        },
-        {
-          "tier": 6,
-          "name": "Heart of the Wyrm",
-          "rarity": "Mythic",
-          "strip": "equipment/chest_t5.png"
-        }
-      ]
+    "mage": {
+      "helmet": {
+        "label": "Helmet",
+        "attachRegion": "head",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Linen Hood",
+            "rarity": "Common",
+            "strip": "equipment/mage/helmet_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Apprentice Cowl",
+            "rarity": "Uncommon",
+            "strip": "equipment/mage/helmet_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Conjurer's Hood",
+            "rarity": "Rare",
+            "strip": "equipment/mage/helmet_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Cowl",
+            "rarity": "Epic",
+            "strip": "equipment/mage/helmet_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Hat of the Magi",
+            "rarity": "Legendary",
+            "strip": "equipment/mage/helmet_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Crown of the Void",
+            "rarity": "Mythic",
+            "strip": "equipment/mage/helmet_t5.png"
+          }
+        ]
+      },
+      "chest": {
+        "label": "Chest",
+        "attachRegion": "torso",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Tattered Robe",
+            "rarity": "Common",
+            "strip": "equipment/mage/chest_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Apprentice Robe",
+            "rarity": "Uncommon",
+            "strip": "equipment/mage/chest_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Conjurer's Vestments",
+            "rarity": "Rare",
+            "strip": "equipment/mage/chest_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Regalia",
+            "rarity": "Epic",
+            "strip": "equipment/mage/chest_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Robes of the Magi",
+            "rarity": "Legendary",
+            "strip": "equipment/mage/chest_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Vestments of the Void",
+            "rarity": "Mythic",
+            "strip": "equipment/mage/chest_t5.png"
+          }
+        ]
+      },
+      "gloves": {
+        "label": "Gloves",
+        "attachRegion": "hands",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Cloth Wraps",
+            "rarity": "Common",
+            "strip": "equipment/mage/gloves_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Silk Gloves",
+            "rarity": "Uncommon",
+            "strip": "equipment/mage/gloves_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Conjurer's Cuffs",
+            "rarity": "Rare",
+            "strip": "equipment/mage/gloves_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Gloves",
+            "rarity": "Epic",
+            "strip": "equipment/mage/gloves_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Grips of the Magi",
+            "rarity": "Legendary",
+            "strip": "equipment/mage/gloves_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Voidtouch Gloves",
+            "rarity": "Mythic",
+            "strip": "equipment/mage/gloves_t5.png"
+          }
+        ]
+      },
+      "belt": {
+        "label": "Belt",
+        "attachRegion": "torso",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Rope Cord",
+            "rarity": "Common",
+            "strip": "equipment/mage/belt_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Woven Sash",
+            "rarity": "Uncommon",
+            "strip": "equipment/mage/belt_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Conjurer's Sash",
+            "rarity": "Rare",
+            "strip": "equipment/mage/belt_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Girdle",
+            "rarity": "Epic",
+            "strip": "equipment/mage/belt_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Sash of the Magi",
+            "rarity": "Legendary",
+            "strip": "equipment/mage/belt_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Cinch of the Void",
+            "rarity": "Mythic",
+            "strip": "equipment/mage/belt_t5.png"
+          }
+        ]
+      },
+      "boots": {
+        "label": "Boots",
+        "attachRegion": "feet",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Cloth Shoes",
+            "rarity": "Common",
+            "strip": "equipment/mage/boots_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Silk Slippers",
+            "rarity": "Uncommon",
+            "strip": "equipment/mage/boots_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Conjurer's Treads",
+            "rarity": "Rare",
+            "strip": "equipment/mage/boots_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Slippers",
+            "rarity": "Epic",
+            "strip": "equipment/mage/boots_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Striders of the Magi",
+            "rarity": "Legendary",
+            "strip": "equipment/mage/boots_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Voidwalker Slippers",
+            "rarity": "Mythic",
+            "strip": "equipment/mage/boots_t5.png"
+          }
+        ]
+      },
+      "cloak": {
+        "label": "Cloak",
+        "attachRegion": "torso",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Frayed Shawl",
+            "rarity": "Common",
+            "strip": "equipment/mage/cloak_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Woven Mantle",
+            "rarity": "Uncommon",
+            "strip": "equipment/mage/cloak_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Conjurer's Mantle",
+            "rarity": "Rare",
+            "strip": "equipment/mage/cloak_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Shroud",
+            "rarity": "Epic",
+            "strip": "equipment/mage/cloak_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Mantle of Stars",
+            "rarity": "Legendary",
+            "strip": "equipment/mage/cloak_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Shroud of the Void",
+            "rarity": "Mythic",
+            "strip": "equipment/mage/cloak_t5.png"
+          }
+        ]
+      }
     },
-    "gloves": {
-      "label": "Gloves",
-      "attachRegion": "hands",
-      "tiers": [
-        {
-          "tier": 1,
-          "name": "Hide Wraps",
-          "rarity": "Common",
-          "strip": "equipment/gloves_t0.png"
-        },
-        {
-          "tier": 2,
-          "name": "Iron Gauntlets",
-          "rarity": "Uncommon",
-          "strip": "equipment/gloves_t1.png"
-        },
-        {
-          "tier": 3,
-          "name": "Steel Grips",
-          "rarity": "Rare",
-          "strip": "equipment/gloves_t2.png"
-        },
-        {
-          "tier": 4,
-          "name": "Runed Gauntlets",
-          "rarity": "Epic",
-          "strip": "equipment/gloves_t3.png"
-        },
-        {
-          "tier": 5,
-          "name": "Hands of Glory",
-          "rarity": "Legendary",
-          "strip": "equipment/gloves_t4.png"
-        },
-        {
-          "tier": 6,
-          "name": "Doomgrip",
-          "rarity": "Mythic",
-          "strip": "equipment/gloves_t5.png"
-        }
-      ]
-    },
-    "belt": {
-      "label": "Belt",
-      "attachRegion": "torso",
-      "tiers": [
-        {
-          "tier": 1,
-          "name": "Rope Belt",
-          "rarity": "Common",
-          "strip": "equipment/belt_t0.png"
-        },
-        {
-          "tier": 2,
-          "name": "Iron Girdle",
-          "rarity": "Uncommon",
-          "strip": "equipment/belt_t1.png"
-        },
-        {
-          "tier": 3,
-          "name": "Studded Belt",
-          "rarity": "Rare",
-          "strip": "equipment/belt_t2.png"
-        },
-        {
-          "tier": 4,
-          "name": "Runed Girdle",
-          "rarity": "Epic",
-          "strip": "equipment/belt_t3.png"
-        },
-        {
-          "tier": 5,
-          "name": "Sash of Kings",
-          "rarity": "Legendary",
-          "strip": "equipment/belt_t4.png"
-        },
-        {
-          "tier": 6,
-          "name": "Cinch of Souls",
-          "rarity": "Mythic",
-          "strip": "equipment/belt_t5.png"
-        }
-      ]
-    },
-    "boots": {
-      "label": "Boots",
-      "attachRegion": "feet",
-      "tiers": [
-        {
-          "tier": 1,
-          "name": "Worn Boots",
-          "rarity": "Common",
-          "strip": "equipment/boots_t0.png"
-        },
-        {
-          "tier": 2,
-          "name": "Iron Sabatons",
-          "rarity": "Uncommon",
-          "strip": "equipment/boots_t1.png"
-        },
-        {
-          "tier": 3,
-          "name": "Steel Greaves",
-          "rarity": "Rare",
-          "strip": "equipment/boots_t2.png"
-        },
-        {
-          "tier": 4,
-          "name": "Runed Striders",
-          "rarity": "Epic",
-          "strip": "equipment/boots_t3.png"
-        },
-        {
-          "tier": 5,
-          "name": "Boots of the Gale",
-          "rarity": "Legendary",
-          "strip": "equipment/boots_t4.png"
-        },
-        {
-          "tier": 6,
-          "name": "Voidwalkers",
-          "rarity": "Mythic",
-          "strip": "equipment/boots_t5.png"
-        }
-      ]
-    },
-    "cloak": {
-      "label": "Cloak",
-      "attachRegion": "torso",
-      "tiers": [
-        {
-          "tier": 1,
-          "name": "Frayed Cloak",
-          "rarity": "Common",
-          "strip": "equipment/cloak_t0.png"
-        },
-        {
-          "tier": 2,
-          "name": "Wool Mantle",
-          "rarity": "Uncommon",
-          "strip": "equipment/cloak_t1.png"
-        },
-        {
-          "tier": 3,
-          "name": "Ranger's Cloak",
-          "rarity": "Rare",
-          "strip": "equipment/cloak_t2.png"
-        },
-        {
-          "tier": 4,
-          "name": "Runed Shroud",
-          "rarity": "Epic",
-          "strip": "equipment/cloak_t3.png"
-        },
-        {
-          "tier": 5,
-          "name": "Mantle of Stars",
-          "rarity": "Legendary",
-          "strip": "equipment/cloak_t4.png"
-        },
-        {
-          "tier": 6,
-          "name": "Shroud of the Void",
-          "rarity": "Mythic",
-          "strip": "equipment/cloak_t5.png"
-        }
-      ]
+    "ranger": {
+      "helmet": {
+        "label": "Helmet",
+        "attachRegion": "head",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Leather Cap",
+            "rarity": "Common",
+            "strip": "equipment/ranger/helmet_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Scout Hood",
+            "rarity": "Uncommon",
+            "strip": "equipment/ranger/helmet_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Tracker's Hood",
+            "rarity": "Rare",
+            "strip": "equipment/ranger/helmet_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Hood",
+            "rarity": "Epic",
+            "strip": "equipment/ranger/helmet_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Hood of the Wild",
+            "rarity": "Legendary",
+            "strip": "equipment/ranger/helmet_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Shadowveil Hood",
+            "rarity": "Mythic",
+            "strip": "equipment/ranger/helmet_t5.png"
+          }
+        ]
+      },
+      "chest": {
+        "label": "Chest",
+        "attachRegion": "torso",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Padded Leathers",
+            "rarity": "Common",
+            "strip": "equipment/ranger/chest_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Studded Jerkin",
+            "rarity": "Uncommon",
+            "strip": "equipment/ranger/chest_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Tracker's Leathers",
+            "rarity": "Rare",
+            "strip": "equipment/ranger/chest_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Lamellar",
+            "rarity": "Epic",
+            "strip": "equipment/ranger/chest_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Cuirass of the Wild",
+            "rarity": "Legendary",
+            "strip": "equipment/ranger/chest_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Shadowveil Leathers",
+            "rarity": "Mythic",
+            "strip": "equipment/ranger/chest_t5.png"
+          }
+        ]
+      },
+      "gloves": {
+        "label": "Gloves",
+        "attachRegion": "hands",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Hide Wraps",
+            "rarity": "Common",
+            "strip": "equipment/ranger/gloves_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Leather Bracers",
+            "rarity": "Uncommon",
+            "strip": "equipment/ranger/gloves_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Tracker's Grips",
+            "rarity": "Rare",
+            "strip": "equipment/ranger/gloves_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Bracers",
+            "rarity": "Epic",
+            "strip": "equipment/ranger/gloves_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Grips of the Wild",
+            "rarity": "Legendary",
+            "strip": "equipment/ranger/gloves_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Shadowveil Grips",
+            "rarity": "Mythic",
+            "strip": "equipment/ranger/gloves_t5.png"
+          }
+        ]
+      },
+      "belt": {
+        "label": "Belt",
+        "attachRegion": "torso",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Rope Belt",
+            "rarity": "Common",
+            "strip": "equipment/ranger/belt_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Pouched Belt",
+            "rarity": "Uncommon",
+            "strip": "equipment/ranger/belt_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Tracker's Rig",
+            "rarity": "Rare",
+            "strip": "equipment/ranger/belt_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Belt",
+            "rarity": "Epic",
+            "strip": "equipment/ranger/belt_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Belt of the Wild",
+            "rarity": "Legendary",
+            "strip": "equipment/ranger/belt_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Shadowveil Rig",
+            "rarity": "Mythic",
+            "strip": "equipment/ranger/belt_t5.png"
+          }
+        ]
+      },
+      "boots": {
+        "label": "Boots",
+        "attachRegion": "feet",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Worn Boots",
+            "rarity": "Common",
+            "strip": "equipment/ranger/boots_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Leather Boots",
+            "rarity": "Uncommon",
+            "strip": "equipment/ranger/boots_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Tracker's Boots",
+            "rarity": "Rare",
+            "strip": "equipment/ranger/boots_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Striders",
+            "rarity": "Epic",
+            "strip": "equipment/ranger/boots_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Boots of the Wild",
+            "rarity": "Legendary",
+            "strip": "equipment/ranger/boots_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Shadowveil Treads",
+            "rarity": "Mythic",
+            "strip": "equipment/ranger/boots_t5.png"
+          }
+        ]
+      },
+      "cloak": {
+        "label": "Cloak",
+        "attachRegion": "torso",
+        "tiers": [
+          {
+            "tier": 1,
+            "name": "Travel Cloak",
+            "rarity": "Common",
+            "strip": "equipment/ranger/cloak_t0.png"
+          },
+          {
+            "tier": 2,
+            "name": "Wool Cloak",
+            "rarity": "Uncommon",
+            "strip": "equipment/ranger/cloak_t1.png"
+          },
+          {
+            "tier": 3,
+            "name": "Tracker's Cloak",
+            "rarity": "Rare",
+            "strip": "equipment/ranger/cloak_t2.png"
+          },
+          {
+            "tier": 4,
+            "name": "Runed Mantle",
+            "rarity": "Epic",
+            "strip": "equipment/ranger/cloak_t3.png"
+          },
+          {
+            "tier": 5,
+            "name": "Verdant Shroud",
+            "rarity": "Legendary",
+            "strip": "equipment/ranger/cloak_t4.png"
+          },
+          {
+            "tier": 6,
+            "name": "Shadowveil Cloak",
+            "rarity": "Mythic",
+            "strip": "equipment/ranger/cloak_t5.png"
+          }
+        ]
+      }
     }
   },
   "weapons": {

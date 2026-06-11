@@ -30,9 +30,10 @@ const HP = {
   grip: { sword:[23.5,33], hammer:[24,34], bow:[20,24], crossbow:[24,30], staff:[24,32], wand:[24,32] },
 };
 
-// nuestros slots/armas → los del pack
+// nuestros slots/armas/clases → los del pack
 const HP_SLOT = { casco: 'helmet', coraza: 'chest', botas: 'boots' };
 const HP_WEAP = { espada: 'sword', martillo: 'hammer', arco: 'bow', ballesta: 'crossbow', baston: 'staff', varita: 'wand' };
+const HP_CLASS = { guerrero: 'warrior', arquero: 'ranger', mago: 'mage' };
 
 function hpSlice(img, n) {
   const out = [];
@@ -54,14 +55,19 @@ function loadHeroPack(done) {
   add('assets/hero/body/body.png', 11, f => HP.body = f);
   add('assets/hero/body/body_hold.png', 11, f => HP.bodyHold = f);
   add('assets/hero/arm/weapon_arm.png', 1, f => HP.arm = f[0]);
-  for (const s of slots) {
-    HP.equip[s] = [];
-    for (let t = 0; t < 6; t++) { const ss = s, tt = t; add(`assets/hero/equipment/${s}_t${t}.png`, 11, f => { HP.equip[ss][tt] = f; }); }
+  // equipo por clase: equip[warrior|mage|ranger][slot][tier] = [11 frames]
+  const classes = ['warrior', 'mage', 'ranger'];
+  for (const cl of classes) {
+    HP.equip[cl] = {};
+    for (const s of slots) {
+      HP.equip[cl][s] = [];
+      for (let t = 0; t < 6; t++) { const cc = cl, ss = s, tt = t; add(`assets/hero/equipment/${cl}/${s}_t${t}.png`, 11, f => { HP.equip[cc][ss][tt] = f; }); }
+    }
   }
   for (const w of weaps) { const ww = w; add(`assets/hero/weapons/${w}.png`, 6, f => { HP.weap[ww] = f; }); }
 
   let left = jobs.length;
-  const finish = () => { if (--left === 0) { HP.ready = HP.body.length === 11 && !!HP.weap.sword; if (done) done(); } };
+  const finish = () => { if (--left === 0) { HP.ready = HP.body.length === 11 && !!HP.weap.sword && !!(HP.equip.warrior && HP.equip.warrior.helmet[0]); if (done) done(); } };
   for (const j of jobs) {
     const img = new Image();
     img.onload = () => { j.set(hpSlice(img, j.n)); finish(); };

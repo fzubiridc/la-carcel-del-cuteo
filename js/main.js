@@ -925,12 +925,14 @@ function drawHeroPack(p) {
   const tg = hpTmp.getContext('2d');
   tg.clearRect(0, 0, 48, 48);
   tg.drawImage((hasWeapon ? HP.bodyHold : HP.body)[fi], 0, 0);
+  const cls = HP_CLASS[p.cls] || 'warrior';   // set de equipo según la clase
   for (const slot of HP.layerOrder) {
     const ourSlot = Object.keys(HP_SLOT).find(k => HP_SLOT[k] === slot);
     if (!ourSlot) continue;                 // gloves/cloak/belt: sin slot en el juego aún
     const it = p.equip[ourSlot];
     if (!it) continue;
-    const arr = HP.equip[slot] && HP.equip[slot][hpTier(it)];
+    const set = HP.equip[cls] || HP.equip.warrior;
+    const arr = set[slot] && set[slot][hpTier(it)];
     if (arr && arr[fi]) tg.drawImage(arr[fi], 0, 0);
   }
   if (flash > 0) {
@@ -969,6 +971,20 @@ function drawHeroWeaponArm(p, fi, flip, footY, ws) {
   const hlx = HP.armHand[0] - HP.armShoulder[0], hly = HP.armHand[1] - HP.armShoulder[1];
   const ca = Math.cos(armAng), sa = Math.sin(armAng);
   const hWX = shWX + (hlx * ca - hly * sa) * ws, hWY = shWY + (hlx * sa + hly * ca) * ws;
+
+  // magia: glow arcano en la punta del bastón/varita (no corta, irradia)
+  const isMagic = WEAPON_TYPES[arma.weaponType].style === 'bolt';
+  if (isMagic) {
+    const cast = p.atkCd > attackCooldown(p) * 0.55 ? 1.8 : 1; // brilla más al lanzar
+    const tx = hWX + Math.cos(aim) * 14, ty = hWY + Math.sin(aim) * 14;
+    const pulse = (0.7 + Math.sin(state.time * 6) * 0.3) * cast;
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(tx, ty, 0, tx, ty, 7 * pulse);
+    g.addColorStop(0, '#bfe6ffdd'); g.addColorStop(0.4, '#7ec8ff88'); g.addColorStop(1, '#7ec8ff00');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(tx, ty, 7 * pulse, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(tx, ty, 1.4 * cast, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   // glow de rareza en la punta (las raras+ irradian su color)
   const rank = RARITIES.findIndex(r => r.id === arma.rarity);
