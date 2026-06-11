@@ -28,8 +28,9 @@
 
 ## 🎒 Pendientes — Inventario y UI
 
-- [ ] Ordenar ítems en el inventario.
-- [ ] Tirar ítems / arrastrar (drag & drop).
+- [x] Ordenar ítems en el inventario (11-jun): drag para reordenar la mochila.
+- [x] Tirar ítems / arrastrar (drag & drop) (11-jun): pointer events (Mac + touch);
+  arrastrar mochila↔equipo equipa/desequipa, fuera del panel tira al piso, clic rápido y shift+clic se mantienen.
 - [ ] **Mobile: no se puede abrir el inventario** (falta botón táctil de inventario).
 - [ ] Mejorar la UI de las mejoras de nivel.
 - [x] **HUD nuevo** (11-jun): assets de Claude Design integrados en `assets/ui/hud/`

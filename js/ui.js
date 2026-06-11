@@ -243,20 +243,125 @@ function slotDiv(item, placeholder, onclick) {
   return d;
 }
 
-// slot del inventario v2: la pieza recortada es el background, el ícono va centrado
-function invSlotDiv(item, slotImg, extraClass, onclick) {
+// slot del inventario v2: la pieza recortada es el background, el ícono va centrado.
+// meta = { kind:'bag'|'equip'|'quick', idx, slot } para drag & drop y clics.
+let invDrag = null;
+
+function invSlotDiv(item, slotImg, extraClass, meta) {
   const d = document.createElement('div');
   d.className = 'invslot ' + extraClass + (item ? ' r-' + item.rarity : '');
   d.style.backgroundImage = `url(assets/ui/hud/inv/${slotImg}.png)`;
+  if (meta) Object.assign(d.dataset, meta);
   if (item) {
     const c = iconCanvasFor(item); c.className = 'invicon';
     d.appendChild(c);
-    d.onmouseenter = ev => showTooltip(item, ev);
-    d.onmousemove = ev => moveTooltip(ev);
-    d.onmouseleave = hideTooltip;
+    d.onpointerenter = () => { if (!invDrag) showTooltip(item, lastPointer); };
+    d.onpointermove = ev => { if (!invDrag) moveTooltip(ev); };
+    d.onpointerleave = hideTooltip;
+    d.onpointerdown = ev => startInvDrag(ev, item, d);
+    d.style.cursor = 'grab';
   }
-  if (onclick) d.onclick = ev => { hideTooltip(); onclick(ev); };
   return d;
+}
+
+let lastPointer = { clientX: 0, clientY: 0 };
+window.addEventListener('pointermove', e => { lastPointer = e; }, { passive: true });
+
+// arrancar arrastre (o clic, si no se mueve más que el umbral)
+function startInvDrag(ev, item, slotEl) {
+  if (ev.button != null && ev.button !== 0) return; // sólo botón principal
+  ev.preventDefault();
+  hideTooltip();
+  invDrag = { item, from: { ...slotEl.dataset }, startX: ev.clientX, startY: ev.clientY,
+    shift: ev.shiftKey, moved: false, ghost: null, srcEl: slotEl };
+  window.addEventListener('pointermove', onInvDragMove);
+  window.addEventListener('pointerup', onInvDragUp, { once: true });
+}
+
+function onInvDragMove(ev) {
+  if (!invDrag) return;
+  if (!invDrag.moved) {
+    if (Math.hypot(ev.clientX - invDrag.startX, ev.clientY - invDrag.startY) < 6) return;
+    invDrag.moved = true;
+    const g = iconCanvasFor(invDrag.item); g.className = 'invghost px';
+    document.body.appendChild(g);
+    invDrag.ghost = g;
+    invDrag.srcEl.classList.add('dragging');
+  }
+  invDrag.ghost.style.left = ev.clientX + 'px';
+  invDrag.ghost.style.top = ev.clientY + 'px';
+}
+
+function onInvDragUp(ev) {
+  window.removeEventListener('pointermove', onInvDragMove);
+  const drag = invDrag; invDrag = null;
+  if (!drag) return;
+  if (drag.ghost) drag.ghost.remove();
+  drag.srcEl.classList.remove('dragging');
+
+  // no se movió: fue un clic → acción rápida
+  if (!drag.moved) { invSlotClick(drag.from, drag.shift); return; }
+
+  // soltar: ¿sobre qué slot cayó?
+  const under = document.elementFromPoint(ev.clientX, ev.clientY);
+  const destEl = under && under.closest('.invslot');
+  if (!destEl) {
+    // soltado fuera de un slot: si salió del panel y venía de la mochila, tirar al piso
+    if ((!under || !under.closest('#inv')) && drag.from.kind === 'bag') { dropItem(+drag.from.idx); renderInv(); }
+    return;
+  }
+  resolveInvDrop(drag.from, { ...destEl.dataset });
+}
+
+// clic rápido: mochila → equipar (shift = tirar) · equipo → desequipar
+function invSlotClick(from, shift) {
+  if (from.kind === 'bag') { shift ? dropItem(+from.idx) : equipItem(+from.idx); }
+  else if (from.kind === 'equip') unequipItem(from.slot);
+}
+
+// mover un ítem de un slot a otro según el tipo de origen y destino
+function resolveInvDrop(from, to) {
+  const p = state.player;
+  if (from.kind === 'bag' && to.kind === 'equip') equipBagToSlot(+from.idx, to.slot);
+  else if (from.kind === 'equip' && (to.kind === 'bag' || to.kind === 'quick')) unequipItem(from.slot);
+  else if (from.kind === 'bag' && to.kind === 'bag') reorderBag(+from.idx, +to.idx);
+  else if (from.kind === 'equip' && to.kind === 'equip') swapEquip(from.slot, to.slot);
+  else renderInv();
+}
+
+// equipar el ítem de la mochila en un slot concreto (respeta compatibilidad)
+function equipBagToSlot(bagIdx, destSlot) {
+  const p = state.player, it = p.bag[bagIdx];
+  if (!it) { renderInv(); return; }
+  const baseSlot = destSlot === 'anillo2' ? 'anillo' : destSlot;
+  if (it.slot !== baseSlot) { toast('Eso no va en ' + SLOT_LABELS[destSlot], '#ff6b6b'); renderInv(); return; }
+  if (it.slot === 'arma') {
+    const wcls = WEAPON_TYPES[it.weaponType].cls;
+    if (wcls !== p.cls) { toast('Solo ' + CLASSES[wcls].name + ' usa esa arma', '#ff6b6b'); renderInv(); return; }
+  }
+  p.bag.splice(bagIdx, 1);
+  const prev = p.equip[destSlot];
+  p.equip[destSlot] = it;
+  if (prev) p.bag.push(prev);
+  calcStats(p); sfx('equip'); renderInv();
+}
+
+// reordenar la mochila (array denso): saca de i y reinserta en j
+function reorderBag(i, j) {
+  const p = state.player;
+  if (i === j || i >= p.bag.length) { renderInv(); return; }
+  const it = p.bag.splice(i, 1)[0];
+  p.bag.splice(Math.min(j, p.bag.length), 0, it);
+  renderInv();
+}
+
+// intercambiar dos slots de equipo compatibles (p.ej. los dos anillos)
+function swapEquip(a, b) {
+  const p = state.player;
+  const baseA = a === 'anillo2' ? 'anillo' : a, baseB = b === 'anillo2' ? 'anillo' : b;
+  if (baseA !== baseB) { renderInv(); return; }
+  const tmp = p.equip[a]; p.equip[a] = p.equip[b]; p.equip[b] = tmp;
+  calcStats(p); renderInv();
 }
 
 // 10 slots de equipo alrededor del mago (5 por lado, de arriba a abajo)
@@ -274,7 +379,7 @@ function renderInv() {
   title.className = 'invtitle'; title.textContent = 'INVENTARIO';
   const hint = document.createElement('div');
   hint.className = 'invhint';
-  hint.textContent = 'clic: equipar / desequipar · shift+clic: tirar al piso · I o Esc: cerrar';
+  hint.textContent = 'arrastrá para mover · clic: equipar/desequipar · shift+clic: tirar · I o Esc: cerrar';
 
   const wrap = document.createElement('div');
   wrap.className = 'invwrap';
@@ -289,11 +394,11 @@ function renderInv() {
   himg.className = 'invheroimg'; himg.src = 'assets/ui/hud/inv/inv_hero.png';
   const quick = document.createElement('div');
   quick.className = 'invquick';
-  for (let i = 0; i < 5; i++) quick.appendChild(invSlotDiv(null, 'slot_round', 'qslot', null));
+  for (let i = 0; i < 5; i++) quick.appendChild(invSlotDiv(null, 'slot_round', 'qslot', { kind: 'quick', idx: i }));
   center.appendChild(himg); center.appendChild(quick);
   for (const [slot, side] of EQ_LAYOUT) {
     const it = p.equip[slot];
-    const d = invSlotDiv(it, 'slot_octagon', 'eqslot', it ? () => unequipItem(slot) : null);
+    const d = invSlotDiv(it, 'slot_octagon', 'eqslot', { kind: 'equip', slot });
     d.title = SLOT_LABELS[slot];
     (side === 'left' ? colL : colR).appendChild(d);
   }
@@ -309,7 +414,7 @@ function renderInv() {
   grid.className = 'baggrid';
   for (let i = 0; i < BALANCE.bagSize; i++) {
     const it = p.bag[i];
-    const d = invSlotDiv(it, 'slot_square', 'bagcell', it ? ev => ev.shiftKey ? dropItem(i) : equipItem(i) : null);
+    const d = invSlotDiv(it, 'slot_square', 'bagcell', { kind: 'bag', idx: i });
     grid.appendChild(d);
   }
   bag.appendChild(grid);
