@@ -36,7 +36,9 @@
 
   /* ===== HUD v2 — pixel art (assets de Claude Design, capas + 9-slice) ===== */
   /* --huds: factor de escala (diseñado a 1920 de ancho); lo setea resize() */
-  #hud{ position:absolute; inset:0; pointer-events:none; }
+  #hud{ position:absolute; inset:0; pointer-events:none;
+    /* barras: alto, separación del borde inferior y lateral (despegan del marco) */
+    --barH:calc(70px * var(--huds,1)); --barBottom:max(40px, 2.4vw); --barMargin:max(50px, 2.8vw); }
   .px{ image-rendering:pixelated; image-rendering:crisp-edges; }
 
   /* marco de pantalla completa (border-image 9-slice, slice 64) */
@@ -45,10 +47,10 @@
     border-image:url(assets/ui/hud/screen_frame.png) 64 stretch; }
 
   /* barras vital / maná: 3 capas (empty -> fill recortado -> frame) */
-  .hudbar{ position:absolute; bottom:calc(20px * var(--huds,1));
-    width:calc(420px * var(--huds,1)); height:calc(100px * var(--huds,1)); z-index:2; }
-  .hudbar.left{ left:calc(20px * var(--huds,1)); }
-  .hudbar.right{ right:calc(20px * var(--huds,1)); }
+  .hudbar{ position:absolute; bottom:var(--barBottom);
+    width:calc(420px * var(--huds,1)); height:var(--barH); z-index:2; }
+  .hudbar.left{ left:var(--barMargin); }
+  .hudbar.right{ right:var(--barMargin); }
   .hudbar > img{ position:absolute; inset:0; width:100%; height:100%; }
   .hudbar .fillclip{ position:absolute; left:0; top:0; bottom:0; overflow:hidden;
     width:100%; transition:width .18s ease-out; }
@@ -59,14 +61,14 @@
     color:#fff; text-shadow:0 2px 3px #000; z-index:3; pointer-events:none; }
 
   /* títulos Cinzel sobre las barras */
-  .hudtitle{ position:absolute; bottom:calc(120px * var(--huds,1)); z-index:2;
+  .hudtitle{ position:absolute; bottom:calc(var(--barBottom) + var(--barH) + 4px * var(--huds,1)); z-index:2;
     font-family:Cinzel,serif; font-weight:700; font-size:calc(32px * var(--huds,1));
     text-shadow:0 3px 4px #000; white-space:nowrap; pointer-events:none; }
-  #lvltitle{ left:calc(24px * var(--huds,1)); color:#e6ddcf; }
-  #manatitle{ right:calc(24px * var(--huds,1)); color:#9fc6ff; }
+  #lvltitle{ left:var(--barMargin); color:#e6ddcf; }
+  #manatitle{ right:var(--barMargin); color:#9fc6ff; }
 
   /* runas activas (fila sobre la barra vital) */
-  #runes{ position:absolute; left:calc(22px * var(--huds,1)); bottom:calc(150px * var(--huds,1));
+  #runes{ position:absolute; left:var(--barMargin); bottom:calc(var(--barBottom) + var(--barH) + 42px * var(--huds,1));
     display:flex; gap:calc(12px * var(--huds,1)); z-index:2; pointer-events:none; }
   #runes img{ width:calc(56px * var(--huds,1)); height:calc(56px * var(--huds,1));
     filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
@@ -358,16 +360,16 @@
 </div>
 
 <!-- ?v=N evita que el navegador sirva JS viejo de caché; subir N al editar -->
-<script src="js/data.js?v=49"></script>
-<script src="js/sprites.js?v=49"></script>
-<script src="js/anim-rig.js?v=49"></script>
-<script src="js/hero.js?v=49"></script>
-<script src="js/heropack.js?v=49"></script>
-<script src="js/v2hero.js?v=49"></script>
-<script src="js/dungeon.js?v=49"></script>
-<script src="js/items.js?v=49"></script>
-<script src="js/entities.js?v=49"></script>
-<script src="js/ui.js?v=49"></script>
-<script src="js/main.js?v=49"></script>
+<script src="js/data.js?v=50"></script>
+<script src="js/sprites.js?v=50"></script>
+<script src="js/anim-rig.js?v=50"></script>
+<script src="js/hero.js?v=50"></script>
+<script src="js/heropack.js?v=50"></script>
+<script src="js/v2hero.js?v=50"></script>
+<script src="js/dungeon.js?v=50"></script>
+<script src="js/items.js?v=50"></script>
+<script src="js/entities.js?v=50"></script>
+<script src="js/ui.js?v=50"></script>
+<script src="js/main.js?v=50"></script>
 </body>
 </html>
