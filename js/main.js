@@ -405,6 +405,8 @@ function update(dt) {
   p.atkCd = Math.max(0, p.atkCd - dt);
   p.ifr = Math.max(0, p.ifr - dt);
   p.swingT = Math.max(0, p.swingT - dt);
+  p.attackT = Math.max(0, (p.attackT || 0) - dt);
+  p.hurtT = Math.max(0, (p.hurtT || 0) - dt);
 
   updateEnemies(dt);
   updateProjectiles(dt);
@@ -922,16 +924,22 @@ function drawPlayer(p) {
   // parpadeo durante invulnerabilidad
   if (p.ifr > 0 && Math.floor(state.time * 14) % 2 === 0) return;
   if (Sprites.hero_idle) {
-    // héroe animado 48px (pack de Claude Design): idle / run
-    const name = p.moving ? 'run' : 'idle';
+    // héroe animado 48px (rig de Claude Design): hurt > attack > run > idle
+    let name = 'idle';
+    if ((p.hurtT || 0) > 0) name = 'hurt';
+    else if ((p.attackT || 0) > 0) name = 'attack';
+    else if (p.moving) name = 'run';
     if (p._heroAnim !== name) { p._heroAnim = name; p._heroStart = state.time; }
     const frames = Sprites['hero_' + name + (p.dir < 0 ? '_L' : '')];
     const fi = animFrame(HERO_ANIMS[name], (state.time - p._heroStart) * 1000);
     const spr = frames[fi];
     const ws = spr.ws || 1, w = spr.width * ws, h = spr.height * ws;
-    const bob = p.moving ? 0 : Math.sin(state.time * 2.2) * 0.6; // respiración en reposo
-    ctx.drawImage(spr, p.x - w / 2, p.y + 5 - h + bob, w, h);
-    drawHeldWeapon(p);
+    p._heroFrame = fi; // para anclar el arma a la mano del frame actual
+    // el bastón/arco/etc. va detrás del cuerpo si apunto hacia arriba
+    const aimUp = Math.sin(aimAngle()) < -0.3;
+    if (aimUp) drawHeldWeapon(p);
+    ctx.drawImage(spr, p.x - w / 2, p.y + 5 - h, w, h);
+    if (!aimUp) drawHeldWeapon(p);
   } else {
     // fallback al sprite por código
     const spr = playerSprite(p);
@@ -983,15 +991,33 @@ function drawRugbyPosts(x, y) {
   ctx.fillRect(x + w / 2 - 2, y, 4, 1);
 }
 
-// El arma equipada se ve en la mano, apuntando hacia el ratón
+// El arma equipada se ve en la mano, apuntando hacia el ratón.
+// Usa el sprite del rig (6 tiers por material) anclado por su grip pivot.
 function drawHeldWeapon(p) {
   const arma = p.equip.arma;
   if (!arma) return;
+  const aim = aimAngle();
+  const swing = p.swingT > 0 ? (Math.sin((0.16 - p.swingT) / 0.16 * Math.PI) * 1.1 - 0.55) * (p.swingDir || 1) : 0;
+
+  // sprite del rig si está disponible (arma "vertical, punta arriba" + grip)
+  const rigType = WEAPON_RIG[arma.weaponType];
+  const rigArr = Sprites.weap && Sprites.weap[rigType];
+  if (rigArr) {
+    const spr = rigArr[weaponTier(arma)];
+    const ws = spr.ws || 1;
+    // mano: punto de agarre saliendo del hombro hacia el apuntado
+    const hx = p.x + Math.cos(aim) * 5, hy = p.y - 6 + Math.sin(aim) * 5;
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.rotate(aim + Math.PI / 2 + swing); // punta-arriba (-y) → dirección de apuntado
+    ctx.scale(ws, ws);
+    ctx.drawImage(spr, -spr.gx, -spr.gy);
+    ctx.restore();
+    return;
+  }
+  // fallback: icono viejo
   const wt = WEAPON_TYPES[arma.weaponType];
   const icon = Sprites['icon_' + arma.weaponType];
-  const aim = aimAngle();
-  // golpe de muñeca durante el espadazo (sigue la dirección del tajo)
-  const swing = p.swingT > 0 ? (Math.sin((0.16 - p.swingT) / 0.16 * Math.PI) * 1.1 - 0.55) * (p.swingDir || 1) : 0;
   ctx.save();
   ctx.translate(p.x + Math.cos(aim) * 8, p.y - 1 + Math.sin(aim) * 8);
   ctx.rotate(aim + wt.baseRot + swing);

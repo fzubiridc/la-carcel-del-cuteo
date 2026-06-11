@@ -354,6 +354,7 @@ function playerAttack(aimAng) {
   if (p.atkCd > 0) return;
   const wt = weaponDef(p);
   p.atkCd = attackCooldown(p);
+  p.attackT = 0.30; // dispara la animación de ataque del héroe
   const crit = Math.random() * 100 < p.stats.crit;
   const dmg = Math.round(playerDamage(p) * (crit ? 2 : 1));
 
@@ -457,6 +458,7 @@ function damagePlayer(dmg) {
   const real = applyDefense(dmg, p.stats.def);
   p.hp -= real;
   p.ifr = BALANCE.playerIfr;
+  p.hurtT = 0.26; // animación de recoil + flash de daño
   addFloater(p.x, p.y - 12, String(real), '#ff6b6b', false);
   shake(4);
   sfx('hurt');
