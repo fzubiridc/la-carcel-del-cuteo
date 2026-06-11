@@ -1,58 +1,67 @@
 # Pedido al diseñador — Inventario · La Cárcel del Cuteo (iteración 2)
 
 Iteración **a partir del diseño actual** (mago ilustrado + octágonos + grilla).
-**El estilo está aprobado: NO cambiar la dirección visual ni el mago.** Solo los
-ajustes de abajo. Entrega: **panel compuesto + mapa de coordenadas** (ver final).
+**El estilo está aprobado: NO cambiar la dirección visual ni el mago.**
+
+**Entrega clave: PIEZAS POR SEPARADO, no un panel armado.** El motor compone el
+layout (igual que el HUD): los slots se repiten N veces, el marco se estira, el
+mago va aparte. Así el inventario es responsive y puedo cambiar cantidades sin
+volver a pedir. Mismo espíritu de capas que el HUD ya integrado.
 
 ---
 
-## CAMBIOS PEDIDOS (pegar al agente de diseño)
+## PIEZAS PEDIDAS (pegar al agente de diseño)
 
-> Me encanta cómo quedó. Mantené el estilo tal cual (mago ilustrado, paleta oro +
-> piedra, círculo rúnico, marco con runas). Necesito estos ajustes:
+> Me encanta el estilo, mantenelo igual (mago ilustrado púrpura/dorado, paleta oro
+> + piedra, círculo rúnico, marcos con runas). Pero en vez de un panel armado,
+> necesito las **piezas por separado** para componer el inventario por código.
+> Cada una en su archivo, **PNG con fondo transparente (alpha)**, y como es UI
+> ilustrada (no pixel art) **a alta resolución (~2×, retina)**:
 >
-> **1) Slots de equipo: exactamente 10 octágonos** (5 a cada lado del mago),
-> distribuidos parejos y alineados. Quedan **vacíos** (sin íconos), pero esta es la
-> intención de cada posición para que estén bien distribuidos:
-> - Lado izquierdo (de arriba a abajo): Casco · Amuleto · Manto/Túnica · Guantes · Cinturón
-> - Lado derecho (de arriba a abajo): Bastón (arma) · Foco arcano · Anillo · Anillo · Botas
+> **1) Mago + plataforma** (`inv_hero.png`) — el hechicero ilustrado parado sobre
+> el círculo rúnico, tal como está ahora. Una sola imagen, centrada, fondo
+> transparente. Es la figura fija del centro.
 >
-> **2) Los 5 slots redondos de abajo: dejalos VACÍOS** — sacá el número "1", sin
-> contenido ni símbolo. Solo la cápsula redonda vacía, lista para usar después.
+> **2) Marco ornamentado 9-slice** (`inv_frame.png`) — el borde con la esquina de
+> runas, pensado para **9-slice** (4 esquinas + 4 lados tileables, centro
+> transparente) para que yo lo estire y envuelva áreas de cualquier tamaño.
+> Indicá el `slice` (px de las esquinas). Si preferís, entregá las esquinas y
+> lados como piezas sueltas.
 >
-> **3) Mochila: reducí la grilla de 48 a 24 slots (6 columnas × 4 filas).** Mismo
-> estilo de slot cuadrado y mismo marco con runas, solo más compacta en alto.
+> **3) Slot de equipo** (`slot_octagon.png`) — el octágono dorado vacío, una sola
+> pieza. La voy a repetir 10 veces. Centro transparente (ahí dibujo el ítem).
 >
-> **4) Todo lo demás igual:** el mago centrado sobre el círculo rúnico, los marcos
-> dorados, la esquina ornamentada con runas. No toques la ilustración del mago.
+> **4) Slot de mochila** (`slot_square.png`) — el cuadrado dorado vacío, una pieza.
+> La repito 24 veces para la grilla.
 >
-> ### Entrega (importante para integrarlo al juego)
-> - **Un panel compuesto** (PNG) con TODO el chrome: marco, mago, los 10 octágonos
->   vacíos, los 5 redondos vacíos y la grilla 6×4 vacía. **Fondo transparente**
->   (alpha) fuera del panel — el juego pone su propio oscurecido detrás.
-> - **Alta resolución (es UI ilustrada, NO pixel art): entregá a ~2× (retina).**
->   P.ej. panel a ~2000 px de ancho; el motor lo escala. (Acá sí va resolución
->   alta, al revés que los assets pixel del HUD.)
-> - **Mapa de coordenadas**: una lista (o JSON) con la posición y tamaño **en px
->   sobre el canvas del panel** de cada slot, así puedo dibujar los ítems encima:
->   - los 10 octágonos de equipo (en el orden de arriba),
->   - los 5 redondos,
->   - los 24 cuadrados de la mochila (orden lectura: izq→der, arriba→abajo).
->   Formato sugerido: `{ "equip": [[x,y,w,h], ...], "quick": [...], "bag": [...] }`.
+> **5) Slot redondo** (`slot_round.png`) — la cápsula redonda vacía, una pieza.
+> **SIN el número "1"**, sin contenido. La repito 5 veces.
+>
+> **Opcional pero útil — estado resaltado:** si podés, una variante "resaltada"
+> de cada slot (borde con glow/brillo dorado más intenso) para marcar hover o el
+> ítem equipado: `slot_octagon_hl.png`, `slot_square_hl.png`. Mismo tamaño exacto
+> que su versión normal, para superponer.
+>
+> ### Importante
+> - Todas las piezas de slot del **mismo tipo a tamaño idéntico** y con el **área
+>   interior centrada** (ahí va el ícono del ítem), para que todo alinee al
+>   repetirlas.
+> - Fondo transparente real; la sombra/relieve va dentro de la pieza.
+> - Alta resolución (2×): el motor escala hacia abajo según la pantalla.
 
 ---
 
 ## Notas de integración (para Claude, al recibir el bundle)
 
-- Inventario actual en el juego: 6 slots equipo (`SLOTS` en data.js) + bolsa 12
-  (`BALANCE.bagSize`). Esta iteración lo lleva a **10 equipo + 24 bolsa + 5 quick**.
-- Los 4 slots de equipo nuevos (foco arcano, guantes, cinturón, 2º anillo) implican
-  nuevas bases de ítem en `ARMOR_BASES`/`SLOTS` + arte de ítem + balance — se hace
-  por código data-driven; arrancan sin drops hasta agregarlos.
-- Quick (5 redondos): se dejan vacíos/decorativos por ahora (hotbar de consumibles
-  a futuro). Hoy la poción sigue en tecla Q.
-- Render: panel de fondo como `<img>`; los ítems se dibujan en `position:absolute`
-  según el mapa de coords (escalado por el factor del panel). Reemplaza el `#inv`
-  actual (`renderInv` en ui.js).
-- El mago es ilustrado y fijo (look único, sin paperdoll real: el equipo se ve en
-  los slots, no encima del personaje) — coherente con la decisión v2.
+- Layout lo arma el motor (no hay coords del diseñador): octágonos alrededor del
+  mago (5 por lado), grilla 6×4 de mochila, fila de 5 redondos abajo.
+- Mapeo equipo (10): izq = casco/amuleto/manto/guantes/cinturón ·
+  der = bastón/foco arcano/anillo/anillo2/botas. Los 4 nuevos (foco, guantes,
+  cinturón, 2º anillo) → nuevas bases en `SLOTS`/`ARMOR_BASES` + arte + balance
+  (data-driven; sin drops hasta agregarlos).
+- Mochila 12 → 24 (`BALANCE.bagSize`). Quick (5 redondos): vacíos/decorativos por
+  ahora (hotbar de consumibles a futuro; la poción sigue en Q).
+- Reemplaza `renderInv`/`#inv` en ui.js. El ítem se dibuja en el centro
+  transparente de cada slot; el marco 9-slice envuelve cada zona.
+- Mago ilustrado y fijo (sin paperdoll real: el equipo se ve en los slots, no
+  encima del personaje) — coherente con v2.
