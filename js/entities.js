@@ -60,7 +60,16 @@ function updateEnemies(dt) {
 
     const dx = p.x - e.x, dy = p.y - e.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const aggro = e.isBoss || dist < 10 * TILE;
+    // aggro: el jugador en la sala del enemigo (o muy cerca, p.ej. pasillo).
+    // Una vez en contacto persigue 1.5 s más; si te vas de la sala, deja de seguir.
+    let inContact = dist < 4 * TILE;
+    if (e.room) {
+      const ptx = p.x / TILE, pty = p.y / TILE, r = e.room;
+      if (ptx >= r.x - 1 && ptx <= r.x + r.w && pty >= r.y - 1 && pty <= r.y + r.h) inContact = true;
+    } else if (dist < 10 * TILE) inContact = true; // sin sala (arena/llave): radio
+    if (inContact) e.aggroT = 1.5;
+    else e.aggroT = Math.max(0, (e.aggroT || 0) - dt);
+    const aggro = e.isBoss || e.aggroT > 0;
 
     if (aggro) {
       if (e.ai === 'chaser') {

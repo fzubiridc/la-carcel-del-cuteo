@@ -63,6 +63,7 @@ function genDungeon(zone, depth, isBoss) {
         x: (randInt(r.x + 1, r.x + r.w - 2) + 0.5) * TILE,
         y: (randInt(r.y + 1, r.y + r.h - 2) + 0.5) * TILE,
         elite: Math.random() < (evento === 'embrujado' ? 0.25 : BALANCE.eliteChance),
+        room: { x: r.x, y: r.y, w: r.w, h: r.h }, // sala "hogar": el aggro empieza al entrar
       });
     }
   }

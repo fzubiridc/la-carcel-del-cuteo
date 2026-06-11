@@ -234,6 +234,8 @@ function nextFloor() {
   for (const s of lvl.spawns) {
     const en = spawnEnemy(s.type, s.x, s.y, run.depth, false, s.elite);
     en.keyCarrier = !!s.keyCarrier;
+    en.room = s.room || null; // sala hogar para el aggro
+    en.aggroT = 0;
     state.enemies.push(en);
   }
   if (lvl.boss) {
@@ -940,8 +942,16 @@ function drawHeroPack(p) {
     tg.fillStyle = '#e84848'; tg.fillRect(0, 0, 48, 48);
     tg.globalAlpha = 1; tg.globalCompositeOperation = 'source-over';
   }
+  // lunge: durante el golpe melee el cuerpo da un paso al frente (el slash va adelante)
+  let lungeX = 0, lungeY = 0;
+  if (p.swingT > 0) {
+    const mag = Math.sin((1 - p.swingT / 0.16) * Math.PI) * 5, a = aimAngle();
+    lungeX = Math.cos(a) * mag; lungeY = Math.sin(a) * mag;
+  }
+  p._lungeX = lungeX; p._lungeY = lungeY;
+
   ctx.save();
-  ctx.translate(p.x, footY); ctx.scale(ws * flip, ws);
+  ctx.translate(p.x + lungeX, footY + lungeY); ctx.scale(ws * flip, ws);
   ctx.drawImage(hpTmp, -24, -48);
   ctx.restore();
 
@@ -954,7 +964,17 @@ function drawHeroWeaponArm(p, fi, flip, footY, ws) {
   const wframes = HP.weap[wtype];
   if (!wframes) return;
   const wspr = wframes[hpTier(arma)], grip = HP.grip[wtype];
-  const aim = aimAngle();
+  const rawAim = aimAngle();
+  // arma relajada en reposo: si no te movés ni atacás, el arma baja al costado
+  const resting = !p.moving && p.attackT <= 0 && p.swingT <= 0;
+  const restDir = p.dir > 0 ? 1.15 : (Math.PI - 1.15); // apunta hacia abajo-adelante
+  const target = resting ? restDir : rawAim;
+  if (p._armAim === undefined) p._armAim = target;
+  let d = target - p._armAim; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+  p._armAim += d * (resting ? 0.18 : 0.5); // suave al bajar, ágil al apuntar
+  while (p._armAim > Math.PI) p._armAim -= 2 * Math.PI;
+  while (p._armAim < -Math.PI) p._armAim += 2 * Math.PI;
+  const aim = p._armAim;
   // slash: el brazo+arma barren un arco real durante el golpe melee
   let swing = 0;
   if (p.swingT > 0) {
@@ -963,10 +983,12 @@ function drawHeroWeaponArm(p, fi, flip, footY, ws) {
   }
   const armAng = aim + Math.PI / 2 + swing;
 
-  // hombro del frame (subido 2px para que no se lea desde el pecho), mirror-aware
+  // hombro del frame (subido 2px para que no se lea desde el pecho), mirror-aware,
+  // + lunge hacia adelante durante el golpe (el slash va adelante del cuerpo)
+  const lx = p._lungeX || 0, ly = p._lungeY || 0;
   const sx = HP.shoulder[fi][0], sy = HP.shoulder[fi][1] - 2;
-  const shWX = p.x + (flip > 0 ? (sx - 24) : (24 - sx)) * ws;
-  const shWY = footY + (sy - 48) * ws;
+  const shWX = p.x + (flip > 0 ? (sx - 24) : (24 - sx)) * ws + lx;
+  const shWY = footY + (sy - 48) * ws + ly;
   // mano = hombro + rotar(offset mano) por el ángulo del brazo
   const hlx = HP.armHand[0] - HP.armShoulder[0], hly = HP.armHand[1] - HP.armShoulder[1];
   const ca = Math.cos(armAng), sa = Math.sin(armAng);
@@ -1059,20 +1081,23 @@ function drawPlayer(p) {
     drawHeldWeapon(p);
   }
 
-  // tajo de la espada: barrido animado con estela que se desvanece
+  // tajo: arco amplio proyectado ADELANTE del cuerpo (no solo al alcance del brazo),
+  // así se lee como un ataque al frente aunque el bicho esté encima
   if (p.swingT > 0) {
-    const wt = weaponDef(p);
     const k = 1 - p.swingT / 0.16;            // progreso del tajo 0→1
     const dir = p.swingDir || 1;
     const cur = p.swingAng + dir * (k * 2 - 1); // barre 2 radianes
+    const fwd = 9;                            // centro del arco adelante del cuerpo
+    const cx = p.x + Math.cos(p.swingAng) * fwd, cy = p.y + Math.sin(p.swingAng) * fwd;
+    const R = 20;                             // radio amplio
     ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 5; i++) {
-      const a = cur - dir * i * 0.14;
-      ctx.globalAlpha = (1 - i / 5) * 0.55;
+    for (let i = 0; i < 6; i++) {
+      const a = cur - dir * i * 0.16;
+      ctx.globalAlpha = (1 - i / 6) * 0.6;
       ctx.strokeStyle = i === 0 ? '#ffffff' : '#9ab8d8';
-      ctx.lineWidth = 3 - i * 0.45;
+      ctx.lineWidth = 4 - i * 0.5;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, wt.range - 7, a - 0.14, a + 0.14);
+      ctx.arc(cx, cy, R, a - 0.2, a + 0.2);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
