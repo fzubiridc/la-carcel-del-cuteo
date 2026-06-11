@@ -9,6 +9,9 @@
 <meta name="theme-color" content="#0b0a0f">
 <title>La Cárcel del Cuteo</title>
 <link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
 <style>
@@ -31,29 +34,65 @@
   .panel{ background:var(--panel); border:2px solid var(--borde); border-radius:8px;
     box-shadow:0 0 40px #000c; }
 
-  /* HUD */
-  #hud{ position:absolute; top:10px; left:10px; display:flex; flex-direction:column;
-    gap:6px; pointer-events:none; text-shadow:1px 1px 0 #000; }
-  #hpbar{ width:220px; height:18px; background:#2a1216; border:2px solid #000;
-    border-radius:4px; overflow:hidden; }
-  #hpfill{ height:100%; width:100%; background:linear-gradient(#e4504f,#a32430);
-    transition:width .15s; }
-  #hptext{ font-size:12px; margin-top:-17px; text-align:center; width:220px;
-    position:relative; color:#fff; font-weight:bold; }
-  #zonelabel{ font-size:14px; font-weight:bold; }
-  #xpbar{ width:220px; height:6px; background:#1c1722; border:2px solid #000;
-    border-radius:3px; overflow:hidden; }
-  #xpfill{ height:100%; width:0%; background:linear-gradient(#ffe48a,#d8a82f);
-    transition:width .15s; }
-  #lvllabel{ font-size:12px; color:#ffd84f; }
-  #coinlabel{ font-size:13px; color:#ffd84f; }
-  #dashwrap{ display:flex; align-items:center; gap:6px; }
+  /* ===== HUD v2 — pixel art (assets de Claude Design, capas + 9-slice) ===== */
+  /* --huds: factor de escala (diseñado a 1920 de ancho); lo setea resize() */
+  #hud{ position:absolute; inset:0; pointer-events:none; }
+  .px{ image-rendering:pixelated; image-rendering:crisp-edges; }
+
+  /* marco de pantalla completa (border-image 9-slice, slice 64) */
+  #screenframe{ position:absolute; inset:0; pointer-events:none; z-index:1;
+    border:clamp(20px,2.6vw,46px) solid transparent;
+    border-image:url(assets/ui/hud/screen_frame.png) 64 stretch; }
+
+  /* barras vital / maná: 3 capas (empty -> fill recortado -> frame) */
+  .hudbar{ position:absolute; bottom:calc(20px * var(--huds,1));
+    width:calc(420px * var(--huds,1)); height:calc(100px * var(--huds,1)); z-index:2; }
+  .hudbar.left{ left:calc(20px * var(--huds,1)); }
+  .hudbar.right{ right:calc(20px * var(--huds,1)); }
+  .hudbar > img{ position:absolute; inset:0; width:100%; height:100%; }
+  .hudbar .fillclip{ position:absolute; left:0; top:0; bottom:0; overflow:hidden;
+    width:100%; transition:width .18s ease-out; }
+  .hudbar .fillclip img{ position:absolute; left:0; top:0; height:100%;
+    width:calc(420px * var(--huds,1)); max-width:none; }
+  #hptext{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:Inter,sans-serif; font-size:calc(20px * var(--huds,1)); font-weight:600;
+    color:#fff; text-shadow:0 2px 3px #000; z-index:3; pointer-events:none; }
+
+  /* títulos Cinzel sobre las barras */
+  .hudtitle{ position:absolute; bottom:calc(120px * var(--huds,1)); z-index:2;
+    font-family:Cinzel,serif; font-weight:700; font-size:calc(32px * var(--huds,1));
+    text-shadow:0 3px 4px #000; white-space:nowrap; pointer-events:none; }
+  #lvltitle{ left:calc(24px * var(--huds,1)); color:#e6ddcf; }
+  #manatitle{ right:calc(24px * var(--huds,1)); color:#9fc6ff; }
+
+  /* runas activas (fila sobre la barra vital) */
+  #runes{ position:absolute; left:calc(22px * var(--huds,1)); bottom:calc(150px * var(--huds,1));
+    display:flex; gap:calc(12px * var(--huds,1)); z-index:2; pointer-events:none; }
+  #runes img{ width:calc(56px * var(--huds,1)); height:calc(56px * var(--huds,1));
+    filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+
+  /* XP de cadena, centrada abajo */
+  #xpwrap{ position:absolute; bottom:calc(14px * var(--huds,1)); left:50%; transform:translateX(-50%);
+    width:calc(1000px * var(--huds,1)); height:calc(40px * var(--huds,1)); z-index:2; }
+  #xpwrap > img{ position:absolute; inset:0; width:100%; height:100%; }
+  #xpwrap .fillclip{ position:absolute; left:0; top:0; bottom:0; overflow:hidden;
+    width:0%; transition:width .18s ease-out; }
+  #xpwrap .fillclip img{ position:absolute; left:0; top:0; height:100%;
+    width:calc(1000px * var(--huds,1)); max-width:none; }
+
+  /* extras que el diseño no cubre: zona, monedas, pociones, dash, debug (arriba-izq) */
+  #hudextra{ position:absolute; left:max(58px, 3.4vw); top:max(54px, 3vw);
+    display:flex; flex-direction:column; gap:4px; pointer-events:none; text-shadow:1px 1px 0 #000; }
+  #zonelabel{ font-family:Cinzel,serif; font-size:15px; font-weight:600; color:#e6ddcf; }
+  #coinlabel{ font-family:Inter,sans-serif; font-size:13px; color:#ffd84f; }
+  #potlabel{ font-family:Inter,sans-serif; font-size:13px; color:#f08a88; }
+  #dashwrap{ display:flex; align-items:center; gap:6px; margin-top:2px; }
   #dashbar{ width:60px; height:5px; background:#1c1722; border:2px solid #000;
     border-radius:3px; overflow:hidden; }
   #dashfill{ height:100%; width:100%; background:#9ab8d8; transition:width .1s; }
-  #dashlabel{ font-size:9px; color:#9ab8d8; letter-spacing:1px; }
+  #dashlabel{ font-family:Inter,sans-serif; font-size:9px; color:#9ab8d8; letter-spacing:1px; }
   #debugboss{ pointer-events:auto; align-self:flex-start; margin-top:4px;
-    font-family:inherit; font-size:10px; padding:3px 8px; cursor:pointer;
+    font-family:Inter,sans-serif; font-size:10px; padding:3px 8px; cursor:pointer;
     background:#2a1a08; color:#ffb04f; border:1px solid #5a3a18; border-radius:3px;
     letter-spacing:1px; opacity:.7; }
   #debugboss:hover{ opacity:1; border-color:#ffb04f; }
@@ -61,7 +100,7 @@
     font-size:12px; color:#8a8496; pointer-events:none; text-shadow:1px 1px 0 #000; }
   #prompt{ position:absolute; bottom:60px; left:50%; transform:translateX(-50%);
     font-size:15px; color:#ffd84f; pointer-events:none; text-shadow:1px 1px 0 #000; }
-  #minimap{ position:absolute; top:10px; right:10px; border:2px solid var(--borde);
+  #minimap{ position:absolute; top:max(54px, 3vw); right:max(54px, 3vw); border:2px solid var(--borde);
     background:#0b0a0fcc; border-radius:4px; image-rendering:pixelated; }
   #toast{ position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
     display:flex; flex-direction:column; align-items:center; gap:4px; pointer-events:none; }
@@ -233,15 +272,37 @@
   <canvas id="minimap" class="hidden" width="120" height="120"></canvas>
 
   <div id="hud" class="hidden">
-    <div id="zonelabel"></div>
-    <div id="hpbar"><div id="hpfill"></div></div>
-    <div id="hptext"></div>
-    <div id="xpbar"><div id="xpfill"></div></div>
-    <div id="lvllabel"></div>
-    <div id="coinlabel"></div>
-    <div id="potlabel" style="font-size:13px;color:#f08a88"></div>
-    <div id="dashwrap"><div id="dashbar"><div id="dashfill"></div></div><span id="dashlabel">DASH</span></div>
-    <button id="debugboss" type="button">→ JEFE (debug)</button>
+    <div id="screenframe" class="px"></div>
+
+    <div id="hudextra">
+      <div id="zonelabel"></div>
+      <div id="coinlabel"></div>
+      <div id="potlabel"></div>
+      <div id="dashwrap"><div id="dashbar"><div id="dashfill"></div></div><span id="dashlabel">DASH</span></div>
+      <button id="debugboss" type="button">→ JEFE (debug)</button>
+    </div>
+
+    <div id="runes"></div>
+
+    <div id="lvltitle" class="hudtitle"></div>
+    <div class="hudbar left" id="hpbar">
+      <img class="px" src="assets/ui/hud/bar_hp_empty.png" alt="">
+      <div class="fillclip"><img class="px" src="assets/ui/hud/bar_hp_fill.png" alt=""></div>
+      <img class="px" src="assets/ui/hud/bar_hp_frame.png" alt="">
+      <div id="hptext"></div>
+    </div>
+
+    <div id="manatitle" class="hudtitle"></div>
+    <div class="hudbar right" id="manabar">
+      <img class="px" src="assets/ui/hud/bar_mana_empty.png" alt="">
+      <div class="fillclip"><img class="px" src="assets/ui/hud/bar_mana_fill.png" alt=""></div>
+      <img class="px" src="assets/ui/hud/bar_mana_frame.png" alt="">
+    </div>
+
+    <div id="xpwrap">
+      <div class="fillclip"><img class="px" src="assets/ui/hud/xp_fill.png" alt=""></div>
+      <img class="px" src="assets/ui/hud/xp_frame.png" alt="">
+    </div>
   </div>
   <div id="bossbar" class="hidden">
     <div id="bossname"></div>
@@ -297,16 +358,16 @@
 </div>
 
 <!-- ?v=N evita que el navegador sirva JS viejo de caché; subir N al editar -->
-<script src="js/data.js?v=47"></script>
-<script src="js/sprites.js?v=47"></script>
-<script src="js/anim-rig.js?v=47"></script>
-<script src="js/hero.js?v=47"></script>
-<script src="js/heropack.js?v=47"></script>
-<script src="js/v2hero.js?v=47"></script>
-<script src="js/dungeon.js?v=47"></script>
-<script src="js/items.js?v=47"></script>
-<script src="js/entities.js?v=47"></script>
-<script src="js/ui.js?v=47"></script>
-<script src="js/main.js?v=47"></script>
+<script src="js/data.js?v=49"></script>
+<script src="js/sprites.js?v=49"></script>
+<script src="js/anim-rig.js?v=49"></script>
+<script src="js/hero.js?v=49"></script>
+<script src="js/heropack.js?v=49"></script>
+<script src="js/v2hero.js?v=49"></script>
+<script src="js/dungeon.js?v=49"></script>
+<script src="js/items.js?v=49"></script>
+<script src="js/entities.js?v=49"></script>
+<script src="js/ui.js?v=49"></script>
+<script src="js/main.js?v=49"></script>
 </body>
 </html>

@@ -87,18 +87,52 @@ function buildMenu() {
   wrap.appendChild(card);
 }
 
+// Recorta una barra de capas por porcentaje. La ventana visible del PNG empieza
+// en `off` px y mide `win` px sobre un total de `total` px; el fill llena de
+// izquierda a derecha (ver geometría en assets/ui/hud/README.md).
+function setBarFill(sel, off, win, total, pct) {
+  const clip = document.querySelector(sel + ' .fillclip');
+  if (clip) clip.style.width = ((off + win * Math.max(0, Math.min(1, pct))) / total * 100) + '%';
+}
+
+// Runas según buffs activos del jugador (solo reconstruye si cambió el set)
+function updateRunes(p) {
+  const b = p.bonus;
+  const active = [];
+  if (b.hp > 0) active.push('vigor');       // león
+  if (b.def > 0) active.push('defensa');    // escudo
+  if (b.dmgMul > 1.001) active.push('fuerza');   // hacha
+  if (b.spd > 0) active.push('velocidad');  // ala
+  if (b.crit > 0) active.push('critico');   // ojo
+  if (b.atkspd > 0) active.push('veneno');  // calavera (frenesí: sin runa propia)
+  const wrap = $('runes');
+  const sig = active.join(',');
+  if (wrap.dataset.sig === sig) return;
+  wrap.dataset.sig = sig;
+  wrap.innerHTML = active.map(n =>
+    '<img class="px" src="assets/ui/hud/rune_' + n + '.png" alt="' + n + '">').join('');
+}
+
 function updateHUD() {
   const p = state.player, run = state.run;
   if (!p) return;
   const zone = ZONES[run.zoneIdx];
-  $('hpfill').style.width = (100 * p.hp / p.stats.maxhp) + '%';
+  // barra vital (ventana 420×100: x=40 w=340)
+  setBarFill('#hpbar', 40, 340, 420, p.hp / p.stats.maxhp);
   $('hptext').textContent = Math.ceil(p.hp) + ' / ' + p.stats.maxhp;
+  $('lvltitle').textContent = 'ARCHIMAGO · NIVEL ' + p.level;
+  // barra de maná — PLACEHOLDER: el cast aún no consume maná (ver V2_BACKLOG)
+  const manaPct = 1;
+  setBarFill('#manabar', 40, 340, 420, manaPct);
+  $('manatitle').textContent = 'MANÁ ' + Math.round(350 * manaPct) + ' / 350';
+  // XP (ventana 1000×40: x=28 w=944)
+  setBarFill('#xpwrap', 28, 944, 1000, p.xp / p.xpNext);
+  // extras
   $('zonelabel').textContent = zone.name + (state.level.isBoss ? ' · JEFE' : ' · Piso ' + run.floorInZone);
-  $('xpfill').style.width = Math.min(100, 100 * p.xp / p.xpNext) + '%';
-  $('lvllabel').textContent = 'Nv. ' + p.level;
   $('coinlabel').textContent = '◉ ' + p.coins + ' monedas';
   $('potlabel').textContent = '⚗ ' + p.potions + '/' + BALANCE.maxPotions + ' [Q]';
   $('dashfill').style.width = (100 * (1 - p.dashCd / 1.2)) + '%';
+  updateRunes(p);
   updateBossBar();
 }
 

@@ -45,6 +45,9 @@ function resize() {
   canvas.height = window.innerHeight;
   ctx.imageSmoothingEnabled = false;
   ZOOM = Math.max(2, Math.round(window.innerHeight / 240));
+  // escala del HUD v2 (diseñado a 1920 de ancho; no deja que ocupe de más en chico)
+  const huds = Math.min(1.05, Math.max(0.46, window.innerWidth / 1920));
+  document.documentElement.style.setProperty('--huds', huds);
 }
 
 function bindInput() {
