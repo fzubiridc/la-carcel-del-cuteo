@@ -137,6 +137,16 @@ function calcStats(p) {
   p.hp = Math.min(p.hp, s.maxhp);
 }
 
+// ---------------- Mochila (array con huecos: índice fijo por celda) ----------------
+// Pone un ítem en la primera celda libre. Devuelve true si entró.
+function bagAdd(p, item) {
+  for (let i = 0; i < BALANCE.bagSize; i++) {
+    if (!p.bag[i]) { p.bag[i] = item; return true; }
+  }
+  return false;
+}
+function bagCount(p) { return p.bag.reduce((n, it) => n + (it ? 1 : 0), 0); }
+
 // Daño base por golpe (sin crítico)
 function playerDamage(p) {
   const w = p.equip.arma;

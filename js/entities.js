@@ -11,7 +11,7 @@ function makePlayer(clsId) {
     hp: cls.hp, stats: null,
     equip: { arma: makeStarterWeapon(cls.weapon), casco: null, coraza: null, botas: null, anillo: null, amuleto: null,
       foco: null, guantes: null, cinturon: null, anillo2: null },
-    bag: [], coins: 0, potions: 1,
+    bag: Array(BALANCE.bagSize).fill(null), coins: 0, potions: 1,
     level: 1, xp: 0, xpNext: 25,
     bonus: { hp: 0, spd: 0, crit: 0, atkspd: 0, def: 0, dmgMul: 1 },
     atkCd: 0, ifr: 0, stunT: 0, dir: 1,
@@ -640,8 +640,8 @@ function updatePickups(dt) {
           addFloater(p.x, p.y - 14, '+' + heal, '#7fc97f', false);
         }
       } else if (pk.kind === 'item') {
-        if (p.bag.length < BALANCE.bagSize) {
-          p.bag.push(pk.item); pk.dead = true; sfx('pickup');
+        if (bagAdd(p, pk.item)) {
+          pk.dead = true; sfx('pickup');
           toast('Conseguiste: ' + pk.item.name, rarityOf(pk.item).color);
           if (state.invOpen) renderInv();
         } else if (!pk.warned) { pk.warned = true; toast('Inventario lleno', '#ff6b6b'); }

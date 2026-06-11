@@ -211,12 +211,13 @@
   .invslot.r-magico .invicon{ filter:drop-shadow(0 0 4px var(--magico)); }
   .invslot.r-raro .invicon{ filter:drop-shadow(0 0 5px var(--raro)); }
   .invslot.r-epico .invicon{ filter:drop-shadow(0 0 6px var(--epico)); }
-  .invslot.dragging{ opacity:.3; }
+  /* al agarrar: el slot queda intacto, sólo se "levanta" el ícono (va al ghost) */
+  .invslot.dragging .invicon{ visibility:hidden; }
   .invslot:active{ cursor:grabbing; }
-  /* ítem "agarrado" que sigue al cursor/dedo */
-  .invghost{ position:fixed; width:5vh; height:5vh; pointer-events:none; z-index:100;
+  /* ítem "agarrado": más grande que en el slot + sombra, sigue al cursor/dedo */
+  .invghost{ position:fixed; width:7vh; height:7vh; pointer-events:none; z-index:100;
     transform:translate(-50%,-50%); image-rendering:pixelated; object-fit:contain;
-    filter:drop-shadow(0 3px 6px #000c); opacity:.92; }
+    filter:drop-shadow(0 5px 7px #000d); }
   /* atributos (franja abajo) e hint (arriba) */
   #statpanel{ position:absolute; left:50%; bottom:2.5vh; transform:translateX(-50%);
     display:flex; gap:16px; flex-wrap:wrap; justify-content:center; max-width:92vw;
@@ -380,16 +381,16 @@
 </div>
 
 <!-- ?v=N evita que el navegador sirva JS viejo de caché; subir N al editar -->
-<script src="js/data.js?v=55"></script>
-<script src="js/sprites.js?v=55"></script>
-<script src="js/anim-rig.js?v=55"></script>
-<script src="js/hero.js?v=55"></script>
-<script src="js/heropack.js?v=55"></script>
-<script src="js/v2hero.js?v=55"></script>
-<script src="js/dungeon.js?v=55"></script>
-<script src="js/items.js?v=55"></script>
-<script src="js/entities.js?v=55"></script>
-<script src="js/ui.js?v=55"></script>
-<script src="js/main.js?v=55"></script>
+<script src="js/data.js?v=58"></script>
+<script src="js/sprites.js?v=58"></script>
+<script src="js/anim-rig.js?v=58"></script>
+<script src="js/hero.js?v=58"></script>
+<script src="js/heropack.js?v=58"></script>
+<script src="js/v2hero.js?v=58"></script>
+<script src="js/dungeon.js?v=58"></script>
+<script src="js/items.js?v=58"></script>
+<script src="js/entities.js?v=58"></script>
+<script src="js/ui.js?v=58"></script>
+<script src="js/main.js?v=58"></script>
 </body>
 </html>

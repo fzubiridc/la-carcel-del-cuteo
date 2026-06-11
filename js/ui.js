@@ -275,7 +275,8 @@ function startInvDrag(ev, item, slotEl) {
   invDrag = { item, from: { ...slotEl.dataset }, startX: ev.clientX, startY: ev.clientY,
     shift: ev.shiftKey, moved: false, ghost: null, srcEl: slotEl };
   window.addEventListener('pointermove', onInvDragMove);
-  window.addEventListener('pointerup', onInvDragUp, { once: true });
+  window.addEventListener('pointerup', onInvDragUp);
+  window.addEventListener('pointercancel', onInvDragUp); // touch interrumpido: limpiar
 }
 
 function onInvDragMove(ev) {
@@ -294,11 +295,14 @@ function onInvDragMove(ev) {
 
 function onInvDragUp(ev) {
   window.removeEventListener('pointermove', onInvDragMove);
+  window.removeEventListener('pointerup', onInvDragUp);
+  window.removeEventListener('pointercancel', onInvDragUp);
   const drag = invDrag; invDrag = null;
   if (!drag) return;
   if (drag.ghost) drag.ghost.remove();
   drag.srcEl.classList.remove('dragging');
 
+  if (ev.type === 'pointercancel') return; // gesto cancelado: el ítem vuelve a su lugar
   // no se movió: fue un clic → acción rápida
   if (!drag.moved) { invSlotClick(drag.from, drag.shift); return; }
 
@@ -339,19 +343,17 @@ function equipBagToSlot(bagIdx, destSlot) {
     const wcls = WEAPON_TYPES[it.weaponType].cls;
     if (wcls !== p.cls) { toast('Solo ' + CLASSES[wcls].name + ' usa esa arma', '#ff6b6b'); renderInv(); return; }
   }
-  p.bag.splice(bagIdx, 1);
   const prev = p.equip[destSlot];
   p.equip[destSlot] = it;
-  if (prev) p.bag.push(prev);
+  p.bag[bagIdx] = prev || null; // lo que estaba equipado queda en la celda que liberó
   calcStats(p); sfx('equip'); renderInv();
 }
 
-// reordenar la mochila (array denso): saca de i y reinserta en j
+// reordenar la mochila (con huecos): intercambia las celdas i y j (j puede estar vacía)
 function reorderBag(i, j) {
   const p = state.player;
-  if (i === j || i >= p.bag.length) { renderInv(); return; }
-  const it = p.bag.splice(i, 1)[0];
-  p.bag.splice(Math.min(j, p.bag.length), 0, it);
+  if (i === j) { renderInv(); return; }
+  const tmp = p.bag[i]; p.bag[i] = p.bag[j] || null; p.bag[j] = tmp;
   renderInv();
 }
 
@@ -450,10 +452,9 @@ function equipItem(bagIdx) {
   // anillos: hay dos slots; si el primero está ocupado y el segundo libre, va al segundo
   let dest = it.slot;
   if (it.slot === 'anillo' && p.equip.anillo && !p.equip.anillo2) dest = 'anillo2';
-  p.bag.splice(bagIdx, 1);
   const prev = p.equip[dest];
   p.equip[dest] = it;
-  if (prev) p.bag.push(prev);
+  p.bag[bagIdx] = prev || null; // lo que estaba equipado queda en la celda que liberó
   calcStats(p);
   sfx('equip');
   renderInv();
@@ -464,17 +465,17 @@ function unequipItem(slot) {
   const it = p.equip[slot];
   if (!it) return;
   if (slot === 'arma') { toast('No podés quedarte sin arma', '#ff6b6b'); return; }
-  if (p.bag.length >= BALANCE.bagSize) { toast('Inventario lleno', '#ff6b6b'); return; }
+  if (!bagAdd(p, it)) { toast('Inventario lleno', '#ff6b6b'); return; }
   p.equip[slot] = null;
-  p.bag.push(it);
   calcStats(p);
   renderInv();
 }
 
 function dropItem(bagIdx) {
   const p = state.player;
-  const it = p.bag.splice(bagIdx, 1)[0];
+  const it = p.bag[bagIdx];
   if (!it) return;
+  p.bag[bagIdx] = null;
   spawnPickup('item', p.x + randInt(-8, 8), p.y + randInt(-8, 8), it);
   state.pickups[state.pickups.length - 1].noPickT = 1.5;
   renderInv();
@@ -542,12 +543,13 @@ function renderShop() {
   shop.appendChild(row);
 
   // sección de venta: tu mochila, con lo que paga el mercader
-  if (p.bag.length) {
+  if (bagCount(p)) {
     shop.insertAdjacentHTML('beforeend',
       `<div style="font-size:11px;color:#8a8496;margin:12px 0 6px">VENDER (tu mochila)</div>`);
     const sellRow = document.createElement('div');
     sellRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;max-width:560px';
     p.bag.forEach((it, idx) => {
+      if (!it) return;
       const d = document.createElement('div');
       d.className = 'slot r-' + it.rarity;
       d.style.position = 'relative';
@@ -570,7 +572,7 @@ function sellItem(bagIdx) {
   const p = state.player;
   const it = p.bag[bagIdx];
   if (!it) return;
-  p.bag.splice(bagIdx, 1);
+  p.bag[bagIdx] = null;
   p.coins += sellPrice(it);
   toast('Vendiste ' + it.name + ' por ◉ ' + sellPrice(it), '#ffd84f');
   sfx('coin');
@@ -582,10 +584,10 @@ function buyItem(it) {
   const p = state.player;
   if (it.sold) return;
   if (p.coins < it.price) { toast('No te alcanzan las monedas', '#ff6b6b'); return; }
-  if (p.bag.length >= BALANCE.bagSize) { toast('Inventario lleno', '#ff6b6b'); return; }
+  if (bagCount(p) >= BALANCE.bagSize) { toast('Inventario lleno', '#ff6b6b'); return; }
   p.coins -= it.price;
   it.sold = true;
-  p.bag.push(it);
+  bagAdd(p, it);
   toast('Compraste: ' + it.name, rarityOf(it).color);
   sfx('coin');
   hideTooltip();
