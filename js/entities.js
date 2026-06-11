@@ -73,7 +73,16 @@ function updateEnemies(dt) {
 
     if (aggro) {
       if (e.ai === 'chaser') {
-        moveWithCollision(lvl, e, (dx / dist) * e.spd * dt, (dy / dist) * e.spd * dt, e.def.ghost);
+        // persecución ortogonal (en escalera): avanza por el eje dominante;
+        // si está bloqueado por pared, prueba el otro eje
+        const stepX = Math.abs(dx) >= Math.abs(dy);
+        const ox = e.x, oy = e.y;
+        if (stepX) moveWithCollision(lvl, e, Math.sign(dx) * e.spd * dt, 0, e.def.ghost);
+        else moveWithCollision(lvl, e, 0, Math.sign(dy) * e.spd * dt, e.def.ghost);
+        if (Math.abs(e.x - ox) < 0.01 && Math.abs(e.y - oy) < 0.01) {
+          if (stepX) moveWithCollision(lvl, e, 0, Math.sign(dy) * e.spd * dt, e.def.ghost);
+          else moveWithCollision(lvl, e, Math.sign(dx) * e.spd * dt, 0, e.def.ghost);
+        }
       } else if (e.ai === 'erratic') {
         const wob = Math.sin(e.wobble) * 0.6;
         const ang = Math.atan2(dy, dx) + wob;

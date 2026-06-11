@@ -17,7 +17,14 @@
 - [ ] **Verte un poco más de lejos** (ampliar la detección, afinar con la sala).
 - [ ] **Leash**: si te alejás mucho de su zona de origen, vuelven/sueltan (hoy: 1.5s al salir de la sala — afinar si alcanza).
 - [ ] **Pausas de ataque**: al atacar/disparar se quedan clavados un instante (anticipación + recovery — estándar del género).
-- [ ] **¿Movimiento ortogonal?** — decisión de diseño pendiente (¿queremos feel grid-like?).
+- [x] **Movimiento ortogonal SOLO de mobs** (decidido 11-jun): chasers persiguen en escalera, no en diagonal recta.
+
+## 🏰 Pisos con memoria (decidido 11-jun)
+
+- [x] **Backtracking**: se puede volver a pisos anteriores por la escalera de
+  subida. Los pisos quedan COMO LOS DEJASTE: mobs muertos siguen muertos,
+  cofres abiertos siguen abiertos. Casos de uso: llave olvidada, quests
+  futuras, volver a buscar algo.
 
 ## 🎒 Pendientes — Inventario y UI
 
@@ -25,10 +32,18 @@
 - [ ] Tirar ítems / arrastrar (drag & drop).
 - [ ] **Mobile: no se puede abrir el inventario** (falta botón táctil de inventario).
 - [ ] Mejorar la UI de las mejoras de nivel.
-- [ ] "Volver para el mapa de atrás" — ACLARAR con el usuario qué significa.
-- [ ] **HUD nuevo** (pedido para Claude Design, su cancha): orbes de vida/maná
-  ornamentados + barra XP centrada abajo (referencia estilo Diablo aprobada
-  como dirección). Fuentes: Cinzel/Marcellus (títulos), Inter/Noto Sans (texto).
+- [ ] **HUD nuevo** (pedido para Claude Design, su cancha): pixel art con
+  marcos de piedra/madera — vida con textura de lava (abajo-izq), recurso azul
+  místico (abajo-der), XP tipo cadena (centro-abajo), runas de buff circulares.
+  Fuentes: Cinzel/Marcellus (títulos), Inter/Noto Sans (texto).
+  **REGLA DEL PEDIDO (definida por el usuario, 11-jun): cada elemento se pide
+  POR SEPARADO y en CAPAS** — por cada barra: (1) el marco/cápsula vacío con
+  la ventana transparente, (2) la textura de relleno al 100% (lava / azul
+  místico / cadena) que el motor recorta al porcentaje actual, (3) opcional
+  el fondo "vacío" de la ranura. Así el llenado/vaciado es dinámico y hasta
+  animable (desplazar la textura de lava = efecto de líquido vivo). Las runas
+  de buff como iconos individuales 32×32. Mismo patrón que la barra de jefes
+  ya implementada (marco 9-slice + fill aparte).
 - [ ] **Sistema de maná** (gameplay + HUD): recurso para el cast.
 
 ## 🔊 Pendientes — Audio

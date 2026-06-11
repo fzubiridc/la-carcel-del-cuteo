@@ -100,6 +100,9 @@ moral/literal del descenso.)
 - Tipografías elegidas (UI): logo/títulos/ítems en **Cinzel** (alt. Marcellus),
   stats/tooltips/descripciones en **Inter** (alt. Noto Sans), diálogos NPC
   en **Marcellus**.
-- Referencia visual de HUD aprobada como dirección (no final): orbes de vida
-  (rojo) y maná (azul) con marcos ornamentales + barra de XP centrada abajo,
-  estilo Diablo. Implica implementar **sistema de maná**.
+- Referencia visual de HUD aprobada (la favorita, 11-jun): HUD pixel art con
+  marcos de piedra/madera — barra de vida con textura de LAVA abajo-izquierda,
+  barra de recurso AZUL MÍSTICO abajo-derecha, barra de XP tipo CADENA centrada
+  abajo, runas de estado circulares (buffs 32×32), nombre+nivel en dorado
+  gótico. (Una referencia anterior estilo orbes de Diablo quedó descartada:
+  pintada, no pixel art.) Implica implementar **sistema de maná**.

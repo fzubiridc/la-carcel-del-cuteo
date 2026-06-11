@@ -213,11 +213,62 @@ function startRun(clsId) {
   nextFloor();
 }
 
+// Guarda el piso actual tal cual está (mobs muertos, cofres abiertos, loot
+// en el suelo) para poder volver — los pisos tienen memoria.
+function saveCurrentFloor() {
+  const run = state.run;
+  if (!state.level) return;
+  run.saved = run.saved || {};
+  run.saved[run.depth] = {
+    lvl: state.level, enemies: state.enemies, pickups: state.pickups,
+    explored: state.explored, zoneIdx: run.zoneIdx, floorInZone: run.floorInZone,
+    hasKey: state.player.hasKey,
+  };
+}
+
+// Restaura un piso visitado y posiciona al jugador (px, py)
+function restoreFloor(rec, px, py) {
+  const run = state.run;
+  run.zoneIdx = rec.zoneIdx; run.floorInZone = rec.floorInZone;
+  state.level = rec.lvl;
+  state.enemies = rec.enemies; state.pickups = rec.pickups; state.explored = rec.explored;
+  state.projs = []; state.particles = []; state.floaters = []; state.fx = [];
+  state.motes = Array.from({ length: 16 }, () => ({
+    x: Math.random() * rec.lvl.W * TILE, y: Math.random() * rec.lvl.H * TILE,
+    vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 4,
+    ph: Math.random() * Math.PI * 2,
+  }));
+  const p = state.player;
+  p.x = px; p.y = py; p.ifr = 1;
+  p.hasKey = rec.hasKey;
+  state.cam.x = p.x - canvas.width / ZOOM / 2;
+  state.cam.y = p.y - canvas.height / ZOOM / 2;
+  bigToast(ZONES[run.zoneIdx].name + ' · Piso ' + run.floorInZone);
+  sfx('stairs');
+}
+
+// Subir al piso anterior (aparece en su escalera de bajada)
+function prevFloor() {
+  const run = state.run;
+  if (run.depth <= 1 || !run.saved || !run.saved[run.depth - 1]) return;
+  saveCurrentFloor();
+  run.depth--;
+  const rec = run.saved[run.depth];
+  restoreFloor(rec, (rec.lvl.exit.tx + 0.5) * TILE, (rec.lvl.exit.ty + 0.5) * TILE);
+}
+
 function nextFloor() {
   const run = state.run;
+  saveCurrentFloor();
+  run.depth++;
+  // piso ya visitado: se restaura como lo dejaste
+  if (run.saved && run.saved[run.depth]) {
+    const rec = run.saved[run.depth];
+    restoreFloor(rec, rec.lvl.start.x, rec.lvl.start.y);
+    return;
+  }
   const zone = ZONES[run.zoneIdx];
   run.floorInZone++;
-  run.depth++;
   const isBoss = run.floorInZone > zone.floors;
   const lvl = genDungeon(zone, run.depth, isBoss);
   state.level = lvl;
@@ -324,6 +375,11 @@ function tryInteract() {
     sfx('summon');
     spawnPickup('item', lvl.altar.x, lvl.altar.y - 10, makeItemMinRare(state.run.depth + 1));
     toast('El altar acepta tu sacrificio...', '#d8403f');
+    return;
+  }
+  // escalera de subida: volver al piso anterior (queda como lo dejaste)
+  if (state.run.depth > 1 && Math.hypot(p.x - lvl.start.x, p.y - lvl.start.y) < TILE * 1.2) {
+    prevFloor();
     return;
   }
   // escalera
@@ -483,6 +539,8 @@ function updatePrompt() {
     msg = '[E] Sacrificar 25% de vida por un tesoro';
   else if (lvl.lockedChest && !lvl.lockedChest.opened && Math.hypot(p.x - lvl.lockedChest.x, p.y - lvl.lockedChest.y) < TILE * 1.6 && !p.hasKey)
     msg = 'Cerrado — la llave la tiene una criatura de este piso';
+  else if (state.run.depth > 1 && Math.hypot(p.x - lvl.start.x, p.y - lvl.start.y) < TILE * 1.2)
+    msg = '[E] Volver al piso anterior';
   else if (lvl.exitOpen) {
     const ex = (lvl.exit.tx + 0.5) * TILE, ey = (lvl.exit.ty + 0.5) * TILE;
     if (Math.hypot(p.x - ex, p.y - ey) < TILE * 1.2)
@@ -579,6 +637,17 @@ function render(dt) {
     ctx.fillRect(X + 1, Y + 1, TILE - 2, TILE - 2);
     ctx.fillStyle = pal.accent;
     for (let i = 0; i < 4; i++) ctx.fillRect(X + 2 + i, Y + 3 + i * 3, TILE - 4 - i * 2, 2);
+  }
+
+  // escalera de subida (por donde llegaste): escalones invertidos, más tenue
+  if (state.run.depth > 1) {
+    const X = Math.floor(lvl.start.x / TILE) * TILE, Y = Math.floor(lvl.start.y / TILE) * TILE;
+    ctx.fillStyle = '#0b0a0f';
+    ctx.fillRect(X + 1, Y + 1, TILE - 2, TILE - 2);
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = pal.accent;
+    for (let i = 0; i < 4; i++) ctx.fillRect(X + 2 + i, Y + 12 - i * 3, TILE - 4 - i * 2, 2);
+    ctx.globalAlpha = 1;
   }
 
   // decoración de arena (detrás de las entidades)
