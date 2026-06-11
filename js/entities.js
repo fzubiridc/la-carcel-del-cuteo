@@ -36,6 +36,9 @@ function spawnEnemy(typeId, x, y, depth, isBossType, elite) {
     spd: def.spd * (elite ? 1.05 : 1), ai: isBossType ? 'boss' : def.ai,
     dir: 1, flashT: 0, hitCd: 0, fireT: Math.random() * 1.5,
     kbx: 0, kby: 0, wobble: Math.random() * Math.PI * 2,
+    // hogar (para wander y leash) + pausas de ataque
+    hx: x, hy: y, wanderT: Math.random() * 2, wvx: 0, wvy: 0,
+    pauseT: 0, windupT: 0, aimAng: 0,
     isBoss: !!isBossType, scale: (def.scale || 1) * (elite ? 1.2 : 1),
     // estado de jefe
     pattern: 0, patT: 2.5, subT: 0, chargeVX: 0, chargeVY: 0, charging: false, telegraphT: 0,
@@ -62,16 +65,34 @@ function updateEnemies(dt) {
     const dist = Math.hypot(dx, dy) || 1;
     // aggro: el jugador en la sala del enemigo (o muy cerca, p.ej. pasillo).
     // Una vez en contacto persigue 1.5 s más; si te vas de la sala, deja de seguir.
-    let inContact = dist < 4 * TILE;
+    let inContact = dist < BALANCE.aggroRadius * TILE;
     if (e.room) {
       const ptx = p.x / TILE, pty = p.y / TILE, r = e.room;
       if (ptx >= r.x - 1 && ptx <= r.x + r.w && pty >= r.y - 1 && pty <= r.y + r.h) inContact = true;
-    } else if (dist < 10 * TILE) inContact = true; // sin sala (arena/llave): radio
-    if (inContact) e.aggroT = 1.5;
+    } else if (dist < BALANCE.aggroRadiusOpen * TILE) inContact = true; // sin sala (arena/llave): radio
+    // leash: demasiado lejos de su origen → suelta al jugador y vuelve a casa
+    const homeD = e.isBoss ? 0 : Math.hypot(e.hx - e.x, e.hy - e.y);
+    const leashed = !e.isBoss && homeD > BALANCE.leashTiles * TILE;
+    if (leashed) e.aggroT = 0;
+    else if (inContact) e.aggroT = 1.5;
     else e.aggroT = Math.max(0, (e.aggroT || 0) - dt);
     const aggro = e.isBoss || e.aggroT > 0;
 
-    if (aggro) {
+    // anticipación de disparo: clavado apuntando; al expirar, dispara al ángulo congelado
+    if (e.windupT > 0) {
+      e.windupT -= dt;
+      if (e.windupT <= 0) {
+        e.windupT = 0;
+        fireProj({ x: e.x, y: e.y, ang: e.aimAng, spd: e.def.projSpd, dmg: e.dmg, friendly: false, color: '#ff7b5a', range: e.def.range + 50 });
+        sfx('eshoot');
+      }
+    }
+
+    // pausa de ataque (anticipación o recovery): clavado, no se mueve ni decide
+    if (e.pauseT > 0) {
+      e.pauseT -= dt;
+      e.dir = dx >= 0 ? 1 : -1;
+    } else if (aggro) {
       if (e.ai === 'chaser') {
         // persecución ortogonal (en escalera): avanza por el eje dominante;
         // si está bloqueado por pared, prueba el otro eje
@@ -96,13 +117,51 @@ function updateEnemies(dt) {
         e.fireT -= dt;
         if (e.fireT <= 0 && dist < e.def.range + 40) {
           e.fireT = e.def.fireCd;
-          fireProj({ x: e.x, y: e.y, ang: Math.atan2(dy, dx), spd: e.def.projSpd, dmg: e.dmg, friendly: false, color: '#ff7b5a', range: e.def.range + 50 });
-          sfx('eshoot');
+          // anticipación: apunta, se clava y telegrafia; el disparo sale al expirar windupT
+          e.aimAng = Math.atan2(dy, dx);
+          e.windupT = BALANCE.shooterWindup;
+          e.pauseT = BALANCE.shooterWindup + BALANCE.shooterRecover;
+          state.fx.push({ type: 'ring', x: e.x, y: e.y, t: BALANCE.shooterWindup, t0: BALANCE.shooterWindup, maxR: 12, color: '#ff7b5a' });
         }
       } else if (e.ai === 'boss') {
         updateBoss(e, dt, dist, dx, dy);
       }
       e.dir = dx >= 0 ? 1 : -1;
+    } else if (!e.isBoss) {
+      // sin aggro: si quedó lejos de casa (persiguió y soltó), vuelve; si no, deambula
+      if (homeD > BALANCE.wanderHome * TILE) {
+        // vuelve en escalera (como el chaser); si quedó encerrado, este lugar pasa a ser su hogar
+        const hdx = e.hx - e.x, hdy = e.hy - e.y;
+        const stepX = Math.abs(hdx) >= Math.abs(hdy);
+        const ox = e.x, oy = e.y, s = e.spd * 0.8 * dt;
+        if (stepX) moveWithCollision(lvl, e, Math.sign(hdx) * s, 0, e.def.ghost);
+        else moveWithCollision(lvl, e, 0, Math.sign(hdy) * s, e.def.ghost);
+        if (Math.abs(e.x - ox) < 0.01 && Math.abs(e.y - oy) < 0.01) {
+          if (stepX) moveWithCollision(lvl, e, 0, Math.sign(hdy) * s, e.def.ghost);
+          else moveWithCollision(lvl, e, Math.sign(hdx) * s, 0, e.def.ghost);
+        }
+        if (Math.abs(e.x - ox) < 0.01 && Math.abs(e.y - oy) < 0.01) { e.hx = e.x; e.hy = e.y; }
+        e.dir = hdx >= 0 ? 1 : -1;
+        e.wanderT = 0; // al llegar, re-decide
+      } else {
+        e.wanderT -= dt;
+        if (e.wanderT <= 0) {
+          // decide: quedarse quieto o caminar un trecho en una dirección al azar
+          if (Math.random() < 0.45) { e.wvx = 0; e.wvy = 0; e.wanderT = 0.8 + Math.random() * 1.6; }
+          else {
+            const a = Math.random() * Math.PI * 2;
+            e.wvx = Math.cos(a); e.wvy = Math.sin(a);
+            e.wanderT = 0.5 + Math.random() * 1.0;
+          }
+        }
+        if (e.wvx || e.wvy) {
+          const ws = e.spd * BALANCE.wanderSpeed;
+          const ox = e.x, oy = e.y;
+          moveWithCollision(lvl, e, e.wvx * ws * dt, e.wvy * ws * dt, e.def.ghost);
+          if (Math.abs(e.x - ox) < 0.01 && Math.abs(e.y - oy) < 0.01) e.wanderT = 0; // pared: re-decide
+          e.dir = e.wvx >= 0 ? 1 : -1;
+        }
+      }
     }
 
     // daño por contacto
@@ -110,6 +169,8 @@ function updateEnemies(dt) {
       e.hitCd = 0.8;
       const eraVulnerable = p.ifr <= 0;
       damagePlayer(e.dmg);
+      // recovery: tras golpear se queda clavado un instante (los jefes siguen su patrón)
+      if (!e.isBoss) e.pauseT = Math.max(e.pauseT, BALANCE.attackPause);
       // tackle: si te alcanza en plena carga, quedás tirado en el piso
       if (eraVulnerable && e.charging && e.def.stunOnCharge) {
         p.stunT = e.def.stunOnCharge;

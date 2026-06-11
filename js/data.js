@@ -170,4 +170,14 @@ const BALANCE = {
   maxPotions: 3,
   eliteChance: 0.08,     // prob. de que un spawn sea élite
   playerIfr: 0.6,        // segundos de invulnerabilidad tras recibir daño
+
+  // --- IA de mobs ---
+  aggroRadius: 5.5,      // tiles: te ven a esta distancia aunque no estés en su sala
+  aggroRadiusOpen: 10,   // tiles: detección de mobs sin sala (arenas, portador de llave)
+  wanderSpeed: 0.45,     // fracción de su spd al deambular sin aggro
+  wanderHome: 3.5,       // tiles: radio alrededor de su origen donde deambulan
+  leashTiles: 11,        // tiles: más lejos que esto de su origen → sueltan y vuelven
+  attackPause: 0.45,     // segundos clavado tras un golpe de contacto (recovery)
+  shooterWindup: 0.3,    // anticipación clavado antes de disparar (telegrafiada)
+  shooterRecover: 0.35,  // recovery clavado después de disparar
 };
