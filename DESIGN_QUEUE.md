@@ -16,21 +16,16 @@ one-shot, completos, y partidos solo cuando el volumen lo justifica.
 - Slash en arco real · disparo desde la punta del arma · glow de rareza
   (raras+ irradian color, épicas+ chispas).
 
-## 🎨 Pendiente — PEDIDO 1: "Gear & grip" (todo lo que va SOBRE el cuerpo)
+## ✅ PEDIDO 1: "Gear & grip" — ENTREGADO E INTEGRADO
 
-Un solo pedido de sprites sobre el rig animado, compositados con las mismas
-pose-offsets (idle 2 / run 4 / attack 3 / hurt 2).
+`assets/hero/` + `js/heropack.js`. Cuerpo + equipo paper-doll (helmet/chest/
+boots/gloves/cloak/belt × 6 tiers) + brazo rotable que empuña + armas. El
+equipo sigue la animación. Brazo subido 2px para no leerse desde el pecho.
 
-- [ ] **Brazo que empuña** (clave). El cuerpo base tiene los brazos pegados a
-  los costados → el arma parece pegada a la cadera. Hace falta un **brazo-arma
-  separado** (hombro→mano) que el motor rota hacia el apuntado para que se vea
-  empuñada en cualquier dirección. Frames idle/run/attack + versión relajada
-  (sin arma). JSON: pivote de hombro (x,y) + punto de mano/grip (x,y).
-- [ ] **Capas de equipo**: Helmet, Chest, Boots, Gloves, Cloak, Belt — **6
-  tiers c/u** (rareza Common→Mythic, color + glow en Legendary/Mythic), cada
-  pieza con nombre propio que escala. Atadas a las regiones del cuerpo para
-  animar solas.
-- [ ] **Trinkets**: ring y amuleto, solo íconos de inventario, 6 tiers c/u.
+- Pendiente menor: el juego solo tiene slots casco/coraza/botas → gloves,
+  cloak y belt del pack todavía no se muestran (faltan slots en el juego).
+- A juzgar en el juego: el hombro del brazo (si sigue leyéndose raro al subir,
+  tweak chico del pivote al diseñador).
 
 ## 🎨 Pendiente — PEDIDO 2: "Inventory UI" (mandar después del 1)
 
