@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Rig tool — punto de mano por frame</title>
+<style>
+  :root{ --bg:#14121a; --pan:#1b1822; --bd:#3a3346; --tx:#d8d2c8; --ac:#ffd84f; --k:#9ad8ff; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--tx); font-family:monospace; font-size:13px; display:flex; gap:18px; padding:18px; }
+  canvas{ image-rendering:pixelated; background:#222028; border:1px solid var(--bd); display:block; }
+  #editor{ cursor:crosshair; }
+  #panel{ width:430px; line-height:1.6; }
+  h3{ margin:.2em 0; } hr{ border:0; border-top:1px solid var(--bd); margin:10px 0; }
+  b{ color:var(--ac); } .k{ color:var(--k); }
+  button{ background:#2a2433; color:var(--tx); border:1px solid var(--bd); border-radius:5px; padding:4px 9px; cursor:pointer; font-family:monospace; }
+  button:hover{ border-color:var(--ac); }
+  button.on{ border-color:var(--k); color:var(--k); }
+  input{ background:#0f0d14; color:var(--tx); border:1px solid var(--bd); border-radius:4px; padding:3px 6px; font-family:monospace; }
+  .row{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:5px 0; }
+  textarea{ width:100%; height:150px; background:#0f0d14; color:#9ae6a0; border:1px solid var(--bd); border-radius:5px; font-family:monospace; font-size:12px; }
+  label{ color:#9a93a8; }
+  #thumbs{ display:flex; gap:3px; flex-wrap:wrap; margin-top:6px; }
+  #thumbs canvas{ width:48px; height:48px; cursor:pointer; }
+  #thumbs canvas.cur{ border-color:var(--ac); }
+  #thumbs .done{ box-shadow:0 0 0 1px #4caf50 inset; }
+</style>
+</head>
+<body>
+  <div>
+    <canvas id="editor" width="600" height="600"></canvas>
+    <div id="thumbs"></div>
+  </div>
+  <div id="panel">
+    <h3>Rig tool · punto de mano por frame</h3>
+    <div style="color:#9a93a8">Clic en el frame = fijar la mano de ESE frame. La staff salta ahí.</div>
+    <hr>
+    <b>Carga (genérico, sirve para cualquier personaje)</b>
+    <div class="row"><label>patrón</label><input id="cfgPat" size="34" value="assets/v2_test/stafftest/frame_#.png"></div>
+    <div class="row">
+      <label># pad</label><input id="cfgPad" type="number" value="3" style="width:50px">
+      <label>count</label><input id="cfgN" type="number" value="9" style="width:55px">
+      <label>frame px</label><input id="cfgF" type="number" value="120" style="width:60px">
+    </div>
+    <div class="row"><label>staff</label><input id="cfgStaff" size="34" value="assets/v2_test/stafftest/unknown.png"></div>
+    <div class="row">
+      <label>staff px</label><input id="cfgSpx" type="number" value="64" style="width:60px">
+      <button id="btnLoad">Cargar</button>
+    </div>
+    <hr>
+    <div class="row">
+      <button id="prev">◀ prev</button>
+      <span>frame <b id="curlbl">0</b>/<span id="maxlbl">0</span></span>
+      <button id="next">next ▶</button>
+      <button id="copyprev">copiar mano del anterior</button>
+    </div>
+    <div class="row">
+      <button id="playbtn">▶ play</button>
+      <button id="depthbtn">staff: adelante</button>
+      <button id="gripmode">editar grip de la staff</button>
+    </div>
+    <div class="row">
+      <label>STAFF_GRIP</label> <b id="griplbl"></b>
+      <span style="color:#9a93a8">(con "editar grip" ON, clic en la staff)</span>
+    </div>
+    <div class="row" style="color:#9a93a8">Flechas ←/→ cambian frame · ↑/↓ + Shift nudge mano</div>
+    <hr>
+    <b>Export</b> <button id="copybtn">copiar</button> <span id="saved" style="color:#4caf50"></span>
+    <textarea id="out" readonly></textarea>
+    <div id="thumbsLabel" style="color:#9a93a8;margin-top:6px">Miniaturas (verde = mano fijada). Clic para ir al frame.</div>
+  </div>
+<script>
+const ed = document.getElementById('editor'), ex = ed.getContext('2d');
+ex.imageSmoothingEnabled = false;
+let CFG = {}, frames = [], staff = null, hands = [], grip = { x: 32, y: 42 };
+let cur = 0, playing = false, depthFront = true, gripMode = false, SCALE = 5, OX = 30, OY = 30;
+const $ = id => document.getElementById(id);
+
+function lsKey() { return 'rigtool:' + CFG.pat; }
+function save() {
+  localStorage.setItem(lsKey(), JSON.stringify({ hands, grip, depthFront }));
+  $('saved').textContent = '✓ guardado'; setTimeout(() => $('saved').textContent = '', 900);
+  buildExport();
+}
+function load() {
+  CFG = {
+    pat: $('cfgPat').value.trim(), pad: +$('cfgPad').value, n: +$('cfgN').value,
+    f: +$('cfgF').value, staff: $('cfgStaff').value.trim(), spx: +$('cfgSpx').value,
+  };
+  SCALE = Math.floor(540 / CFG.f); OX = OY = (600 - CFG.f * SCALE) / 2;
+  frames = []; let loaded = 0; const need = CFG.n + 1;
+  const onload = () => { if (++loaded === need) { restore(); render(); buildThumbs(); } };
+  for (let i = 0; i < CFG.n; i++) {
+    const im = new Image(); im.onload = onload; im.onerror = onload;
+    im.src = CFG.pat.replace('#', String(i).padStart(CFG.pad, '0'));
+    frames.push(im);
+  }
+  staff = new Image(); staff.onload = onload; staff.onerror = onload; staff.src = CFG.staff;
+  $('maxlbl').textContent = CFG.n - 1;
+}
+function restore() {
+  const raw = localStorage.getItem(lsKey());
+  const g = { x: Math.round(CFG.f * 0.37), y: Math.round(CFG.f * 0.58) }; // mano por defecto
+  hands = Array.from({ length: CFG.n }, () => null);
+  if (raw) { try { const d = JSON.parse(raw); if (d.hands) hands = d.hands; if (d.grip) grip = d.grip; depthFront = d.depthFront !== false; } catch (e) {} }
+  // rellenar nulos con un guess para que se vea algo
+  for (let i = 0; i < CFG.n; i++) if (!hands[i]) hands[i] = { ...g, guess: true };
+  $('depthbtn').textContent = 'staff: ' + (depthFront ? 'adelante' : 'atrás');
+  $('griplbl').textContent = `{ x:${grip.x}, y:${grip.y} }`;
+}
+
+function drawStaffAt(hand) {
+  const sx = OX + (hand.x - grip.x) * SCALE, sy = OY + (hand.y - grip.y) * SCALE;
+  ex.drawImage(staff, sx, sy, CFG.spx * SCALE, CFG.spx * SCALE);
+}
+function render(fi) {
+  if (fi === undefined) fi = cur;
+  ex.clearRect(0, 0, 600, 600);
+  const hand = hands[fi];
+  if (!depthFront && hand) drawStaffAt(hand);
+  if (frames[fi]) ex.drawImage(frames[fi], OX, OY, CFG.f * SCALE, CFG.f * SCALE);
+  if (depthFront && hand) drawStaffAt(hand);
+  if (!playing && hand) { // cruz del punto de mano
+    const hx = OX + hand.x * SCALE, hy = OY + hand.y * SCALE;
+    ex.strokeStyle = hand.guess ? '#ff3b8b88' : '#3bff8b'; ex.lineWidth = 1;
+    ex.beginPath(); ex.moveTo(hx - 9, hy); ex.lineTo(hx + 9, hy); ex.moveTo(hx, hy - 9); ex.lineTo(hx, hy + 9); ex.stroke();
+  }
+  $('curlbl').textContent = fi;
+  document.querySelectorAll('#thumbs canvas').forEach((c, i) => c.classList.toggle('cur', i === cur));
+}
+
+ed.addEventListener('click', e => {
+  const r = ed.getBoundingClientRect();
+  const px = (e.clientX - r.left) * (ed.width / r.width);
+  const py = (e.clientY - r.top) * (ed.height / r.height);
+  if (gripMode) { // fijar grip sobre la staff dibujada
+    const hand = hands[cur];
+    const sx0 = OX + (hand.x - grip.x) * SCALE, sy0 = OY + (hand.y - grip.y) * SCALE;
+    grip = { x: Math.round((px - sx0) / SCALE), y: Math.round((py - sy0) / SCALE) };
+    $('griplbl').textContent = `{ x:${grip.x}, y:${grip.y} }`;
+  } else { // fijar la mano del frame actual
+    hands[cur] = { x: Math.round((px - OX) / SCALE), y: Math.round((py - OY) / SCALE) };
+  }
+  save(); render(); buildThumbs();
+});
+
+function go(d) { cur = (cur + d + CFG.n) % CFG.n; render(); }
+$('prev').onclick = () => go(-1);
+$('next').onclick = () => go(1);
+$('copyprev').onclick = () => { const p = hands[(cur - 1 + CFG.n) % CFG.n]; hands[cur] = { x: p.x, y: p.y }; save(); render(); buildThumbs(); };
+$('depthbtn').onclick = () => { depthFront = !depthFront; $('depthbtn').textContent = 'staff: ' + (depthFront ? 'adelante' : 'atrás'); save(); render(); };
+$('gripmode').onclick = () => { gripMode = !gripMode; $('gripmode').classList.toggle('on', gripMode); };
+$('btnLoad').onclick = load;
+$('copybtn').onclick = () => { navigator.clipboard.writeText($('out').value); $('saved').textContent = '✓ copiado'; setTimeout(() => $('saved').textContent = '', 900); };
+
+let playT = 0;
+$('playbtn').onclick = () => { playing = !playing; $('playbtn').classList.toggle('on', playing); $('playbtn').textContent = playing ? '⏸ pausa' : '▶ play'; if (playing) playLoop(performance.now()); else render(); };
+function playLoop(t) {
+  if (!playing) return;
+  const fi = Math.floor(t / 130) % CFG.n;
+  render(fi);
+  requestAnimationFrame(playLoop);
+}
+
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowLeft') { go(-1); e.preventDefault(); }
+  else if (e.key === 'ArrowRight') { go(1); e.preventDefault(); }
+  else if (e.shiftKey && e.key === 'ArrowUp') { hands[cur].y--; save(); render(); e.preventDefault(); }
+  else if (e.shiftKey && e.key === 'ArrowDown') { hands[cur].y++; save(); render(); e.preventDefault(); }
+});
+
+function buildThumbs() {
+  const box = $('thumbs'); box.innerHTML = '';
+  for (let i = 0; i < CFG.n; i++) {
+    const c = document.createElement('canvas'); c.width = c.height = CFG.f;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    if (frames[i]) g.drawImage(frames[i], 0, 0);
+    if (hands[i] && !hands[i].guess) c.classList.add('done');
+    if (i === cur) c.classList.add('cur');
+    c.onclick = () => { cur = i; render(); };
+    box.appendChild(c);
+  }
+}
+function buildExport() {
+  const arr = hands.map(h => `{x:${h.x},y:${h.y}}`).join(', ');
+  $('out').value =
+`// ${CFG.pat}  (${CFG.n} frames, frame ${CFG.f}px, staff ${CFG.spx}px)
+const STAFF_GRIP = { x: ${grip.x}, y: ${grip.y} };
+const STAFF_DEPTH = '${depthFront ? 'front' : 'back'}';
+const HAND_BY_FRAME = [ ${arr} ];`;
+}
+load();
+</script>
+</body>
+</html>
