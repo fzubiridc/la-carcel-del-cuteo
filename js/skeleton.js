@@ -18,7 +18,8 @@ const SKEL_ASSET_V = 1;
 
 // ajuste visual (se afina en preview): escala de dibujo y fila de los pies
 const SKEL_DRAW = 0.27;  // 152 * 0.27 ≈ 41px de marco
-const SKEL_FOOT = 116;   // fila del frame (de 152) que apoya en e.y (pies reales ~105-119)
+const SKEL_FOOT = 95;    // fila del frame que cae en la sombra (drawShadow va en e.y+5;
+                         // pies reales ~105-119 → fila ~95 los apoya sobre la sombra)
 
 // octantes en sentido del ángulo atan2 (x→derecha, y→abajo)
 const SKEL_OCTANTS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
