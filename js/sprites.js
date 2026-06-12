@@ -109,6 +109,7 @@ function animFrame(def, elapsed) {
   return times.length - 1;
 }
 
+const ASSET_V = 2; // cache-bust de PNGs CC0/assets (subir al reemplazar uno, p.ej. rata.png)
 function loadAssets(done) {
   const keys = Object.keys(ASSETS);
   const sheetKeys = Object.keys(SHEET_ASSETS);
@@ -128,7 +129,7 @@ function loadAssets(done) {
       finish();
     };
     img.onerror = finish;
-    img.src = ASSETS[k];
+    img.src = ASSETS[k] + '?v=' + ASSET_V;
   }
   // sheets: se cortan en frames individuales, con variante espejada
   for (const k of sheetKeys) {
