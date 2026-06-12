@@ -6,13 +6,16 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
 ## [Sin publicar] — 2026-06-12 (tarde/noche)
 
 ### Arte / Mundo
-- **Nuevo mob: Slime** (CraftPix). Renderer `slime.js` para mobs con sprite-sheets
-  (64×64, columna=frame, fila=dirección, 4 dirs), con idle/walk, mirada según
-  movimiento, tinte de flash/furia y sombra propia. Aparece en la zona Torre.
-- **Tileset CraftPix "dungeon" de prueba en el piso 2** (recortado de
-  `walls_floor.png`). Primer pase: poco contraste muro/piso y piso algo rayado.
-- Packs CraftPix (dungeon + slimes) guardados completos en `assets/packs/` para
-  uso futuro aunque no se usen todos los assets.
+- **Mobs nuevos (CraftPix)**: Slime, Liche, Fantasma y Zombi. El renderer
+  `slime.js` se generalizó a un motor de sprite-sheets multi-set (64×64,
+  columna=frame, fila=dirección, 4 dirs) con idle/walk, mirada según movimiento,
+  tinte de flash/furia, sombra propia y flote/alpha opcionales (el Fantasma flota,
+  es translúcido y atraviesa muros). Todos en la zona Torre (a balancear).
+- Packs CraftPix (dungeon, slimes, lich, ghost, zombie) guardados completos en
+  `assets/packs/` para uso futuro aunque no se usen todos los assets.
+- El tileset CraftPix "dungeon" se **descartó** (no convencía); el código del
+  loader queda disponible en `sprites.js` por si se retoma. Se mantiene el tileset
+  propio de la Torre.
 
 ### Gameplay
 - **Cofres con colisión + abrir con [E]**: ya no se atraviesan ni se abren solos al

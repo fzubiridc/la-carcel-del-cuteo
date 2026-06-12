@@ -98,6 +98,9 @@ const MODS = [
 const ENEMIES = {
   rata:        { name: 'Rata',              sprite: 'rata',       hp: 14,  dmg: 6,  spd: 78,  ai: 'chaser',  size: 7, scale: 0.34, skel: true, skelSet: 'rata' },
   slime:       { name: 'Slime',             sprite: 'rata',       hp: 26,  dmg: 8,  spd: 46,  ai: 'chaser',  size: 12, scale: 1, slime: true, slimeSet: 'slime' },
+  lich:        { name: 'Liche menor',       sprite: 'rata',       hp: 40,  dmg: 12, spd: 48,  ai: 'chaser',  size: 12, scale: 1, slime: true, slimeSet: 'lich' },
+  fantasma:    { name: 'Fantasma',          sprite: 'rata',       hp: 28,  dmg: 10, spd: 70,  ai: 'erratic', size: 11, scale: 1, slime: true, slimeSet: 'ghost', ghost: true },
+  zombi:       { name: 'Zombi',             sprite: 'rata',       hp: 50,  dmg: 12, spd: 38,  ai: 'chaser',  size: 12, scale: 1, slime: true, slimeSet: 'zombie' },
   esqueleto:   { name: 'Esqueleto',         sprite: 'esqueleto',  hp: 30,  dmg: 10, spd: 52,  ai: 'chaser',  size: 11, skel: true },
   esqueleto_espada: { name: 'Esqueleto armado', sprite: 'esqueleto', hp: 44, dmg: 14, spd: 56, ai: 'chaser', size: 11, skel: true, skelSet: 'skeleton_espada' },
   // TODO: el esqueleto arquero tendrá su propio sprite/animaciones (PixelLab) más
@@ -135,7 +138,7 @@ const ZONES = [
   {
     id: 'torre', name: 'Torre en Ruinas', floors: 2,
     palette: { floor: '#3a3a40', floorAlt: '#343438', wall: '#5a5a62', wallDark: '#3e3e46', accent: '#6e7d6a' },
-    enemies: ['rata', 'slime', 'esqueleto', 'esqueleto_espada'], // arquero_esq + escudo: pendientes
+    enemies: ['rata', 'slime', 'esqueleto', 'esqueleto_espada', 'lich', 'fantasma', 'zombi'], // arquero_esq + escudo: pendientes
     boss: 'bucle', density: 1.0,
   },
   {
