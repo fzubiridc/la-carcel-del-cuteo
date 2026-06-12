@@ -758,11 +758,9 @@ function showEnd(victory) {
     return it ? `<span style="color:${rarityOf(it).color}">${it.name}</span>` : null;
   }).filter(Boolean).join(' · ');
   $('endstats').innerHTML = `
-    ${victory ? 'Escapaste de la Cárcel del Cuteo con tu ' + CLASSES[p.cls].name.toLowerCase() + '.' : 'Tu historia termina en ' + zone.name + '.'}<br><br>
-    Profundidad alcanzada: <b>piso ${run.depth}</b> · Nivel <b>${p.level}</b><br>
-    Criaturas eliminadas: <b>${run.kills}</b> · Monedas: <b>${p.coins}</b><br>
-    Duración: <b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b><br>
-    <span style="font-size:11px">${equipo}</span>
+    Piso <b>${run.depth}</b> · Nivel <b>${p.level}</b><br>
+    <b>${run.kills}</b> criaturas · <b>${p.coins}</b> monedas<br>
+    Duración <b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b>
   `;
   $('endscreen').classList.remove('hidden');
 }

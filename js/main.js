@@ -84,7 +84,9 @@ function bindInput() {
   canvas.addEventListener('mousedown', e => { initAudio(); if (e.button === 0) mouse.down = true; });
   window.addEventListener('mouseup', () => mouse.down = false);
   canvas.addEventListener('contextmenu', e => e.preventDefault());
-  $('endbtn').onclick = () => { $('endscreen').classList.add('hidden'); backToMenu(); };
+  // REINTENTAR: arranca una run nueva directo con la misma clase. MENÚ: vuelve al menú.
+  $('endbtn').onclick = () => { const cls = (state.player && state.player.cls) || 'mago'; $('endscreen').classList.add('hidden'); startRun(cls); };
+  $('endbtn2').onclick = () => { $('endscreen').classList.add('hidden'); backToMenu(); };
   $('resumebtn').onclick = togglePause;
   // Botón debug: salta directo a la sala de jefe de la zona actual
   $('debugboss').onclick = () => {

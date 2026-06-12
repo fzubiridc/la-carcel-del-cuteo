@@ -199,6 +199,23 @@
     letter-spacing:2px; }
   button.btn:hover{ border-color:#ffd84f; }
 
+  /* ===== Pantalla de derrota/victoria con marco ornamentado (PixelLab) ===== */
+  #endscreen{ background:#0b0a0fee; }
+  .deathpanel{ position:relative; height:min(92vh, 680px); aspect-ratio:838/924;
+    background:url(assets/ui/defeat_frame.png?v=1) no-repeat center / 100% 100%; }
+  .deathpanel #endtitle{ position:absolute; top:4.5%; left:0; right:0; margin:0;
+    font-size:clamp(20px,3.4vh,34px); letter-spacing:4px; text-align:center; }
+  .deathpanel .endstats{ position:absolute; top:43%; left:9%; right:9%;
+    text-align:center; font-size:clamp(11px,1.7vh,15px); line-height:2.1;
+    white-space:nowrap; overflow:hidden; }
+  .deathpanel .deathbtn{ position:absolute; left:50%; transform:translate(-50%,-50%);
+    width:56%; height:7.5%; display:flex; align-items:center; justify-content:center;
+    background:transparent; border:none; border-radius:0; padding:0; cursor:pointer;
+    color:#e9bc4a; font-size:clamp(13px,2.1vh,18px); letter-spacing:3px; }
+  .deathpanel #endbtn{ top:72%; }
+  .deathpanel #endbtn2{ top:84%; color:#cfc4a8; }
+  .deathpanel .deathbtn:hover{ color:#fff; text-shadow:0 0 10px #ffd84faa; }
+
   /* ===== Inventario v2 — arte ilustrado (slots + mago + marco recortados) ===== */
   #inv{ position:absolute; inset:0; z-index:20; display:flex; align-items:center;
     justify-content:center; background:rgba(8,7,12,.82); }
@@ -345,7 +362,7 @@
     </div>
 
     <div id="xpwrap">
-      <div id="abilitybar"><div id="dashwrap" class="abilityslot"><img id="dashicon" class="px" src="assets/ui/hud/dash_boot.png?v=115" alt="dash"><div id="dashcd"></div></div></div>
+      <div id="abilitybar"><div id="dashwrap" class="abilityslot"><img id="dashicon" class="px" src="assets/ui/hud/dash_boot.png?v=120" alt="dash"><div id="dashcd"></div></div></div>
       <div id="xplevel"></div>
       <div class="fillclip"><img class="px" src="assets/ui/hud/xp_fill.png" alt=""></div>
       <img class="px" src="assets/ui/hud/xp_frame.png" alt="">
@@ -392,9 +409,12 @@
   </div>
 
   <div id="endscreen" class="screen hidden">
-    <h1 class="title" id="endtitle"></h1>
-    <div class="endstats" id="endstats"></div>
-    <button class="btn" id="endbtn">VOLVER A INTENTAR</button>
+    <div class="deathpanel">
+      <h1 class="title" id="endtitle"></h1>
+      <div class="endstats" id="endstats"></div>
+      <button class="btn deathbtn" id="endbtn">REINTENTAR</button>
+      <button class="btn deathbtn" id="endbtn2">MENÚ</button>
+    </div>
   </div>
 
   <div id="pausescreen" class="screen hidden">
@@ -405,17 +425,17 @@
 </div>
 
 <!-- ?v=N evita que el navegador sirva JS viejo de caché; subir N al editar -->
-<script src="js/data.js?v=115"></script>
-<script src="js/sprites.js?v=115"></script>
-<script src="js/anim-rig.js?v=115"></script>
-<script src="js/hero.js?v=115"></script>
-<script src="js/heropack.js?v=115"></script>
-<script src="js/v2hero.js?v=115"></script>
-<script src="js/skeleton.js?v=115"></script>
-<script src="js/dungeon.js?v=115"></script>
-<script src="js/items.js?v=115"></script>
-<script src="js/entities.js?v=115"></script>
-<script src="js/ui.js?v=115"></script>
-<script src="js/main.js?v=115"></script>
+<script src="js/data.js?v=120"></script>
+<script src="js/sprites.js?v=120"></script>
+<script src="js/anim-rig.js?v=120"></script>
+<script src="js/hero.js?v=120"></script>
+<script src="js/heropack.js?v=120"></script>
+<script src="js/v2hero.js?v=120"></script>
+<script src="js/skeleton.js?v=120"></script>
+<script src="js/dungeon.js?v=120"></script>
+<script src="js/items.js?v=120"></script>
+<script src="js/entities.js?v=120"></script>
+<script src="js/ui.js?v=120"></script>
+<script src="js/main.js?v=120"></script>
 </body>
 </html>
