@@ -81,7 +81,8 @@ function drawV2Hero(p) {
     const aa = aimAngle();
     p._v2face = V2_OCTANTS[(Math.round(aa / (Math.PI / 4)) + 8) % 8];
   }
-  const face = p._v2face || 'south';
+  // al descender por la escalera, mira siempre al norte (se mete de espaldas)
+  const face = (typeof state !== 'undefined' && state.descend) ? 'north' : (p._v2face || 'south');
   let anim = p.moving ? 'walk' : 'idle';
   if ((p.hurtT || 0) > 0) anim = 'hurt'; // recibir daño pisa a todo
   if (p._v2anim !== anim) { p._v2anim = anim; p._v2t = state.time; }

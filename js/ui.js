@@ -234,7 +234,10 @@ function iconCanvasFor(item) {
   if (simg) {
     c.width = 64; c.height = 64;
     const g = c.getContext('2d'); g.imageSmoothingEnabled = true;
-    g.drawImage(simg, 0, 0, 64, 64);
+    // la vara se ve chica/fina en el slot: la agrandamos (×1.5) anclada arriba
+    // para que la cabeza/cristal resalte, recortando parte del palo de abajo
+    const d = 64 * 1.5;
+    g.drawImage(simg, (64 - d) / 2, -5, d, d);
     return c;
   }
   const spr = itemIcon(item);
@@ -709,18 +712,17 @@ function showTooltip(item, ev) {
   }
   stats += modLines(item);
 
-  // caja inferior: comparación con lo equipado
-  let compare = '';
+  // caja de descripción: comparación con lo equipado; footer: veredicto / rareza
+  let compare = '', foot = `<span style="color:${r.color}">${r.name.toUpperCase()}</span>`;
   const eq = state.player.equip[item.slot];
   if (eq && eq.id !== item.id) {
     const d = itemScore(item) - itemScore(eq);
-    const verdict = d > 0
-      ? '<span style="color:#7fc97f">▲ Mejor que lo equipado</span>'
+    foot = d > 0
+      ? '<span style="color:#7fc97f">▲ MEJOR QUE LO EQUIPADO</span>'
       : d < 0
-        ? '<span style="color:#ff6b6b">▼ Peor que lo equipado</span>'
-        : '<span style="color:#9aa0a6">= Similar a lo equipado</span>';
-    compare = `<div style="margin-bottom:3px">${verdict}</div>
-      <div style="color:#8a8496">Equipado: ${eq.name}</div>${modLines(eq)}`;
+        ? '<span style="color:#ff6b6b">▼ PEOR QUE LO EQUIPADO</span>'
+        : '<span style="color:#9aa0a6">= SIMILAR A LO EQUIPADO</span>';
+    compare = `<div style="color:#8a8496;margin-bottom:2px">Equipado: ${eq.name}</div>${modLines(eq)}`;
   }
 
   const icon = itemIconURL(item);
@@ -728,7 +730,8 @@ function showTooltip(item, ev) {
     <div class="tt-name" style="color:${r.color}">${item.name}</div>
     <div class="tt-icon">${icon ? `<img src="${icon}">` : ''}</div>
     <div class="tt-stats">${stats}</div>
-    <div class="tt-compare">${compare}</div>`;
+    <div class="tt-compare">${compare}</div>
+    <div class="tt-foot">${foot}</div>`;
   tt.classList.remove('hidden');
   moveTooltip(ev);
 }

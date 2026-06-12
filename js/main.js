@@ -401,8 +401,8 @@ function tryInteract() {
   if (lvl.exitOpen) {
     const ex = (lvl.exit.tx + 0.5) * TILE, ey = (lvl.exit.ty + 0.5) * TILE;
     if (Math.hypot(p.x - ex, p.y - ey) < TILE * 1.2) {
-      // arranca la animación de meterse en la escalera; nextFloor lo hace update al terminar
-      if (!state.descend) { state.descend = { t: 0, dur: 0.55, boss: lvl.isBoss }; sfx('stairs'); }
+      // arranca la animación: camina a la escalera, mira al norte y desciende oscureciéndose
+      if (!state.descend) { state.descend = { t: 0, dur: 0.8, boss: lvl.isBoss, x: ex, y: ey }; sfx('stairs'); }
       return;
     }
   }
@@ -448,9 +448,15 @@ function update(dt) {
   // transición de bajada: el personaje se achica/oscurece "metiéndose" en la
   // escalera; al terminar, recién carga el piso siguiente. Congela el resto.
   if (state.descend) {
-    state.descend.t += dt;
-    if (state.descend.t >= state.descend.dur) {
-      const boss = state.descend.boss;
+    const dd = state.descend;
+    dd.t += dt;
+    // camina hacia la escalera (se acomoda en su borde) mientras desciende
+    if (dd.x !== undefined) {
+      const m = Math.min(1, dt * 7);
+      p.x += (dd.x - p.x) * m; p.y += (dd.y - p.y) * m;
+    }
+    if (dd.t >= dd.dur) {
+      const boss = dd.boss;
       state.descend = null;
       if (boss) { state.run.zoneIdx++; state.run.floorInZone = 0; }
       nextFloor();
@@ -842,13 +848,15 @@ function render(dt) {
   for (const e of drawables) {
     if (e === p) {
       if (state.descend) {
-        // se achica y se oscurece "metiéndose" en la escalera. ifr=0 temporal:
-        // update está congelado y el parpadeo de invuln lo haría desaparecer
-        const k = Math.min(1, state.descend.t / state.descend.dur);
+        // primero camina a la escalera (k arranca tras ~0.3 del total), después se
+        // achica y se OSCURECE (brightness, no transparencia) hundiéndose. ifr=0
+        // temporal: update está congelado y el parpadeo de invuln lo borraría.
+        const prog = Math.min(1, state.descend.t / state.descend.dur);
+        const k = Math.max(0, (prog - 0.32) / 0.68); // 0 mientras camina, luego desciende
         const savedIfr = p.ifr; p.ifr = 0;
         ctx.save();
-        ctx.globalAlpha = 1 - 0.78 * k;
-        ctx.translate(p.x, p.y + 7 * k); ctx.scale(1 - 0.72 * k, 1 - 0.72 * k); ctx.translate(-p.x, -p.y);
+        ctx.filter = 'brightness(' + (1 - 0.85 * k) + ')'; // se va a negro como la oscuridad
+        ctx.translate(p.x, p.y + 9 * k); ctx.scale(1 - 0.7 * k, 1 - 0.7 * k); ctx.translate(-p.x, -p.y);
         drawPlayer(p);
         ctx.restore();
         p.ifr = savedIfr;
