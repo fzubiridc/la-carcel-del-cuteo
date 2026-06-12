@@ -624,16 +624,17 @@ function render(dt) {
         // pared con cara frontal si abajo hay piso
         const floorBelow = ty + 1 < lvl.H && lvl.map[ty + 1][tx] === 1;
         const wallImg = Array.isArray(wallSet) ? wallSet[(tx * 5 + ty * 3) % wallSet.length] : wallSet;
-        if (wallImg) {
-          if (floorBelow) {
-            ctx.drawImage(wallImg, X, Y, TILE, TILE);
-            ctx.fillStyle = 'rgba(0,0,0,0.30)';
-            ctx.fillRect(X, Y + TILE - 3, TILE, 3);
-          } else {
-            ctx.drawImage(tintedSprite(wallImg, '#08070c', 0.55), X, Y, TILE, TILE);
-          }
+        // sólo la cara frontal (con piso debajo) muestra el ladrillo; el resto
+        // del muro (el "techo"/relleno) va negro — el ladrillo oscurecido no leía bien
+        if (floorBelow && wallImg) {
+          ctx.drawImage(wallImg, X, Y, TILE, TILE);
+          ctx.fillStyle = 'rgba(0,0,0,0.30)';
+          ctx.fillRect(X, Y + TILE - 3, TILE, 3);
+        } else if (floorBelow) {
+          ctx.fillStyle = pal.wall;
+          ctx.fillRect(X, Y, TILE, TILE);
         } else {
-          ctx.fillStyle = floorBelow ? pal.wall : pal.wallDark;
+          ctx.fillStyle = '#05040a'; // tope/relleno del muro: negro
           ctx.fillRect(X, Y, TILE, TILE);
         }
         // antorcha cada tanto en las caras frontales

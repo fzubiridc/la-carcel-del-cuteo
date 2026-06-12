@@ -893,7 +893,7 @@ const SFX = {
 const SFX_FILES = {
   cast:   { vol: 0.4 },
   boom:   { vol: 0.55 },
-  hurt:   { vol: 0.42, ext: 'mp3', offset: 0.2 },
+  hurt:   { vol: 0.26, ext: 'mp3', offset: 0.2 },
   dash:   { vol: 0.45, ext: 'mp3' },
   coin:   { vol: 0.4, ext: 'wav', n: 3, lowpass: 1400 }, // 3 variantes; lowpass = suenan más lejanas
   heal:   { vol: 0.5, ext: 'wav' },

@@ -18,7 +18,7 @@ const SKEL_ASSET_V = 1;
 
 // ajuste visual (se afina en preview): escala de dibujo y fila de los pies
 const SKEL_DRAW = 0.27;  // 152 * 0.27 ≈ 41px de marco
-const SKEL_FOOT = 134;   // fila del frame (de 152) que apoya en e.y
+const SKEL_FOOT = 116;   // fila del frame (de 152) que apoya en e.y (pies reales ~105-119)
 
 // octantes en sentido del ángulo atan2 (x→derecha, y→abajo)
 const SKEL_OCTANTS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
@@ -85,10 +85,15 @@ function drawSkel(e) {
   const dxp = e.x - (e._sklx !== undefined ? e._sklx : e.x);
   const dyp = e.y - (e._skly !== undefined ? e._skly : e.y);
   e._sklx = e.x; e._skly = e.y;
-  if (Math.abs(dxp) > 0.01 || Math.abs(dyp) > 0.01) {
+  const movedNow = Math.abs(dxp) > 0.01 || Math.abs(dyp) > 0.01;
+  if (movedNow) {
     const a = Math.atan2(dyp, dxp);
     e._sklface = SKEL_OCTANTS[(Math.round(a / (Math.PI / 4)) + 8) % 8];
   }
+  // "moviéndose" con histéresis: evita el parpadeo entre frames quietos
+  e._sklmoveT = movedNow ? 0.15 : Math.max(0, (e._sklmoveT || 0) - (state.time - (e._skllast || state.time)));
+  e._skllast = state.time;
+  const moving = e._sklmoveT > 0;
   const attacking = (e.atkAnimT || 0) > 0;
   if (attacking) {
     const a = Math.atan2(state.player.y - e.y, state.player.x - e.x);
@@ -101,7 +106,9 @@ function drawSkel(e) {
   if (e._sklanim !== anim) { e._sklanim = anim; e._sklt = state.time; }
   const def = SKEL.anims[anim];
   let fi = Math.floor((state.time - e._sklt) * 1000 / def.ms);
-  fi = anim === 'attack' ? Math.min(fi, def.n - 1) : fi % def.n; // el golpe no loopea
+  if (anim === 'attack') fi = Math.min(fi, def.n - 1); // el golpe no loopea
+  else if (!moving) fi = 0;                            // quieto: pose parada, no marcha en el lugar
+  else fi = fi % def.n;
 
   let img = skelFrame(anim, face, fi) || skelFrame('walk', face, 0) || skelFrame('walk', 'south', 0);
   if (!img) return;

@@ -37,8 +37,6 @@ const Sprites = {};
 
 const ASSETS = {
   rata: 'assets/rata.png',
-  esqueleto: 'assets/esqueleto.png',
-  arquero_esq: 'assets/arquero_esq.png',
   murcielago: 'assets/murcielago.png',
   arana: 'assets/arana.png',
   golem: 'assets/golem.png',
@@ -712,6 +710,7 @@ function loadStairsImg() { const im = new Image(); im.onload = () => { STAIRS_IM
 // Tileset "Torre en Ruinas" (PixelLab tiles-pro, 32px): 8 variantes de piso
 // + 8 de muro. Se cargan como arrays y el render elige una por hash de celda
 // para romper la repetición. Si faltan, la zona cae a su paleta de colores.
+const TORRE_TILE_V = 2; // subir al reemplazar PNGs de tiles (mismo nombre, distinto contenido)
 function loadTowerTiles() {
   const grab = (prefix, n, key) => {
     const arr = new Array(n); let left = n;
@@ -726,10 +725,10 @@ function loadTowerTiles() {
         arr[i] = c; done();
       };
       img.onerror = done;
-      img.src = `assets/tiles/torre/${prefix}_${i}.png`;
+      img.src = `assets/tiles/torre/${prefix}_${i}.png?v=${TORRE_TILE_V}`;
     }
   };
-  grab('floor', 8, 'floor_torre');
+  grab('floor', 6, 'floor_torre'); // 6 variantes (piso oscuro continuo)
   grab('wall', 8, 'wall_torre');
 }
 

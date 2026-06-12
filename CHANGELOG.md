@@ -11,8 +11,14 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
   con chispa fría azul). Mira hacia donde se mueve y, al golpear, encara al jugador.
   Convención **5 direcciones + espejo** (W/SW/NW se reflejan de E/SE/NE) para abaratar la generación.
 - **Nueva ambientación "Torre en Ruinas"** (reemplaza Catacumbas como primera zona): tileset
-  PixelLab de **8 variantes de piso** (losas de piedra agrietada con musgo) + **8 de muro**
-  (ladrillo desgastado), elegidas por hash de celda para romper la repetición.
+  PixelLab de **piso** + **8 variantes de muro** (ladrillo desgastado), elegidas por hash de celda.
+- Esqueletos: corregida la **flotación** (los pies ahora apoyan en la sombra) y, quieto, ya no
+  "marcha en el lugar". El **esqueleto arquero** también pasó al sprite nuevo; se quitaron los
+  sprites CC0 viejos de ambos.
+- Piso de la Torre **regenerado**: tono marrón oscuro (mejor contraste contra los muros grises),
+  6 variantes aplanadas sobre base opaca → tilea continuo, sin grilla.
+- **Tope de los muros en negro** (antes ladrillo oscurecido, que no leía bien): sólo la cara
+  frontal con piso debajo muestra el ladrillo.
 
 ## [Publicado] — 2026-06-11
 
