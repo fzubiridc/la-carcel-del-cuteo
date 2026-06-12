@@ -650,19 +650,20 @@ function render(dt) {
         // pared con cara frontal si abajo hay piso
         const floorBelow = ty + 1 < lvl.H && lvl.map[ty + 1][tx] === 1;
         const wallImg = Array.isArray(wallSet) ? wallSet[tvar(tx + 101, ty + 57, wallSet.length)] : wallSet;
-        // sólo la cara frontal (con piso debajo) muestra el ladrillo; el resto
-        // del muro (el tope/relleno) va negro. Ya no hace falta el caso "borde":
-        // el generador eliminó los muros de 1 tile que se veían como hoja.
-        if (floorBelow && wallImg) {
-          ctx.drawImage(wallImg, X, Y, TILE, TILE);
-          ctx.fillStyle = 'rgba(0,0,0,0.30)';
-          ctx.fillRect(X, Y + TILE - 3, TILE, 3);
-        } else if (floorBelow) {
-          ctx.fillStyle = pal.wall;
-          ctx.fillRect(X, Y, TILE, TILE);
-        } else {
-          ctx.fillStyle = '#05040a'; // tope/relleno del muro: negro
-          ctx.fillRect(X, Y, TILE, TILE);
+        // muro estilo "ledge": cuerpo negro (vacío) + un LIP fino de ladrillo en el
+        // borde sur (el "grosor"), sólo donde hay piso debajo (la cara que se ve).
+        ctx.fillStyle = '#05040a';
+        ctx.fillRect(X, Y, TILE, TILE);
+        if (floorBelow) {
+          const lip = 6;
+          if (wallImg) {
+            const r = wallImg.height / TILE; // fuente: la franja inferior del ladrillo
+            ctx.drawImage(wallImg, 0, wallImg.height - lip * r, wallImg.width, lip * r, X, Y + TILE - lip, TILE, lip);
+          } else {
+            ctx.fillStyle = pal.wall; ctx.fillRect(X, Y + TILE - lip, TILE, lip);
+          }
+          ctx.fillStyle = 'rgba(0,0,0,0.28)'; // sombrita del lip sobre el piso
+          ctx.fillRect(X, Y + TILE - 1, TILE, 1);
         }
         // antorcha cada tanto en las caras frontales
         if (floorBelow && bigHash === 0) torches.push([X + TILE / 2, Y, tx * 31 + ty]);
