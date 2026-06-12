@@ -39,7 +39,7 @@ const SKEL_CFG = {
   rata: {
     // PixelLab "Dungeon Rat": 56px, 4 dirs cardinales nativas (W es propia, no
     // espejada). Sin attack: las diagonales caen a la lateral más cercana.
-    px: 56, foot: 41, draw: 1.6,
+    px: 56, foot: 41, draw: 0.92,
     anims: { walk: { n: 6, ms: 90 } },
     native: { walk: ['south', 'east', 'north', 'west'] },
   },

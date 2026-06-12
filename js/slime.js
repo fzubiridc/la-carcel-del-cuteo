@@ -17,7 +17,7 @@ const SLIME_ROW = { south: 0, 'south-east': 3, 'south-west': 2, north: 1, 'north
 // chico = mob más chico). attack es opcional (se reproduce al golpear).
 const SLIME_CFG = {
   slime:  { base: 'assets/mobs/slime/',  foot: 39, draw: 0.55, anims: { idle: { file: 'idle', n: 6, ms: 150 }, walk: { file: 'walk', n: 8, ms: 90 },  attack: { file: 'attack', n: 10, ms: 55 } } },
-  lich:   { base: 'assets/mobs/lich/',   foot: 43, draw: 0.4,  anims: { idle: { file: 'idle', n: 4, ms: 160 }, walk: { file: 'walk', n: 6, ms: 95 },  attack: { file: 'attack', n: 8,  ms: 70 } } },
+  lich:   { base: 'assets/mobs/lich/',   foot: 43, draw: 0.52, anims: { idle: { file: 'idle', n: 4, ms: 160 }, walk: { file: 'walk', n: 6, ms: 95 },  attack: { file: 'attack', n: 8,  ms: 70 } } },
   ghost:  { base: 'assets/mobs/ghost/',  foot: 38, draw: 0.42, shadow: false, float: 1.6, alpha: 0.82, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 100 }, attack: { file: 'attack', n: 12, ms: 55 } } },
   zombie: { base: 'assets/mobs/zombie/', foot: 40, draw: 0.48, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 110 }, attack: { file: 'attack', n: 10, ms: 70 } } },
   orc:    { base: 'assets/mobs/orc/',    foot: 41, draw: 0.46, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 100 }, attack: { file: 'attack', n: 8,  ms: 70 } } },

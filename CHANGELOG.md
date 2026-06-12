@@ -21,6 +21,11 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
   propio de la Torre.
 
 ### Gameplay
+- **Ajustes de mobs**: rata más chica; liche +30% de tamaño; fantasma más frágil
+  pero pega más fuerte (hp 28→18, dmg 10→15).
+- **Cofre con profundidad (z-order)**: el sprite del cofre entra en el orden por Y,
+  así tapa los pies del prota cuando está parado detrás (más arriba). El glow queda
+  detrás de todo. Colisión frontal un poco más cercana.
 - **Liche a distancia**: pasó de chaser melee a **shooter** — mantiene distancia,
   reproduce su animación de casteo y lanza su **bola de fuego** propia (sprite
   `Fire.png` del pack, animada y rotada hacia el tiro) en vez de un punto de color.

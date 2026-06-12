@@ -171,7 +171,7 @@ function rectHitsWall(level, x, y, w, h) {
 
 // ¿El rectángulo choca con un cofre cerrado? (solo bloquea al jugador)
 function rectHitsChest(level, x, y, w, h) {
-  const hw = w / 2 + 5, hh = h / 2 + 5; // 5 = medio-tamaño de colisión del cofre
+  const hw = w / 2 + 3, hh = h / 2 + 3; // 3 = medio-tamaño de colisión del cofre (ajustado: chocar más cerca)
   const hit = (cx, cy) => Math.abs(x - cx) < hw && Math.abs(y - cy) < hh;
   for (const ch of level.chests) if (!ch.opened && hit(ch.x, ch.y)) return true;
   const lc = level.lockedChest;

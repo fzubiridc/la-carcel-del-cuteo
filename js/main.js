@@ -748,38 +748,23 @@ function render(dt) {
     if (d.type === 'postes') drawRugbyPosts(d.x, d.y);
   }
 
-  // cofres (sin sombra: el sprite ya apoya solo)
-  for (const ch of lvl.chests) {
-    if (!drawChestImg(ch, ch.x, ch.y, 0.92, false)) {
-      const spr = ch.opened ? Sprites.cofre_abierto : Sprites.cofre;
-      ctx.drawImage(spr, ch.x - spr.width / 2, ch.y - spr.height / 2);
-    }
-  }
-
-  // cofre dorado y altar
-  if (lvl.lockedChest) {
+  // glow del cofre con llave: detrás de TODO (el sprite del cofre se dibuja en la
+  // pasada ordenada por Y, así tapa los pies del prota cuando éste está detrás).
+  if (lvl.lockedChest && !lvl.lockedChest.opened) {
     const lc = lvl.lockedChest;
-    if (!lc.opened) {
-      // glow dorado pulsante DETRÁS del cofre: elipse achatada (perspectiva top-down)
-      // con gradiente radial, dibujada antes del sprite → queda por detrás.
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      const gr = 15 + Math.sin(state.time * 3) * 1.5;
-      ctx.translate(lc.x, lc.y + 1);
-      ctx.scale(1, 0.5); // achatado: elipse vista desde arriba
-      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, gr);
-      g.addColorStop(0, 'rgba(255,216,110,0.55)');
-      g.addColorStop(0.55, 'rgba(255,196,70,0.20)');
-      g.addColorStop(1, 'rgba(255,190,60,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(0, 0, gr, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-      ctx.globalCompositeOperation = 'source-over';
-    }
-    if (!drawChestImg(lc, lc.x, lc.y, 0.95, true)) {
-      const spr = lc.opened ? Sprites.cofre_abierto : Sprites.cofre_dorado;
-      ctx.drawImage(spr, lc.x - spr.width / 2, lc.y - spr.height / 2);
-    }
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const gr = 15 + Math.sin(state.time * 3) * 1.5;
+    ctx.translate(lc.x, lc.y + 1);
+    ctx.scale(1, 0.5); // achatado: elipse vista desde arriba
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, gr);
+    g.addColorStop(0, 'rgba(255,216,110,0.55)');
+    g.addColorStop(0.55, 'rgba(255,196,70,0.20)');
+    g.addColorStop(1, 'rgba(255,190,60,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, gr, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.globalCompositeOperation = 'source-over';
   }
   if (lvl.altar) {
     const al = lvl.altar;
@@ -877,9 +862,20 @@ function render(dt) {
     else ctx.drawImage(Sprites.pelota, e.ballPos.x - 3.5, e.ballPos.y - 2, 7, 4);
   }
 
-  // entidades ordenadas por Y (las de abajo tapan a las de arriba)
-  const drawables = [...state.enemies, p].sort((a, b) => a.y - b.y);
+  // entidades ordenadas por Y (las de abajo tapan a las de arriba). Los cofres
+  // entran acá para que tapen los pies del prota cuando éste está detrás (más arriba).
+  const chestDraws = lvl.chests.map(ch => ({ y: ch.y, _chest: ch, _gold: false }));
+  if (lvl.lockedChest) chestDraws.push({ y: lvl.lockedChest.y, _chest: lvl.lockedChest, _gold: true });
+  const drawables = [...state.enemies, p, ...chestDraws].sort((a, b) => a.y - b.y);
   for (const e of drawables) {
+    if (e._chest) {
+      const ch = e._chest;
+      if (!drawChestImg(ch, ch.x, ch.y, e._gold ? 0.95 : 0.92, e._gold)) {
+        const spr = ch.opened ? Sprites.cofre_abierto : (e._gold ? Sprites.cofre_dorado : Sprites.cofre);
+        ctx.drawImage(spr, ch.x - spr.width / 2, ch.y - spr.height / 2);
+      }
+      continue;
+    }
     if (e === p) {
       if (state.descend) {
         // primero camina a la escalera (k arranca tras ~0.3 del total), después se
