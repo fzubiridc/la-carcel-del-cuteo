@@ -231,6 +231,7 @@ function updateEnemies(dt) {
       e.hitCd = 0.8;
       const eraVulnerable = p.ifr <= 0;
       if (e.def.skel) e.atkAnimT = 0.46; // dispara la animación de golpe del esqueleto
+      if (e.def.slime) e.atkAnimT = 0.7; // animación de ataque de los sheet-mobs (slime/lich/orc…)
       damagePlayer(e.dmg);
       // recovery: tras golpear se queda clavado un instante (los jefes siguen su patrón)
       if (!e.isBoss) e.pauseT = Math.max(e.pauseT, BALANCE.attackPause);

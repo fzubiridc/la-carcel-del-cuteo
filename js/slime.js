@@ -1,23 +1,26 @@
 // =====================================================================
 // slime.js — motor de mobs con sprite-sheets CraftPix. Cada animación es UN
 // sheet 64×64 con grilla: columna = frame, fila = dirección (4 dirs).
-// Maneja varios sets (slime, lich, ghost, zombie, …): mismo motor, distintos
-// sprites/tamaños. Mira según se mueve (EMA de velocidad), idle/walk, tinte de
-// flash/furia, sombra propia (opcional) y flote/alpha opcional (fantasmas).
+// Maneja varios sets (slime, lich, ghost, zombie, orc, …): mismo motor,
+// distintos sprites/tamaños. Mira según se mueve (EMA de velocidad), idle/walk,
+// attack (al golpear, encarando al jugador), tinte de flash/furia, sombra propia
+// (opcional) y flote/alpha opcional (fantasmas).
 // Filas del sheet: 0=sur, 1=norte, 2=oeste, 3=este (convención del pack).
 // =====================================================================
 
-const SLIME_ASSET_V = 1;
+const SLIME_ASSET_V = 2;
 const SLIME_FRAME = 64;   // lado del frame en el sheet
 const SLIME_OCT = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
 const SLIME_ROW = { south: 0, 'south-east': 3, 'south-west': 2, north: 1, 'north-east': 3, 'north-west': 2, east: 3, west: 2 };
 
-// foot = fila del contenido que apoya en el piso; draw = factor de dibujo.
+// foot = fila del contenido que apoya en el piso; draw = factor de dibujo (más
+// chico = mob más chico). attack es opcional (se reproduce al golpear).
 const SLIME_CFG = {
-  slime:  { base: 'assets/mobs/slime/',  foot: 39, draw: 1.15, anims: { idle: { file: 'idle', n: 6, ms: 150 }, walk: { file: 'walk', n: 8, ms: 90 } } },
-  lich:   { base: 'assets/mobs/lich/',   foot: 43, draw: 1.2,  anims: { idle: { file: 'idle', n: 4, ms: 160 }, walk: { file: 'walk', n: 6, ms: 95 } } },
-  ghost:  { base: 'assets/mobs/ghost/',  foot: 38, draw: 1.2,  shadow: false, float: 1.6, alpha: 0.82, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 100 } } },
-  zombie: { base: 'assets/mobs/zombie/', foot: 40, draw: 1.25, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 110 } } },
+  slime:  { base: 'assets/mobs/slime/',  foot: 39, draw: 0.7,  anims: { idle: { file: 'idle', n: 6, ms: 150 }, walk: { file: 'walk', n: 8, ms: 90 },  attack: { file: 'attack', n: 10, ms: 55 } } },
+  lich:   { base: 'assets/mobs/lich/',   foot: 43, draw: 0.5,  anims: { idle: { file: 'idle', n: 4, ms: 160 }, walk: { file: 'walk', n: 6, ms: 95 },  attack: { file: 'attack', n: 8,  ms: 70 } } },
+  ghost:  { base: 'assets/mobs/ghost/',  foot: 38, draw: 0.55, shadow: false, float: 1.6, alpha: 0.82, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 100 }, attack: { file: 'attack', n: 12, ms: 55 } } },
+  zombie: { base: 'assets/mobs/zombie/', foot: 40, draw: 0.62, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 110 }, attack: { file: 'attack', n: 10, ms: 70 } } },
+  orc:    { base: 'assets/mobs/orc/',    foot: 41, draw: 0.58, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 100 }, attack: { file: 'attack', n: 8,  ms: 70 } } },
 };
 
 const SLIME_SETS = {};
@@ -74,13 +77,21 @@ function drawSlime(e) {
   const sp = Math.hypot(e._slvx, e._slvy);
   if (sp > 0.05) e._slface = SLIME_OCT[(Math.round(Math.atan2(e._slvy, e._slvx) / (Math.PI / 4)) + 8) % 8];
   const moving = sp > 0.05;
+
+  // attack: al golpear (atkAnimT) se reproduce encarando al jugador; no loopea
+  const attacking = (e.atkAnimT || 0) > 0 && set.anims.attack;
+  if (attacking) {
+    const a = Math.atan2(state.player.y - e.y, state.player.x - e.x);
+    e._slface = SLIME_OCT[(Math.round(a / (Math.PI / 4)) + 8) % 8];
+  }
   const face = e._slface || 'south';
   const row = SLIME_ROW[face] != null ? SLIME_ROW[face] : 0;
 
-  const anim = moving ? 'walk' : 'idle';
+  const anim = attacking ? 'attack' : (moving ? 'walk' : 'idle');
   if (e._slanim !== anim) { e._slanim = anim; e._slt = state.time; }
   const adef = set.anims[anim];
-  const col = Math.floor((state.time - (e._slt || 0)) * 1000 / adef.ms) % adef.n;
+  let col = Math.floor((state.time - (e._slt || 0)) * 1000 / adef.ms);
+  col = anim === 'attack' ? Math.min(col, adef.n - 1) : col % adef.n;
 
   const tint = e.flashT > 0 ? '#ffffff' : (e.enraged ? '#ff3030' : null);
   const tintA = e.flashT > 0 ? 0.8 : 0.3;

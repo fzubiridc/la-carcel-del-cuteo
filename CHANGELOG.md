@@ -6,11 +6,14 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
 ## [Sin publicar] — 2026-06-12 (tarde/noche)
 
 ### Arte / Mundo
-- **Mobs nuevos (CraftPix)**: Slime, Liche, Fantasma y Zombi. El renderer
-  `slime.js` se generalizó a un motor de sprite-sheets multi-set (64×64,
-  columna=frame, fila=dirección, 4 dirs) con idle/walk, mirada según movimiento,
-  tinte de flash/furia, sombra propia y flote/alpha opcionales (el Fantasma flota,
-  es translúcido y atraviesa muros). Todos en la zona Torre (a balancear).
+- **Mobs nuevos (CraftPix)**: Slime, Liche, Fantasma, Zombi y **Orco**. El renderer
+  `slime.js` es un motor de sprite-sheets multi-set (64×64, columna=frame,
+  fila=dirección, 4 dirs) con idle/walk/**attack**, mirada según movimiento, tinte
+  de flash/furia, sombra propia y flote/alpha opcionales (el Fantasma flota, es
+  translúcido y atraviesa muros). Cada mob reproduce su **animación de ataque** al
+  golpear (encarando al jugador). Tamaños bajados (eran demasiado grandes).
+- **Esqueletos PixelLab quitados** de las zonas (demasiado realistas); su código y
+  assets quedan en el repo. La Torre ahora: rata, slime, liche, fantasma, zombi, orco.
 - Packs CraftPix (dungeon, slimes, lich, ghost, zombie) guardados completos en
   `assets/packs/` para uso futuro aunque no se usen todos los assets.
 - El tileset CraftPix "dungeon" se **descartó** (no convencía); el código del
@@ -18,6 +21,9 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
   propio de la Torre.
 
 ### Gameplay
+- **Balance nivel 1**: HP de los mobs de la Torre bajada para que el mago los mate
+  en ≤3 golpes desde el inicio (zombi 50→40, liche →36, orco 36). Daño base del
+  mago ~15/golpe → 3 golpes = 45.
 - **Cofres nuevos** (CraftPix CC-BY Bonsaiheldin, 32×32): común marrón + dorado con
   candado (para el cofre con llave). Sistema de cofre ahora multi-set; `CHEST_K`
   reajustado al arte de 32px. Sheet completo guardado en `assets/packs/chests/`.

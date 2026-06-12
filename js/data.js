@@ -98,9 +98,10 @@ const MODS = [
 const ENEMIES = {
   rata:        { name: 'Rata',              sprite: 'rata',       hp: 14,  dmg: 6,  spd: 78,  ai: 'chaser',  size: 7, scale: 0.34, skel: true, skelSet: 'rata' },
   slime:       { name: 'Slime',             sprite: 'rata',       hp: 26,  dmg: 8,  spd: 46,  ai: 'chaser',  size: 12, scale: 1, slime: true, slimeSet: 'slime' },
-  lich:        { name: 'Liche menor',       sprite: 'rata',       hp: 40,  dmg: 12, spd: 48,  ai: 'chaser',  size: 12, scale: 1, slime: true, slimeSet: 'lich' },
+  lich:        { name: 'Liche menor',       sprite: 'rata',       hp: 36,  dmg: 12, spd: 48,  ai: 'chaser',  size: 12, scale: 1, slime: true, slimeSet: 'lich' },
   fantasma:    { name: 'Fantasma',          sprite: 'rata',       hp: 28,  dmg: 10, spd: 70,  ai: 'erratic', size: 11, scale: 1, slime: true, slimeSet: 'ghost', ghost: true },
-  zombi:       { name: 'Zombi',             sprite: 'rata',       hp: 50,  dmg: 12, spd: 38,  ai: 'chaser',  size: 12, scale: 1, slime: true, slimeSet: 'zombie' },
+  zombi:       { name: 'Zombi',             sprite: 'rata',       hp: 40,  dmg: 12, spd: 38,  ai: 'chaser',  size: 12, scale: 1, slime: true, slimeSet: 'zombie' },
+  orco:        { name: 'Orco',              sprite: 'rata',       hp: 36,  dmg: 11, spd: 52,  ai: 'chaser',  size: 13, scale: 1, slime: true, slimeSet: 'orc' },
   esqueleto:   { name: 'Esqueleto',         sprite: 'esqueleto',  hp: 30,  dmg: 10, spd: 52,  ai: 'chaser',  size: 11, skel: true },
   esqueleto_espada: { name: 'Esqueleto armado', sprite: 'esqueleto', hp: 44, dmg: 14, spd: 56, ai: 'chaser', size: 11, skel: true, skelSet: 'skeleton_espada' },
   // TODO: el esqueleto arquero tendrá su propio sprite/animaciones (PixelLab) más
@@ -138,13 +139,13 @@ const ZONES = [
   {
     id: 'torre', name: 'Torre en Ruinas', floors: 2,
     palette: { floor: '#3a3a40', floorAlt: '#343438', wall: '#5a5a62', wallDark: '#3e3e46', accent: '#6e7d6a' },
-    enemies: ['rata', 'slime', 'esqueleto', 'esqueleto_espada', 'lich', 'fantasma', 'zombi'], // arquero_esq + escudo: pendientes
+    enemies: ['rata', 'slime', 'lich', 'fantasma', 'zombi', 'orco'], // esqueletos PixelLab quitados (muy realistas)
     boss: 'bucle', density: 1.0,
   },
   {
     id: 'cavernas', name: 'Cavernas Hondas', floors: 2,
     palette: { floor: '#2c2420', floorAlt: '#28201c', wall: '#5c4734', wallDark: '#453525', accent: '#c77b3f' },
-    enemies: ['murcielago', 'arana', 'esqueleto', 'golem_chico'],
+    enemies: ['murcielago', 'arana', 'orco', 'golem_chico'],
     boss: 'golem_anciano', density: 1.15,
   },
   {
