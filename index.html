@@ -290,11 +290,24 @@
     color:#ffd84f; background:#16131cd9; padding:0 3px; border-radius:3px;
     pointer-events:none; }
 
-  #tooltip{ position:absolute; z-index:30; pointer-events:none; padding:10px 12px;
-    font-size:12px; line-height:1.6; max-width:240px; }
-  #tooltip .iname{ font-weight:bold; font-size:13px; }
-  #tooltip .mod{ color:#7fc97f; }
-  #tooltip .cmp{ color:#8a8496; font-size:11px; margin-top:6px; border-top:1px solid var(--borde); padding-top:4px; }
+  /* tooltip de ítem con marco ornamentado (PixelLab): pill de nombre, miniatura,
+     renglones de stats y caja inferior de comparación. Zonas en % del marco. */
+  #tooltip{ position:absolute; z-index:30; pointer-events:none;
+    width:min(46vh,300px); aspect-ratio:926/1390; max-width:none; padding:0;
+    background:url(assets/ui/item_tooltip_frame.png?v=1) no-repeat center / 100% 100%;
+    font-family:Inter,sans-serif; }
+  #tooltip .tt-name{ position:absolute; top:13.3%; left:17%; right:17%; text-align:center;
+    font-family:Cinzel,serif; font-weight:700; font-size:clamp(9px,1.5vh,13px);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #tooltip .tt-icon{ position:absolute; top:22%; left:15%; width:21%; height:14.5%;
+    display:flex; align-items:center; justify-content:center; }
+  #tooltip .tt-icon img{ max-width:100%; max-height:100%; object-fit:contain; image-rendering:auto; }
+  #tooltip .tt-stats{ position:absolute; top:21.3%; left:42%; right:10%; height:19%;
+    font-size:clamp(8px,1.15vh,10px); line-height:1.78; color:#cdc3b0; overflow:hidden; }
+  #tooltip .tt-stats .mod{ color:#7fc97f; }
+  #tooltip .tt-compare{ position:absolute; top:51%; left:15%; right:15%; height:30%;
+    font-size:clamp(8px,1.2vh,10px); line-height:1.5; color:#a89f8c; overflow:hidden; text-align:center; }
+  #tooltip .tt-compare .mod{ color:#7fc97f; }
 
   .endstats{ font-size:14px; line-height:2; text-align:center; }
   .endstats b{ color:#ffd84f; }
@@ -365,7 +378,7 @@
     </div>
 
     <div id="xpwrap">
-      <div id="abilitybar"><div id="dashwrap" class="abilityslot"><img id="dashicon" class="px" src="assets/ui/hud/dash_boot.png?v=121" alt="dash"><div id="dashcd"></div></div></div>
+      <div id="abilitybar"><div id="dashwrap" class="abilityslot"><img id="dashicon" class="px" src="assets/ui/hud/dash_boot.png?v=122" alt="dash"><div id="dashcd"></div></div></div>
       <div id="xplevel"></div>
       <div class="fillclip"><img class="px" src="assets/ui/hud/xp_fill.png" alt=""></div>
       <img class="px" src="assets/ui/hud/xp_frame.png" alt="">
@@ -403,7 +416,7 @@
 
   <div id="inv" class="hidden"></div>
   <div id="shop" class="panel hidden"></div>
-  <div id="tooltip" class="panel hidden"></div>
+  <div id="tooltip" class="hidden"></div>
 
   <div id="upgradescreen" class="screen hidden">
     <h1 class="title" style="font-size:28px">¡SUBISTE DE NIVEL!</h1>
@@ -428,17 +441,17 @@
 </div>
 
 <!-- ?v=N evita que el navegador sirva JS viejo de caché; subir N al editar -->
-<script src="js/data.js?v=121"></script>
-<script src="js/sprites.js?v=121"></script>
-<script src="js/anim-rig.js?v=121"></script>
-<script src="js/hero.js?v=121"></script>
-<script src="js/heropack.js?v=121"></script>
-<script src="js/v2hero.js?v=121"></script>
-<script src="js/skeleton.js?v=121"></script>
-<script src="js/dungeon.js?v=121"></script>
-<script src="js/items.js?v=121"></script>
-<script src="js/entities.js?v=121"></script>
-<script src="js/ui.js?v=121"></script>
-<script src="js/main.js?v=121"></script>
+<script src="js/data.js?v=122"></script>
+<script src="js/sprites.js?v=122"></script>
+<script src="js/anim-rig.js?v=122"></script>
+<script src="js/hero.js?v=122"></script>
+<script src="js/heropack.js?v=122"></script>
+<script src="js/v2hero.js?v=122"></script>
+<script src="js/skeleton.js?v=122"></script>
+<script src="js/dungeon.js?v=122"></script>
+<script src="js/items.js?v=122"></script>
+<script src="js/entities.js?v=122"></script>
+<script src="js/ui.js?v=122"></script>
+<script src="js/main.js?v=122"></script>
 </body>
 </html>

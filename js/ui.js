@@ -682,47 +682,62 @@ function modLines(item) {
   return out;
 }
 
+// URL del ícono de un ítem (vara arcana = PNG; resto = canvas → dataURL)
+function itemIconURL(item) {
+  const s = (typeof staffIconImg === 'function') && staffIconImg(item);
+  if (s && s.src) return s.src;
+  const c = (typeof itemIcon === 'function') && itemIcon(item);
+  if (c && c.toDataURL) { try { return c.toDataURL(); } catch (e) { } }
+  if (c && c.src) return c.src;
+  return '';
+}
+
 function showTooltip(item, ev) {
   const tt = $('tooltip');
   const r = rarityOf(item);
-  let html = `<div class="iname" style="color:${r.color}">${item.name}</div>
-    <div style="color:${r.color};font-size:10px">${r.name} · ${SLOT_LABELS[item.slot]}</div>`;
 
-  // material con su posición en la escalera de calidad
+  // renglones de stats (derecha del marco). Si sobran renglones del arte, quedan vacíos.
+  let stats = `<div style="color:${r.color}">${r.name} · ${SLOT_LABELS[item.slot]}</div>`;
   if (item.material) {
     const mi = MATERIALS.findIndex(m => m.id === item.material);
-    html += `<div style="font-size:10px;color:#8a8496">Material: ${item.matName} (${mi + 1}/${MATERIALS.length})</div>`;
+    stats += `<div>${item.matName} (${mi + 1}/${MATERIALS.length})</div>`;
   }
-  // restricción de clase de las armas
   if (item.slot === 'arma') {
     const wcls = WEAPON_TYPES[item.weaponType].cls;
     const ok = wcls === state.player.cls;
-    html += `<div style="font-size:10px;color:${ok ? '#8a8496' : '#ff6b6b'}">Clase: ${CLASSES[wcls].name}${ok ? '' : ' — no podés usarla'}</div>`;
+    stats += `<div style="color:${ok ? '' : '#ff6b6b'}">Clase: ${CLASSES[wcls].name}${ok ? '' : ' ✕'}</div>`;
   }
-  html += modLines(item);
+  stats += modLines(item);
 
+  // caja inferior: comparación con lo equipado
+  let compare = '';
   const eq = state.player.equip[item.slot];
   if (eq && eq.id !== item.id) {
-    // veredicto rápido: ¿mejor o peor que lo puesto?
     const d = itemScore(item) - itemScore(eq);
     const verdict = d > 0
       ? '<span style="color:#7fc97f">▲ Mejor que lo equipado</span>'
       : d < 0
         ? '<span style="color:#ff6b6b">▼ Peor que lo equipado</span>'
         : '<span style="color:#9aa0a6">= Similar a lo equipado</span>';
-    html += `<div style="margin-top:4px;font-size:12px">${verdict}</div>`;
-    html += `<div class="cmp">Equipado: ${eq.name}${modLines(eq)}</div>`;
+    compare = `<div style="margin-bottom:3px">${verdict}</div>
+      <div style="color:#8a8496">Equipado: ${eq.name}</div>${modLines(eq)}`;
   }
-  tt.innerHTML = html;
+
+  const icon = itemIconURL(item);
+  tt.innerHTML = `
+    <div class="tt-name" style="color:${r.color}">${item.name}</div>
+    <div class="tt-icon">${icon ? `<img src="${icon}">` : ''}</div>
+    <div class="tt-stats">${stats}</div>
+    <div class="tt-compare">${compare}</div>`;
   tt.classList.remove('hidden');
   moveTooltip(ev);
 }
 
 function moveTooltip(ev) {
   const tt = $('tooltip');
-  const x = Math.min(ev.clientX + 16, window.innerWidth - 260);
+  const x = Math.min(ev.clientX + 16, window.innerWidth - tt.offsetWidth - 10);
   const y = Math.min(ev.clientY + 16, window.innerHeight - tt.offsetHeight - 10);
-  tt.style.left = x + 'px'; tt.style.top = y + 'px';
+  tt.style.left = Math.max(6, x) + 'px'; tt.style.top = Math.max(6, y) + 'px';
 }
 
 function hideTooltip() { $('tooltip').classList.add('hidden'); }
