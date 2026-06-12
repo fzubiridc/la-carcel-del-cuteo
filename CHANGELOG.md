@@ -3,6 +3,24 @@
 Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/es/). Las fechas son del desarrollo.
 
+## [Sin publicar] — 2026-06-12 (tarde/noche)
+
+### UI / Arte
+- **Pantalla de derrota** con marco ornamentado (PixelLab): "HAS CAÍDO", stats
+  compactas y botones REINTENTAR (run nueva directa) / MENÚ. Fuentes del proyecto
+  (Cinzel/Inter).
+- **Tooltip de ítem** con marco ornamentado en el hover: nombre, miniatura, stats
+  y comparación con lo equipado.
+- **Rata rediseñada** (PixelLab, 1 generación) reemplaza la CC0; vista lateral
+  espejada. Cache-bust de PNGs de assets (`ASSET_V`).
+- **Sonidos de muerte por tipo**: rata (chillido) y esqueleto (crujido de huesos).
+- Fix: mobs estáticos ya no flotan (anclados por su fila de pies real).
+
+### Notas
+- Variantes de esqueleto armado (espada / espada+escudo): **bloqueadas** — el
+  template de animación despoja el arma y el v3 (que la conserva) no persiste en
+  los "states". Pendiente: regenerarlas como personajes propios v3.
+
 ## [Sin publicar] — 2026-06-12
 
 ### Arte / Mundo

@@ -133,7 +133,7 @@ const ZONES = [
   {
     id: 'torre', name: 'Torre en Ruinas', floors: 2,
     palette: { floor: '#3a3a40', floorAlt: '#343438', wall: '#5a5a62', wallDark: '#3e3e46', accent: '#6e7d6a' },
-    enemies: ['rata', 'esqueleto'], // arquero_esq: pendiente de su sprite propio
+    enemies: ['rata', 'esqueleto'], // arquero_esq + variantes armadas: pendiente de sprites propios
     boss: 'bucle', density: 1.0,
   },
   {
