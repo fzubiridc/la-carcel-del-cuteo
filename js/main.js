@@ -625,17 +625,30 @@ function render(dt) {
         // pared con cara frontal si abajo hay piso
         const floorBelow = ty + 1 < lvl.H && lvl.map[ty + 1][tx] === 1;
         const wallImg = Array.isArray(wallSet) ? wallSet[(tx * 5 + ty * 3) % wallSet.length] : wallSet;
-        // sólo la cara frontal (con piso debajo) muestra el ladrillo; el resto
-        // del muro (el "techo"/relleno) va negro — el ladrillo oscurecido no leía bien
+        // ¿este muro bordea la sala? (algún vecino, incl. diagonales, es piso).
+        // Borde de sala → ladrillo; relleno profundo (sin piso alrededor) → negro.
+        let nearFloor = false;
+        for (let ddy = -1; ddy <= 1 && !nearFloor; ddy++)
+          for (let ddx = -1; ddx <= 1; ddx++) {
+            const ny = ty + ddy, nx = tx + ddx;
+            if (ny >= 0 && ny < lvl.H && nx >= 0 && nx < lvl.W && lvl.map[ny][nx] === 1) { nearFloor = true; break; }
+          }
         if (floorBelow && wallImg) {
+          // cara frontal (sur): ladrillo claro + línea de sombra abajo
           ctx.drawImage(wallImg, X, Y, TILE, TILE);
           ctx.fillStyle = 'rgba(0,0,0,0.30)';
           ctx.fillRect(X, Y + TILE - 3, TILE, 3);
         } else if (floorBelow) {
           ctx.fillStyle = pal.wall;
           ctx.fillRect(X, Y, TILE, TILE);
+        } else if (nearFloor && wallImg) {
+          // muro que bordea la sala (arriba/lados): ladrillo oscurecido (no negro)
+          ctx.drawImage(tintedSprite(wallImg, '#08070c', 0.55), X, Y, TILE, TILE);
+        } else if (nearFloor) {
+          ctx.fillStyle = pal.wallDark;
+          ctx.fillRect(X, Y, TILE, TILE);
         } else {
-          ctx.fillStyle = '#05040a'; // tope/relleno del muro: negro
+          ctx.fillStyle = '#05040a'; // relleno profundo: negro
           ctx.fillRect(X, Y, TILE, TILE);
         }
         // antorcha cada tanto en las caras frontales
