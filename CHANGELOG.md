@@ -15,6 +15,10 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
   nativas (S/E/N/W) con walk de 6 frames; reemplaza el billboard plano. El motor
   de `skeleton.js` se generalizó a sets de cualquier tamaño (px/foot/draw por-set;
   los defaults dejan al esqueleto de 152px idéntico).
+- **Cofre nuevo** (PixelLab): cerrado dorado-arcano + abierto con tapa levantada y
+  brillo violeta. El render del cofre ahora **se ancla por el contenido** (bbox de
+  alfa, base + centro) en vez de por el canvas: estados con padding o que crecen
+  (tapa que sube) ya no encogen ni saltan de base. Cache-bust `CHEST_V`.
 - **Sonidos de muerte por tipo**: rata (chillido) y esqueleto (crujido de huesos).
 - Fix: mobs estáticos ya no flotan (anclados por su fila de pies real).
 

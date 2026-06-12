@@ -759,10 +759,36 @@ function loadTowerTiles() {
 }
 
 // Cofre (PixelLab): cerrado / abierto
-const CHEST_IMG = { closed: null, open: null };
+// El cofre se ancla por su CONTENIDO (bbox de alfa), no por el canvas: así un
+// estado con padding (cerrado reframeado) o que crece (abierto, tapa arriba) no
+// encoge ni desalinea. La base (maxy) y el centro X se calculan al cargar el PNG.
+const CHEST_IMG = { closed: null, open: null, closedBox: null, openBox: null };
+const CHEST_V = 2;     // cache-bust al reemplazar los PNG del cofre
+const CHEST_K = 0.22;  // px de pantalla por píxel nativo del sprite
+function chestBBox(img) {
+  const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height).data;
+  let minx = c.width, maxx = 0, miny = c.height, maxy = 0, found = false;
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+    if (d[(y * c.width + x) * 4 + 3] > 20) { found = true; if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; }
+  }
+  return found ? { cx: (minx + maxx) / 2, baseY: maxy } : { cx: c.width / 2, baseY: c.height / 2 };
+}
 function loadChestImg() {
-  const a = new Image(); a.onload = () => { CHEST_IMG.closed = a; }; a.src = 'assets/chest_closed.png';
-  const b = new Image(); b.onload = () => { CHEST_IMG.open = b; }; b.src = 'assets/chest_open.png';
+  const a = new Image(); a.onload = () => { CHEST_IMG.closed = a; CHEST_IMG.closedBox = chestBBox(a); }; a.src = 'assets/chest_closed.png?v=' + CHEST_V;
+  const b = new Image(); b.onload = () => { CHEST_IMG.open = b; CHEST_IMG.openBox = chestBBox(b); }; b.src = 'assets/chest_open.png?v=' + CHEST_V;
+}
+// Dibuja el cofre anclado por base/centro de su contenido. Devuelve false si el
+// PNG aún no cargó (el caller cae al sprite procedural).
+function drawChestImg(opened, x, y, bright) {
+  const img = opened ? CHEST_IMG.open : CHEST_IMG.closed;
+  const box = opened ? CHEST_IMG.openBox : CHEST_IMG.closedBox;
+  if (!img || !img.width || !box) return false;
+  ctx.filter = 'brightness(' + bright + ')';
+  ctx.drawImage(img, x - box.cx * CHEST_K, y + 1 - box.baseY * CHEST_K, img.naturalWidth * CHEST_K, img.naturalHeight * CHEST_K);
+  ctx.filter = 'none';
+  return true;
 }
 
 // =====================================================================

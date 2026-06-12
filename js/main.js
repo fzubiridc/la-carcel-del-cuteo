@@ -728,12 +728,7 @@ function render(dt) {
   // cofres
   for (const ch of lvl.chests) {
     drawShadow(ch.x, ch.y - 1, 5);
-    const cimg = typeof CHEST_IMG !== 'undefined' ? (ch.opened ? CHEST_IMG.open : CHEST_IMG.closed) : null;
-    if (cimg && cimg.width) {
-      const s = 17; ctx.filter = 'brightness(0.78)';
-      ctx.drawImage(cimg, ch.x - s / 2, ch.y - s / 2 - 1, s, s);
-      ctx.filter = 'none';
-    } else {
+    if (!drawChestImg(ch.opened, ch.x, ch.y, 0.78)) {
       const spr = ch.opened ? Sprites.cofre_abierto : Sprites.cofre;
       ctx.drawImage(spr, ch.x - spr.width / 2, ch.y - spr.height / 2);
     }
@@ -750,9 +745,10 @@ function render(dt) {
       ctx.beginPath(); ctx.arc(lc.x, lc.y, 11 + Math.sin(state.time * 3) * 2, 0, Math.PI * 2); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
-    const lcimg = typeof CHEST_IMG !== 'undefined' ? (lc.opened ? CHEST_IMG.open : CHEST_IMG.closed) : null;
-    if (lcimg && lcimg.width) { const s = 17; ctx.filter = 'brightness(0.82)'; ctx.drawImage(lcimg, lc.x - s / 2, lc.y - s / 2 - 1, s, s); ctx.filter = 'none'; }
-    else { const spr = lc.opened ? Sprites.cofre_abierto : Sprites.cofre_dorado; ctx.drawImage(spr, lc.x - spr.width / 2, lc.y - spr.height / 2); }
+    if (!drawChestImg(lc.opened, lc.x, lc.y, 0.82)) {
+      const spr = lc.opened ? Sprites.cofre_abierto : Sprites.cofre_dorado;
+      ctx.drawImage(spr, lc.x - spr.width / 2, lc.y - spr.height / 2);
+    }
   }
   if (lvl.altar) {
     const al = lvl.altar;
