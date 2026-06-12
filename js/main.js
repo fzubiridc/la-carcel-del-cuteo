@@ -41,6 +41,7 @@ window.addEventListener('load', () => {
   if (typeof loadTowerTiles === 'function') loadTowerTiles(); // tileset Torre en Ruinas (8+8 variantes)
   if (typeof loadDungeonTiles === 'function') loadDungeonTiles(); // tileset CraftPix (prueba piso 2)
   if (typeof loadTorchImg === 'function') loadTorchImg(); // antorcha animada (sheet 8 frames)
+  if (typeof loadLichFire === 'function') loadLichFire(); // bola de fuego del liche
   canvas = $('game'); ctx = canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
   resize();
@@ -958,6 +959,16 @@ function render(dt) {
         ctx.rotate(pr.t * 12);
         ctx.drawImage(Sprites.pelota, -3.5, -2, 7, 4);
       }
+      ctx.restore();
+    } else if (pr.style === 'fire' && typeof LICH_FIRE !== 'undefined' && LICH_FIRE.length) {
+      // bola de fuego del liche: sprite animado rotado hacia el ángulo de vuelo
+      const fr = LICH_FIRE[Math.floor(pr.t * 1000 / 90) % LICH_FIRE.length];
+      ctx.save();
+      ctx.translate(pr.x, pr.y); ctx.rotate(pr.ang);
+      ctx.globalAlpha = Math.min(1, pr.life * 4);
+      const s = 16;
+      ctx.drawImage(fr, -s / 2, -s / 2, s, s);
+      ctx.globalAlpha = 1;
       ctx.restore();
     } else {
       // los disparos enemigos se desvanecen al agotarse su alcance

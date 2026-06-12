@@ -733,6 +733,21 @@ function loadStairsImg() { const im = new Image(); im.onload = () => { STAIRS_IM
 let TORCH_IMG = null;
 function loadTorchImg() { const im = new Image(); im.onload = () => { TORCH_IMG = im; }; im.src = 'assets/torch_anim.png?v=1'; }
 
+// bola de fuego del liche (tira de 3 frames 48×48, fila "este" del Fire.png)
+let LICH_FIRE = [];
+function loadLichFire() {
+  const im = new Image();
+  im.onload = () => {
+    const F = 48, n = im.naturalWidth / F;
+    for (let i = 0; i < n; i++) {
+      const c = document.createElement('canvas'); c.width = F; c.height = F;
+      c.getContext('2d').drawImage(im, i * F, 0, F, F, 0, 0, F, F);
+      LICH_FIRE.push(c);
+    }
+  };
+  im.src = 'assets/mobs/lich/fire.png?v=' + SLIME_ASSET_V;
+}
+
 // Tileset "Torre en Ruinas" (PixelLab tiles-pro, 32px): 8 variantes de piso
 // + 8 de muro. Se cargan como arrays y el render elige una por hash de celda
 // para romper la repetición. Si faltan, la zona cae a su paleta de colores.
