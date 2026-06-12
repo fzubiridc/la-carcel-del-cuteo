@@ -603,6 +603,9 @@ function render(dt) {
   // (torre en ruinas); en ese caso se elige una por hash determinista de celda.
   const floorSet = Sprites['floor_' + zoneNow.id];
   const wallSet = Sprites['wall_' + zoneNow.id];
+  // hash pseudo-aleatorio por celda: rompe el patrón en grilla/bandas que daba
+  // la fórmula lineal (tx*3+ty*7) al elegir variante de tile
+  const tvar = (x, y, n) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; h = (h ^ (h >>> 16)) >>> 0; return h % n; };
   const torches = []; // antorchas visibles, para dibujar su luz después
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
@@ -611,7 +614,7 @@ function render(dt) {
       const hash = (tx * 7 + ty * 13) % 5;
       const bigHash = (tx * 73 + ty * 37) % 23;
       if (!solid) {
-        const floorImg = Array.isArray(floorSet) ? floorSet[(tx * 3 + ty * 7) % floorSet.length] : floorSet;
+        const floorImg = Array.isArray(floorSet) ? floorSet[tvar(tx, ty, floorSet.length)] : floorSet;
         if (floorImg) {
           ctx.drawImage(floorImg, X, Y, TILE, TILE);
           // sombreado sutil alternado para romper la repetición
@@ -624,7 +627,7 @@ function render(dt) {
       } else {
         // pared con cara frontal si abajo hay piso
         const floorBelow = ty + 1 < lvl.H && lvl.map[ty + 1][tx] === 1;
-        const wallImg = Array.isArray(wallSet) ? wallSet[(tx * 5 + ty * 3) % wallSet.length] : wallSet;
+        const wallImg = Array.isArray(wallSet) ? wallSet[tvar(tx + 101, ty + 57, wallSet.length)] : wallSet;
         // ¿este muro bordea la sala? (algún vecino, incl. diagonales, es piso).
         // Borde de sala → ladrillo; relleno profundo (sin piso alrededor) → negro.
         let nearFloor = false;
