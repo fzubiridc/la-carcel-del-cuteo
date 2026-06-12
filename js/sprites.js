@@ -17,6 +17,20 @@ function px(rows, pal) {
   return c;
 }
 
+// Fila más baja con contenido opaco (para apoyar el sprite en su sombra, no flotar)
+function computeFootY(canvas) {
+  try {
+    const g = canvas.getContext('2d');
+    const d = g.getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let y = canvas.height - 1; y >= 0; y--) {
+      for (let x = 0; x < canvas.width; x++) {
+        if (d[(y * canvas.width + x) * 4 + 3] > 20) return y + 1;
+      }
+    }
+  } catch (e) { /* canvas tainted u otro: cae al alto total */ }
+  return canvas.height;
+}
+
 function flipH(img) {
   const c = document.createElement('canvas');
   c.width = img.width; c.height = img.height;
@@ -107,8 +121,10 @@ function loadAssets(done) {
       c.width = img.width; c.height = img.height;
       c.getContext('2d').drawImage(img, 0, 0);
       c.ws = 0.5;
+      c.footY = computeFootY(c);
       Sprites[k] = c;
-      Sprites[k + '_L'] = flipH(c);
+      const cl = flipH(c); cl.footY = c.footY;
+      Sprites[k + '_L'] = cl;
       finish();
     };
     img.onerror = finish;
@@ -639,6 +655,7 @@ function tintedSprite(spr, color, alpha) {
     g.fillStyle = color;
     g.fillRect(0, 0, c.width, c.height);
     c.ws = spr.ws; // conservar la escala de mundo
+    c.footY = spr.footY; // conservar el ancla de pies
     _tintCache.set(key, c);
   }
   return c;
@@ -714,7 +731,7 @@ function loadStairsImg() { const im = new Image(); im.onload = () => { STAIRS_IM
 // Tileset "Torre en Ruinas" (PixelLab tiles-pro, 32px): 8 variantes de piso
 // + 8 de muro. Se cargan como arrays y el render elige una por hash de celda
 // para romper la repetición. Si faltan, la zona cae a su paleta de colores.
-const TORRE_TILE_V = 2; // subir al reemplazar PNGs de tiles (mismo nombre, distinto contenido)
+const TORRE_TILE_V = 3; // subir al reemplazar PNGs de tiles (mismo nombre, distinto contenido)
 function loadTowerTiles() {
   const grab = (prefix, n, key) => {
     const arr = new Array(n); let left = n;

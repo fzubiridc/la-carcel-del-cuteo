@@ -1440,9 +1440,14 @@ function drawEnemy(e) {
   const bob = Math.sin(e.wobble * 1.1) * 0.8;
   const sq = e.flashT > 0 ? 0.16 : 0;
   const k = spr.ws || 1;
+  const S = e.scale * k;
+  // anclar por los pies (última fila opaca) sobre la sombra (e.y+5), no por el centro:
+  // así los sprites con aire abajo (rata) no flotan
+  const footY = (spr.footY != null) ? spr.footY : spr.height;
+  const pivotY = e.y + 5 + bob - (footY - spr.height / 2) * S;
   ctx.save();
-  ctx.translate(e.x + ox, e.y - 2 + bob);
-  ctx.scale(e.scale * k * (1 + sq), e.scale * k * (1 - sq));
+  ctx.translate(e.x + ox, pivotY);
+  ctx.scale(S * (1 + sq), S * (1 - sq));
   // élite: contorno dorado pulsante que recorre la silueta del sprite
   // (la silueta teñida se dibuja desplazada 1px en 8 direcciones, debajo)
   if (e.elite) {
