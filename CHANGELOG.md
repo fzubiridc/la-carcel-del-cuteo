@@ -11,8 +11,10 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
   (Cinzel/Inter).
 - **Tooltip de ítem** con marco ornamentado en el hover: nombre, miniatura, stats
   y comparación con lo equipado.
-- **Rata rediseñada** (PixelLab, 1 generación) reemplaza la CC0; vista lateral
-  espejada. Cache-bust de PNGs de assets (`ASSET_V`).
+- **Rata animada** (PixelLab "Dungeon Rat", 56px): 4 direcciones cardinales
+  nativas (S/E/N/W) con walk de 6 frames; reemplaza el billboard plano. El motor
+  de `skeleton.js` se generalizó a sets de cualquier tamaño (px/foot/draw por-set;
+  los defaults dejan al esqueleto de 152px idéntico).
 - **Sonidos de muerte por tipo**: rata (chillido) y esqueleto (crujido de huesos).
 - Fix: mobs estáticos ya no flotan (anclados por su fila de pies real).
 
