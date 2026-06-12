@@ -30,6 +30,7 @@ window.addEventListener('load', () => {
   if (typeof loadHeroPack === 'function') loadHeroPack(); // asset pack final del héroe (reemplaza en caliente)
   if (typeof loadV2Hero === 'function') loadV2Hero(); // mago v2 experimental (PixelLab)
   if (typeof loadSkeleton === 'function') loadSkeleton(); // esqueleto v2 8-dir (PixelLab)
+  if (typeof loadSlime === 'function') loadSlime(); // slimes CraftPix (sheets 64×64)
   loadAssets(); // los CC0 de 32px reemplazan en caliente; hay fallback por código
   if (typeof loadStaffIcons === 'function') loadStaffIcons(); // íconos de vara arcana por tier (PixelLab)
   if (typeof loadCoinPiles === 'function') loadCoinPiles(); // pilas de monedas por valor
@@ -1449,6 +1450,13 @@ function drawEnemy(e) {
   // mob PixelLab animado por dirección (esqueletos, rata, …) — gate por su set
   if (e.def.skel && typeof skelReady === 'function' && skelReady(e)) {
     drawSkel(e);
+    drawEnemyExtras(e);
+    return;
+  }
+
+  // slime CraftPix (sheets por dirección)
+  if (e.def.slime && typeof slimeReady === 'function' && slimeReady(e)) {
+    drawSlime(e);
     drawEnemyExtras(e);
     return;
   }
