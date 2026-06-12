@@ -21,6 +21,13 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
   propio de la Torre.
 
 ### Gameplay
+- **Cofres animados** (CC-BY Bonsaiheldin, tira de 4 frames): al abrirse reproducen
+  la animación de apertura (cerrado → abierto) en vez del swap instantáneo. Común
+  marrón + dorado para el de llave. Reemplaza el set estático anterior.
+- **Mobs más chicos** y **apoyados en la sombra**: bajados los tamaños de los
+  sheet-mobs (eran casi del tamaño del jugador) y corregido el flote (se anclaban
+  5px por encima de la sombra; ahora los pies caen en la sombra). Mismo fix al
+  motor del esqueleto/rata.
 - **Balance nivel 1**: HP de los mobs de la Torre bajada para que el mago los mate
   en ≤3 golpes desde el inicio (zombi 50→40, liche →36, orco 36). Daño base del
   mago ~15/golpe → 3 golpes = 45.

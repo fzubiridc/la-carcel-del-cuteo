@@ -16,11 +16,11 @@ const SLIME_ROW = { south: 0, 'south-east': 3, 'south-west': 2, north: 1, 'north
 // foot = fila del contenido que apoya en el piso; draw = factor de dibujo (más
 // chico = mob más chico). attack es opcional (se reproduce al golpear).
 const SLIME_CFG = {
-  slime:  { base: 'assets/mobs/slime/',  foot: 39, draw: 0.7,  anims: { idle: { file: 'idle', n: 6, ms: 150 }, walk: { file: 'walk', n: 8, ms: 90 },  attack: { file: 'attack', n: 10, ms: 55 } } },
-  lich:   { base: 'assets/mobs/lich/',   foot: 43, draw: 0.5,  anims: { idle: { file: 'idle', n: 4, ms: 160 }, walk: { file: 'walk', n: 6, ms: 95 },  attack: { file: 'attack', n: 8,  ms: 70 } } },
-  ghost:  { base: 'assets/mobs/ghost/',  foot: 38, draw: 0.55, shadow: false, float: 1.6, alpha: 0.82, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 100 }, attack: { file: 'attack', n: 12, ms: 55 } } },
-  zombie: { base: 'assets/mobs/zombie/', foot: 40, draw: 0.62, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 110 }, attack: { file: 'attack', n: 10, ms: 70 } } },
-  orc:    { base: 'assets/mobs/orc/',    foot: 41, draw: 0.58, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 100 }, attack: { file: 'attack', n: 8,  ms: 70 } } },
+  slime:  { base: 'assets/mobs/slime/',  foot: 39, draw: 0.55, anims: { idle: { file: 'idle', n: 6, ms: 150 }, walk: { file: 'walk', n: 8, ms: 90 },  attack: { file: 'attack', n: 10, ms: 55 } } },
+  lich:   { base: 'assets/mobs/lich/',   foot: 43, draw: 0.4,  anims: { idle: { file: 'idle', n: 4, ms: 160 }, walk: { file: 'walk', n: 6, ms: 95 },  attack: { file: 'attack', n: 8,  ms: 70 } } },
+  ghost:  { base: 'assets/mobs/ghost/',  foot: 38, draw: 0.42, shadow: false, float: 1.6, alpha: 0.82, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 100 }, attack: { file: 'attack', n: 12, ms: 55 } } },
+  zombie: { base: 'assets/mobs/zombie/', foot: 40, draw: 0.48, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 110 }, attack: { file: 'attack', n: 10, ms: 70 } } },
+  orc:    { base: 'assets/mobs/orc/',    foot: 41, draw: 0.46, anims: { idle: { file: 'idle', n: 4, ms: 170 }, walk: { file: 'walk', n: 6, ms: 100 }, attack: { file: 'attack', n: 8,  ms: 70 } } },
 };
 
 const SLIME_SETS = {};
@@ -97,9 +97,10 @@ function drawSlime(e) {
   const tintA = e.flashT > 0 ? 0.8 : 0.3;
   const bob = set.float ? Math.sin(e.wobble * 1.2) * set.float : 0;
 
-  if (set.shadow) drawShadow(e.x, e.y, e.w * e.scale * 0.5);
+  // la sombra ya la dibuja drawEnemy() en e.y+5; anclamos los pies ahí (no en e.y)
+  // para que el sprite apoye sobre la sombra y no flote.
   const S = e.scale * set.draw;
   if (set.alpha < 1) ctx.globalAlpha = set.alpha;
-  drawSlimeFrame(set.imgs[anim], col, row, e.x - SLIME_FRAME / 2 * S, e.y - set.foot * S + bob, SLIME_FRAME * S, SLIME_FRAME * S, tint, tintA);
+  drawSlimeFrame(set.imgs[anim], col, row, e.x - SLIME_FRAME / 2 * S, e.y + 5 - set.foot * S + bob, SLIME_FRAME * S, SLIME_FRAME * S, tint, tintA);
   ctx.globalAlpha = 1;
 }

@@ -162,5 +162,6 @@ function drawSkel(e) {
   else if (e.enraged) img = tintedSprite(img, '#ff3030', 0.3);
 
   const S = e.scale * set.draw;
-  ctx.drawImage(img, e.x - set.px / 2 * S, e.y - set.foot * S, set.px * S, set.px * S);
+  // pies en e.y+5 (donde drawEnemy dibuja la sombra), para apoyar sin flotar
+  ctx.drawImage(img, e.x - set.px / 2 * S, e.y + 5 - set.foot * S, set.px * S, set.px * S);
 }

@@ -372,7 +372,7 @@ function tryDash() {
 
 // cofre común: tapa que cruje, loot y se vuelve transitable (deja de bloquear)
 function openChest(ch) {
-  ch.opened = true;
+  ch.opened = true; ch.openT = state.time; // openT: arranca la animación de apertura
   sfx('chest');
   burst(ch.x, ch.y, '#ffd84f', 10);
   spawnPickup('item', ch.x, ch.y - 6, makeItem(state.run.depth + 1));
@@ -383,7 +383,7 @@ function openChest(ch) {
 
 // cofre dorado: consume la llave, loot raro+ y fanfarria
 function openLockedChest(lc) {
-  lc.opened = true;
+  lc.opened = true; lc.openT = state.time;
   state.player.hasKey = false;
   sfx('chest'); sfx('levelup');
   burst(lc.x, lc.y, '#ffd84f', 20);
@@ -749,7 +749,7 @@ function render(dt) {
 
   // cofres (sin sombra: el sprite ya apoya solo)
   for (const ch of lvl.chests) {
-    if (!drawChestImg(ch.opened, ch.x, ch.y, 0.92, false)) {
+    if (!drawChestImg(ch, ch.x, ch.y, 0.92, false)) {
       const spr = ch.opened ? Sprites.cofre_abierto : Sprites.cofre;
       ctx.drawImage(spr, ch.x - spr.width / 2, ch.y - spr.height / 2);
     }
@@ -765,7 +765,7 @@ function render(dt) {
       ctx.beginPath(); ctx.arc(lc.x, lc.y, 11 + Math.sin(state.time * 3) * 2, 0, Math.PI * 2); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
-    if (!drawChestImg(lc.opened, lc.x, lc.y, 0.95, true)) {
+    if (!drawChestImg(lc, lc.x, lc.y, 0.95, true)) {
       const spr = lc.opened ? Sprites.cofre_abierto : Sprites.cofre_dorado;
       ctx.drawImage(spr, lc.x - spr.width / 2, lc.y - spr.height / 2);
     }

@@ -777,41 +777,54 @@ function loadDungeonTiles() {
   img.src = 'assets/packs/dungeon/PNG/walls_floor.png?v=' + DUNGEON_TILE_V;
 }
 
-// Cofres (CraftPix CC-BY Bonsaiheldin, 32×32): 'common' (marrón) y 'gold' (con
-// candado, para el cofre con llave). Se anclan por su CONTENIDO (bbox de alfa),
-// no por el canvas: estados que crecen (tapa arriba) no encogen ni desalinean.
-const CHEST_IMG = {}; // set -> { closed, open, closedBox, openBox }
-const CHEST_V = 3;     // cache-bust al reemplazar los PNG del cofre
-const CHEST_K = 0.6;   // px de pantalla por píxel nativo (arte de 32px)
+// Cofres animados (CC-BY Bonsaiheldin, tira de 4 frames 32×32: cerrado → abierto):
+// 'common' (marrón) y 'gold' (para el cofre con llave). Al abrirse reproduce los
+// 4 frames y queda en el último. Cada frame se ancla por su CONTENIDO (bbox de
+// alfa) para que la tapa que sube no encoja ni desalinee la base.
+const CHEST_IMG = {}; // set -> { frames:[canvas×4], boxes:[box×4] }
+const CHEST_V = 4;        // cache-bust al reemplazar los PNG del cofre
+const CHEST_K = 0.6;      // px de pantalla por píxel nativo (arte de 32px)
+const CHEST_FRAMES = 4;   // frames de la animación de apertura
+const CHEST_FRAME_MS = 80; // ms por frame
 function chestBBox(img) {
-  const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const w = img.width || img.naturalWidth, h = img.height || img.naturalHeight;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d'); g.drawImage(img, 0, 0);
-  const d = g.getImageData(0, 0, c.width, c.height).data;
-  let minx = c.width, maxx = 0, miny = c.height, maxy = 0, found = false;
-  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
-    if (d[(y * c.width + x) * 4 + 3] > 20) { found = true; if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; }
+  const d = g.getImageData(0, 0, w, h).data;
+  let minx = w, maxx = 0, miny = h, maxy = 0, found = false;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (d[(y * w + x) * 4 + 3] > 20) { found = true; if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; }
   }
-  return found ? { cx: (minx + maxx) / 2, baseY: maxy } : { cx: c.width / 2, baseY: c.height / 2 };
+  return found ? { cx: (minx + maxx) / 2, baseY: maxy } : { cx: w / 2, baseY: h / 2 };
 }
 function loadChestImg() {
-  const load = (set, closedSrc, openSrc) => {
-    const s = CHEST_IMG[set] = { closed: null, open: null, closedBox: null, openBox: null };
-    const a = new Image(); a.onload = () => { s.closed = a; s.closedBox = chestBBox(a); }; a.src = closedSrc + '?v=' + CHEST_V;
-    const b = new Image(); b.onload = () => { s.open = b; s.openBox = chestBBox(b); }; b.src = openSrc + '?v=' + CHEST_V;
+  const load = (set, src) => {
+    const img = new Image();
+    img.onload = () => {
+      const fw = img.naturalWidth / CHEST_FRAMES, fh = img.naturalHeight;
+      const frames = [], boxes = [];
+      for (let i = 0; i < CHEST_FRAMES; i++) {
+        const c = document.createElement('canvas'); c.width = fw; c.height = fh;
+        c.getContext('2d').drawImage(img, i * fw, 0, fw, fh, 0, 0, fw, fh);
+        frames.push(c); boxes.push(chestBBox(c));
+      }
+      CHEST_IMG[set] = { frames, boxes };
+    };
+    img.src = src + '?v=' + CHEST_V;
   };
-  load('common', 'assets/chest_closed.png', 'assets/chest_open.png');
-  load('gold', 'assets/chest_gold_closed.png', 'assets/chest_gold_open.png');
+  load('common', 'assets/chest_common.png');
+  load('gold', 'assets/chest_gold.png');
 }
-// Dibuja el cofre (set 'common' o, si gold, 'gold') anclado por base/centro de su
-// contenido. Devuelve false si el PNG aún no cargó (el caller cae al procedural).
-function drawChestImg(opened, x, y, bright, gold) {
+// Dibuja el cofre. `chest` tiene .opened y .openT (instante de apertura): cerrado =
+// frame 0; al abrirse reproduce 0→3 y queda en 3. Devuelve false si no cargó.
+function drawChestImg(chest, x, y, bright, gold) {
   const s = CHEST_IMG[gold ? 'gold' : 'common'];
   if (!s) return false;
-  const img = opened ? s.open : s.closed;
-  const box = opened ? s.openBox : s.closedBox;
-  if (!img || !img.width || !box) return false;
+  let fi = 0;
+  if (chest.opened) fi = Math.min(CHEST_FRAMES - 1, Math.floor((state.time - (chest.openT || 0)) * 1000 / CHEST_FRAME_MS));
+  const img = s.frames[fi], box = s.boxes[fi];
   ctx.filter = 'brightness(' + bright + ')';
-  ctx.drawImage(img, x - box.cx * CHEST_K, y + 1 - box.baseY * CHEST_K, img.naturalWidth * CHEST_K, img.naturalHeight * CHEST_K);
+  ctx.drawImage(img, x - box.cx * CHEST_K, y + 1 - box.baseY * CHEST_K, img.width * CHEST_K, img.height * CHEST_K);
   ctx.filter = 'none';
   return true;
 }
