@@ -1,0 +1,172 @@
+{
+  "slime": {
+    "idle": {
+      "frames": 6,
+      "fw": 64,
+      "rows": 4
+    },
+    "walk": {
+      "frames": 8,
+      "fw": 64,
+      "rows": 4
+    },
+    "run": {
+      "frames": 8,
+      "fw": 64,
+      "rows": 4
+    },
+    "attack": {
+      "frames": 10,
+      "fw": 64,
+      "rows": 4
+    },
+    "hurt": {
+      "frames": 5,
+      "fw": 64,
+      "rows": 4
+    },
+    "death": {
+      "frames": 10,
+      "fw": 64,
+      "rows": 4
+    }
+  },
+  "lich": {
+    "idle": {
+      "frames": 4,
+      "fw": 64,
+      "rows": 4
+    },
+    "walk": {
+      "frames": 6,
+      "fw": 64,
+      "rows": 4
+    },
+    "run": {
+      "frames": 6,
+      "fw": 64,
+      "rows": 4
+    },
+    "attack": {
+      "frames": 8,
+      "fw": 64,
+      "rows": 4
+    },
+    "hurt": {
+      "frames": 4,
+      "fw": 64,
+      "rows": 4
+    },
+    "death": {
+      "frames": 10,
+      "fw": 64,
+      "rows": 4
+    }
+  },
+  "ghost": {
+    "idle": {
+      "frames": 4,
+      "fw": 64,
+      "rows": 4
+    },
+    "walk": {
+      "frames": 6,
+      "fw": 64,
+      "rows": 4
+    },
+    "run": {
+      "frames": 6,
+      "fw": 64,
+      "rows": 4
+    },
+    "attack": {
+      "frames": 12,
+      "fw": 64,
+      "rows": 4
+    },
+    "hurt": {
+      "frames": 4,
+      "fw": 64,
+      "rows": 4
+    },
+    "death": {
+      "frames": 9,
+      "fw": 64,
+      "rows": 4
+    }
+  },
+  "zombie": {
+    "idle": {
+      "frames": 4,
+      "fw": 64,
+      "rows": 4
+    },
+    "walk": {
+      "frames": 6,
+      "fw": 64,
+      "rows": 4
+    },
+    "run": {
+      "frames": 8,
+      "fw": 64,
+      "rows": 4
+    },
+    "attack": {
+      "frames": 10,
+      "fw": 64,
+      "rows": 4
+    },
+    "hurt": {
+      "frames": 4,
+      "fw": 64,
+      "rows": 4
+    },
+    "death": {
+      "frames": 9,
+      "fw": 64,
+      "rows": 4
+    }
+  },
+  "orc": {
+    "idle": {
+      "frames": 4,
+      "fw": 64,
+      "rows": 4
+    },
+    "walk": {
+      "frames": 6,
+      "fw": 64,
+      "rows": 4
+    },
+    "run": {
+      "frames": 8,
+      "fw": 64,
+      "rows": 4
+    },
+    "attack": {
+      "frames": 8,
+      "fw": 64,
+      "rows": 4
+    },
+    "hurt": {
+      "frames": 6,
+      "fw": 64,
+      "rows": 4
+    },
+    "death": {
+      "frames": 8,
+      "fw": 64,
+      "rows": 4
+    },
+    "run_attack": {
+      "frames": 8,
+      "fw": 64,
+      "rows": 4
+    },
+    "walk_attack": {
+      "frames": 6,
+      "fw": 64,
+      "rows": 4
+    }
+  }
+}
