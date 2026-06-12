@@ -29,8 +29,7 @@ window.addEventListener('load', () => {
   if (typeof buildHero === 'function') buildHero();
   if (typeof loadHeroPack === 'function') loadHeroPack(); // asset pack final del héroe (reemplaza en caliente)
   if (typeof loadV2Hero === 'function') loadV2Hero(); // mago v2 experimental (PixelLab)
-  if (typeof loadSkeleton === 'function') loadSkeleton(); // esqueleto v2 8-dir (PixelLab)
-  if (typeof loadSlime === 'function') loadSlime(); // slimes CraftPix (sheets 64×64)
+  if (typeof loadMobs === 'function') loadMobs(); // motor unificado de mobs (frames PixelLab + sheets CraftPix)
   loadAssets(); // los CC0 de 32px reemplazan en caliente; hay fallback por código
   if (typeof loadStaffIcons === 'function') loadStaffIcons(); // íconos de vara arcana por tier (PixelLab)
   if (typeof loadCoinPiles === 'function') loadCoinPiles(); // pilas de monedas por valor
@@ -1467,16 +1466,10 @@ function drawHeldWeapon(p) {
 function drawEnemy(e) {
   if (!e.def.ghost) drawShadow(e.x, e.y, e.w * e.scale * 0.45);
 
-  // mob PixelLab animado por dirección (esqueletos, rata, …) — gate por su set
-  if (e.def.skel && typeof skelReady === 'function' && skelReady(e)) {
-    drawSkel(e);
-    drawEnemyExtras(e);
-    return;
-  }
-
-  // slime CraftPix (sheets por dirección)
-  if (e.def.slime && typeof slimeReady === 'function' && slimeReady(e)) {
-    drawSlime(e);
+  // mob animado por dirección (esqueletos/rata por-frame + slime/lich/orco/… sheet):
+  // un solo motor unificado (mob.js), gate por su set
+  if ((e.def.skel || e.def.slime) && typeof mobReady === 'function' && mobReady(e)) {
+    drawMob(e);
     drawEnemyExtras(e);
     return;
   }

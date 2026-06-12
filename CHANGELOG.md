@@ -5,6 +5,14 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
 
 ## [Sin publicar] — 2026-06-12 (tarde/noche)
 
+### Refactor
+- **Motor de mobs unificado** (`js/mob.js`): fusiona `skeleton.js` + `slime.js`
+  (eran el mismo motor con dos formatos de asset). Un solo `MOB_CFG`/`drawMob` con
+  dos *sources* — `frames` (PixelLab por-frame: skeleton/rata) y `sheet` (CraftPix
+  64px: slime/lich/ghost/zombie/orc) — compartiendo facing por EMA, idle/walk/attack,
+  tinte, anclaje y fallback. De 2 motores a 1; se borraron los dos archivos viejos.
+  (P2 del ANALYSIS.md.)
+
 ### Arte / Mundo
 - **Mobs nuevos (CraftPix)**: Slime, Liche, Fantasma, Zombi y **Orco**. El renderer
   `slime.js` es un motor de sprite-sheets multi-set (64×64, columna=frame,

@@ -745,7 +745,7 @@ function loadLichFire() {
       LICH_FIRE.push(c);
     }
   };
-  im.src = 'assets/mobs/lich/fire.png?v=' + SLIME_ASSET_V;
+  im.src = 'assets/mobs/lich/fire.png?v=' + MOB_ASSET_V;
 }
 
 // Tileset "Torre en Ruinas" (PixelLab tiles-pro, 32px): 8 variantes de piso

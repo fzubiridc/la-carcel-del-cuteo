@@ -2,7 +2,7 @@
 
 Dos sistemas conviven (cada uno con su motor de render):
 
-## 1) Sheet-mobs (CraftPix) — motor `js/slime.js`
+## 1) Sheet-mobs (CraftPix) — motor `js/mob.js` (source: sheet)
 Carpetas: `slime/`, `lich/`, `ghost/`, `zombie/`, `orc/`.
 
 Cada animación es **un PNG sprite-sheet** con grilla:
@@ -13,9 +13,9 @@ Cada animación es **un PNG sprite-sheet** con grilla:
 Animaciones disponibles por mob (ver `ANIMATIONS.json` para el conteo de frames):
 `idle`, `walk`, `run`, `attack`, `hurt`, `death` (+ orc: `run_attack`, `walk_attack`).
 
-**Estado de uso actual** (en `SLIME_CFG`): se usan `idle`, `walk` y `attack`.
+**Estado de uso actual** (en `MOB_CFG`): se usan `idle`, `walk` y `attack`.
 `run`, `hurt`, `death` están **absorbidas y listas** — para activarlas, sumar la
-entrada al `anims` del set en `slime.js` con su `n` (frames) del manifest.
+entrada al `anims` del set en `mob.js` con su `n` (frames) del manifest.
 
 Extras:
 - `lich/fire.png` — bola de fuego del liche (3 frames, fila "este" de `Fire.png`,
@@ -25,7 +25,7 @@ Todas son la **variante 1** de cada pack (Slime1/Lich1/…). Las variantes 2 y 3
 (otros colores/skins) + `With_shadow` + `Parts` están completas en
 `assets/packs/<mob>/`.
 
-## 2) PixelLab por-frame — motor `js/skeleton.js`
+## 2) PixelLab por-frame — motor `js/mob.js` (source: frames)
 Carpetas: `skeleton/`, `skeleton_espada/`, `rata/`.
 Frames sueltos: `assets/mobs/<set>/<anim>/<dir>_<frame>.png` (152px skeleton, 56px
 rata). Convención 5 dirs nativas (S/SE/E/NE/N) + espejado. Hoy en juego: solo la
