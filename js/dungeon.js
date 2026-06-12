@@ -46,6 +46,23 @@ function genDungeon(zone, depth, isBoss) {
     carve(x, y);
   }
 
+  // Eliminar muros de 1 tile de grosor (pasillos paralelos pegados, pilares
+  // sueltos): se veían como "hojas" sin cuerpo. Si una celda de muro tiene
+  // piso en lados OPUESTOS, se abre a piso. Sólo suma piso (no corta caminos);
+  // los muros de 2+ tiles quedan intactos. Itera hasta que no queden.
+  for (let pass = 0; pass < 4; pass++) {
+    const open = [];
+    for (let ty = 1; ty < H - 1; ty++)
+      for (let tx = 1; tx < W - 1; tx++) {
+        if (map[ty][tx] !== 0) continue;
+        const horiz = map[ty][tx - 1] === 1 && map[ty][tx + 1] === 1;
+        const vert = map[ty - 1][tx] === 1 && map[ty + 1][tx] === 1;
+        if (horiz || vert) open.push([ty, tx]);
+      }
+    if (!open.length) break;
+    for (const [ty, tx] of open) map[ty][tx] = 1;
+  }
+
   const startRoom = rooms[0];
   const endRoom = rooms[rooms.length - 1];
   const start = { x: (startRoom.cx + 0.5) * TILE, y: (startRoom.cy + 0.5) * TILE };
