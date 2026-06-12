@@ -1062,14 +1062,9 @@ function render(dt) {
 // Decoración de piso según la zona: huesos, hongos o runas
 function drawFloorDecal(X, Y, tx, ty) {
   const zoneId = ZONES[state.run.zoneIdx].id;
+  if (zoneId === 'torre') return; // piso de madera: sin decals (los huesitos se veían como "viboritas")
   const ox = 3 + (tx * 5) % 8, oy = 3 + (ty * 3) % 8;
-  if (zoneId === 'torre') {
-    // huesito
-    ctx.fillStyle = '#b8b4a4';
-    ctx.fillRect(X + ox, Y + oy, 4, 1);
-    ctx.fillRect(X + ox - 1, Y + oy - 1, 1, 1);
-    ctx.fillRect(X + ox + 4, Y + oy + 1, 1, 1);
-  } else if (zoneId === 'cavernas') {
+  if (zoneId === 'cavernas') {
     // honguito
     ctx.fillStyle = '#c77b3f';
     ctx.fillRect(X + ox, Y + oy, 3, 1);

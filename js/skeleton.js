@@ -86,15 +86,17 @@ function drawSkel(e) {
   const dxp = e.x - (e._sklx !== undefined ? e._sklx : e.x);
   const dyp = e.y - (e._skly !== undefined ? e._skly : e.y);
   e._sklx = e.x; e._skly = e.y;
-  const movedNow = Math.abs(dxp) > 0.01 || Math.abs(dyp) > 0.01;
-  if (movedNow) {
-    const a = Math.atan2(dyp, dxp);
+  // velocidad suavizada (EMA): promedia el movimiento de varios frames para
+  // que micro-pasos opuestos (volver a casa, forcejeo contra pared) NO hagan
+  // voltear la cara izq/der cada frame. Sólo se actualiza con movimiento claro.
+  e._sklvx = (e._sklvx || 0) * 0.82 + dxp * 0.18;
+  e._sklvy = (e._sklvy || 0) * 0.82 + dyp * 0.18;
+  const sp = Math.hypot(e._sklvx, e._sklvy);
+  if (sp > 0.06) {
+    const a = Math.atan2(e._sklvy, e._sklvx);
     e._sklface = SKEL_OCTANTS[(Math.round(a / (Math.PI / 4)) + 8) % 8];
   }
-  // "moviéndose" con histéresis: evita el parpadeo entre frames quietos
-  e._sklmoveT = movedNow ? 0.15 : Math.max(0, (e._sklmoveT || 0) - (state.time - (e._skllast || state.time)));
-  e._skllast = state.time;
-  const moving = e._sklmoveT > 0;
+  const moving = sp > 0.06;
   const attacking = (e.atkAnimT || 0) > 0;
   if (attacking) {
     const a = Math.atan2(state.player.y - e.y, state.player.x - e.x);

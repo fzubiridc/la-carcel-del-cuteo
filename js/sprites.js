@@ -731,7 +731,7 @@ function loadStairsImg() { const im = new Image(); im.onload = () => { STAIRS_IM
 // Tileset "Torre en Ruinas" (PixelLab tiles-pro, 32px): 8 variantes de piso
 // + 8 de muro. Se cargan como arrays y el render elige una por hash de celda
 // para romper la repetición. Si faltan, la zona cae a su paleta de colores.
-const TORRE_TILE_V = 3; // subir al reemplazar PNGs de tiles (mismo nombre, distinto contenido)
+const TORRE_TILE_V = 4; // subir al reemplazar PNGs de tiles (mismo nombre, distinto contenido)
 function loadTowerTiles() {
   const grab = (prefix, n, key) => {
     const arr = new Array(n); let left = n;
