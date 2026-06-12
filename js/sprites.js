@@ -758,6 +758,25 @@ function loadTowerTiles() {
   grab('wall', 8, 'wall_torre');
 }
 
+// Tileset CraftPix "dungeon" (prueba en piso 2): recorta celdas 16px del sheet
+// walls_floor.png. Es un set auto-tile; se eligieron las celdas más repetibles:
+// piso de piedra clara (1,5) y ladrillo gris plano (0,21)/(1,21).
+const DUNGEON_TILE_V = 1;
+function loadDungeonTiles() {
+  const img = new Image();
+  img.onload = () => {
+    const F = 16;
+    const cell = (cx, cy) => {
+      const c = document.createElement('canvas'); c.width = F; c.height = F;
+      c.getContext('2d').drawImage(img, cx * F, cy * F, F, F, 0, 0, F, F);
+      c.ws = 1; return c;
+    };
+    Sprites.floor_dungeon = [cell(1, 5)];
+    Sprites.wall_dungeon = [cell(0, 21), cell(1, 21)];
+  };
+  img.src = 'assets/packs/dungeon/PNG/walls_floor.png?v=' + DUNGEON_TILE_V;
+}
+
 // Cofre (PixelLab): cerrado / abierto
 // El cofre se ancla por su CONTENIDO (bbox de alfa), no por el canvas: así un
 // estado con padding (cerrado reframeado) o que crece (abierto, tapa arriba) no

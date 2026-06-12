@@ -39,6 +39,7 @@ window.addEventListener('load', () => {
   if (typeof loadStairsImg === 'function') loadStairsImg(); // escalera de bajada
   if (typeof loadChestImg === 'function') loadChestImg(); // cofre cerrado/abierto
   if (typeof loadTowerTiles === 'function') loadTowerTiles(); // tileset Torre en Ruinas (8+8 variantes)
+  if (typeof loadDungeonTiles === 'function') loadDungeonTiles(); // tileset CraftPix (prueba piso 2)
   if (typeof loadTorchImg === 'function') loadTorchImg(); // antorcha animada (sheet 8 frames)
   canvas = $('game'); ctx = canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
@@ -633,8 +634,12 @@ function render(dt) {
   const zoneNow = ZONES[state.run.zoneIdx];
   // tile-set: puede ser una sola imagen (zonas viejas) o un array de variantes
   // (torre en ruinas); en ese caso se elige una por hash determinista de celda.
-  const floorSet = Sprites['floor_' + zoneNow.id];
-  const wallSet = Sprites['wall_' + zoneNow.id];
+  let floorSet = Sprites['floor_' + zoneNow.id];
+  let wallSet = Sprites['wall_' + zoneNow.id];
+  // prueba: en el piso 2 usar el tileset CraftPix "dungeon" si está cargado
+  if (state.run.floorInZone === 2 && Sprites.floor_dungeon && Sprites.wall_dungeon) {
+    floorSet = Sprites.floor_dungeon; wallSet = Sprites.wall_dungeon;
+  }
   // hash pseudo-aleatorio por celda: rompe el patrón en grilla/bandas que daba
   // la fórmula lineal (tx*3+ty*7) al elegir variante de tile
   const tvar = (x, y, n) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; h = (h ^ (h >>> 16)) >>> 0; return h % n; };
