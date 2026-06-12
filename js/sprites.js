@@ -729,6 +729,10 @@ function loadXpFlames() {
 let STAIRS_IMG = null;
 function loadStairsImg() { const im = new Image(); im.onload = () => { STAIRS_IMG = im; }; im.src = 'assets/stairs_down.png'; }
 
+// antorcha animada (sheet 256×128 = 8 frames de 64×64, 4 columnas × 2 filas)
+let TORCH_IMG = null;
+function loadTorchImg() { const im = new Image(); im.onload = () => { TORCH_IMG = im; }; im.src = 'assets/torch_anim.png?v=1'; }
+
 // Tileset "Torre en Ruinas" (PixelLab tiles-pro, 32px): 8 variantes de piso
 // + 8 de muro. Se cargan como arrays y el render elige una por hash de celda
 // para romper la repetición. Si faltan, la zona cae a su paleta de colores.

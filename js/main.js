@@ -38,6 +38,7 @@ window.addEventListener('load', () => {
   if (typeof loadStairsImg === 'function') loadStairsImg(); // escalera de bajada
   if (typeof loadChestImg === 'function') loadChestImg(); // cofre cerrado/abierto
   if (typeof loadTowerTiles === 'function') loadTowerTiles(); // tileset Torre en Ruinas (8+8 variantes)
+  if (typeof loadTorchImg === 'function') loadTorchImg(); // antorcha animada (sheet 8 frames)
   canvas = $('game'); ctx = canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
   resize();
@@ -671,13 +672,21 @@ function render(dt) {
 
   // antorchas: palo, llama animada y luz cálida parpadeante
   for (const [tX, tY, seed] of torches) {
-    ctx.fillStyle = '#6b4a2b';
-    ctx.fillRect(tX - 1, tY + 7, 2, 4);
-    const fl = Math.floor(state.time * 9 + seed) % 3;
-    ctx.fillStyle = fl === 0 ? '#ffb13f' : fl === 1 ? '#ff7b2f' : '#ffd84f';
-    ctx.fillRect(tX - 1, tY + 4 + (fl === 1 ? 1 : 0), 2, 3);
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(tX - 0.5, tY + 5.5, 1, 1);
+    if (TORCH_IMG && TORCH_IMG.width) {
+      // sprite animado (8 frames 64×64, 4×2); el seed desincroniza cada antorcha
+      const fr = Math.floor(state.time * 10 + seed) % 8;
+      const sx = (fr % 4) * 64, sy = (fr < 4 ? 0 : 1) * 64;
+      const dw = 18, dh = 18;
+      ctx.drawImage(TORCH_IMG, sx, sy, 64, 64, tX - dw / 2, tY - 2, dw, dh);
+    } else {
+      ctx.fillStyle = '#6b4a2b';
+      ctx.fillRect(tX - 1, tY + 7, 2, 4);
+      const fl = Math.floor(state.time * 9 + seed) % 3;
+      ctx.fillStyle = fl === 0 ? '#ffb13f' : fl === 1 ? '#ff7b2f' : '#ffd84f';
+      ctx.fillRect(tX - 1, tY + 4 + (fl === 1 ? 1 : 0), 2, 3);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(tX - 0.5, tY + 5.5, 1, 1);
+    }
     ctx.globalCompositeOperation = 'lighter';
     const r = 13 + Math.sin(state.time * 7 + seed) * 2;
     const g = ctx.createRadialGradient(tX, tY + 8, 2, tX, tY + 8, r);
