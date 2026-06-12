@@ -29,6 +29,7 @@ window.addEventListener('load', () => {
   if (typeof buildHero === 'function') buildHero();
   if (typeof loadHeroPack === 'function') loadHeroPack(); // asset pack final del héroe (reemplaza en caliente)
   if (typeof loadV2Hero === 'function') loadV2Hero(); // mago v2 experimental (PixelLab)
+  if (typeof loadSkeleton === 'function') loadSkeleton(); // esqueleto v2 8-dir (PixelLab)
   loadAssets(); // los CC0 de 32px reemplazan en caliente; hay fallback por código
   if (typeof loadStaffIcons === 'function') loadStaffIcons(); // íconos de vara arcana por tier (PixelLab)
   if (typeof loadCoinPiles === 'function') loadCoinPiles(); // pilas de monedas por valor
@@ -36,6 +37,7 @@ window.addEventListener('load', () => {
   if (typeof loadXpFlames === 'function') loadXpFlames(); // llamas de experiencia (colores)
   if (typeof loadStairsImg === 'function') loadStairsImg(); // escalera de bajada
   if (typeof loadChestImg === 'function') loadChestImg(); // cofre cerrado/abierto
+  if (typeof loadTowerTiles === 'function') loadTowerTiles(); // tileset Torre en Ruinas (8+8 variantes)
   canvas = $('game'); ctx = canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
   resize();
@@ -596,8 +598,10 @@ function render(dt) {
   const y1 = Math.min(lvl.H - 1, Math.ceil((state.cam.y + canvas.height / ZOOM) / TILE) + 1);
 
   const zoneNow = ZONES[state.run.zoneIdx];
-  const floorImg = Sprites['floor_' + zoneNow.id];
-  const wallImg = Sprites['wall_' + zoneNow.id];
+  // tile-set: puede ser una sola imagen (zonas viejas) o un array de variantes
+  // (torre en ruinas); en ese caso se elige una por hash determinista de celda.
+  const floorSet = Sprites['floor_' + zoneNow.id];
+  const wallSet = Sprites['wall_' + zoneNow.id];
   const torches = []; // antorchas visibles, para dibujar su luz después
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
@@ -606,6 +610,7 @@ function render(dt) {
       const hash = (tx * 7 + ty * 13) % 5;
       const bigHash = (tx * 73 + ty * 37) % 23;
       if (!solid) {
+        const floorImg = Array.isArray(floorSet) ? floorSet[(tx * 3 + ty * 7) % floorSet.length] : floorSet;
         if (floorImg) {
           ctx.drawImage(floorImg, X, Y, TILE, TILE);
           // sombreado sutil alternado para romper la repetición
@@ -618,6 +623,7 @@ function render(dt) {
       } else {
         // pared con cara frontal si abajo hay piso
         const floorBelow = ty + 1 < lvl.H && lvl.map[ty + 1][tx] === 1;
+        const wallImg = Array.isArray(wallSet) ? wallSet[(tx * 5 + ty * 3) % wallSet.length] : wallSet;
         if (wallImg) {
           if (floorBelow) {
             ctx.drawImage(wallImg, X, Y, TILE, TILE);
@@ -690,7 +696,9 @@ function render(dt) {
     drawShadow(ch.x, ch.y - 1, 5);
     const cimg = typeof CHEST_IMG !== 'undefined' ? (ch.opened ? CHEST_IMG.open : CHEST_IMG.closed) : null;
     if (cimg && cimg.width) {
-      const s = 20; ctx.drawImage(cimg, ch.x - s / 2, ch.y - s / 2 - 1, s, s);
+      const s = 17; ctx.filter = 'brightness(0.78)';
+      ctx.drawImage(cimg, ch.x - s / 2, ch.y - s / 2 - 1, s, s);
+      ctx.filter = 'none';
     } else {
       const spr = ch.opened ? Sprites.cofre_abierto : Sprites.cofre;
       ctx.drawImage(spr, ch.x - spr.width / 2, ch.y - spr.height / 2);
@@ -700,15 +708,17 @@ function render(dt) {
   // cofre dorado y altar
   if (lvl.lockedChest) {
     const lc = lvl.lockedChest;
-    const spr = lc.opened ? Sprites.cofre_abierto : Sprites.cofre_dorado;
     drawShadow(lc.x, lc.y - 1, 5);
     if (!lc.opened) {
+      // halo dorado pulsante: distingue al cofre con llave del cofre común
       ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = 'rgba(255,216,79,0.08)';
-      ctx.beginPath(); ctx.arc(lc.x, lc.y, 10 + Math.sin(state.time * 3) * 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,210,90,0.10)';
+      ctx.beginPath(); ctx.arc(lc.x, lc.y, 11 + Math.sin(state.time * 3) * 2, 0, Math.PI * 2); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
-    ctx.drawImage(spr, lc.x - spr.width / 2, lc.y - spr.height / 2);
+    const lcimg = typeof CHEST_IMG !== 'undefined' ? (lc.opened ? CHEST_IMG.open : CHEST_IMG.closed) : null;
+    if (lcimg && lcimg.width) { const s = 17; ctx.filter = 'brightness(0.82)'; ctx.drawImage(lcimg, lc.x - s / 2, lc.y - s / 2 - 1, s, s); ctx.filter = 'none'; }
+    else { const spr = lc.opened ? Sprites.cofre_abierto : Sprites.cofre_dorado; ctx.drawImage(spr, lc.x - spr.width / 2, lc.y - spr.height / 2); }
   }
   if (lvl.altar) {
     const al = lvl.altar;
@@ -1051,7 +1061,7 @@ function render(dt) {
 function drawFloorDecal(X, Y, tx, ty) {
   const zoneId = ZONES[state.run.zoneIdx].id;
   const ox = 3 + (tx * 5) % 8, oy = 3 + (ty * 3) % 8;
-  if (zoneId === 'catacumbas') {
+  if (zoneId === 'torre') {
     // huesito
     ctx.fillStyle = '#b8b4a4';
     ctx.fillRect(X + ox, Y + oy, 4, 1);
@@ -1379,6 +1389,13 @@ function drawHeldWeapon(p) {
 
 function drawEnemy(e) {
   if (!e.def.ghost) drawShadow(e.x, e.y, e.w * e.scale * 0.45);
+
+  // esqueleto PixelLab de 8 direcciones (scary-walk + attack)
+  if (e.def.skel && typeof SKEL !== 'undefined' && SKEL.ready) {
+    drawSkel(e);
+    drawEnemyExtras(e);
+    return;
+  }
 
   // jefes con pack de animaciones (sheets): elegir anim según su estado
   if (e.def.anims && Sprites['anim_' + e.def.anims + '_idle']) {

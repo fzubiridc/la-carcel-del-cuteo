@@ -108,6 +108,7 @@ function updateEnemies(dt) {
   for (const e of state.enemies) {
     e.flashT = Math.max(0, e.flashT - dt);
     e.hitCd = Math.max(0, e.hitCd - dt);
+    e.atkAnimT = Math.max(0, (e.atkAnimT || 0) - dt);
     e.wobble += dt * 6;
 
     // knockback
@@ -229,6 +230,7 @@ function updateEnemies(dt) {
     if (e.hitCd <= 0 && Math.abs(dx) < (e.w + p.w) / 2 && Math.abs(dy) < (e.h + p.h) / 2) {
       e.hitCd = 0.8;
       const eraVulnerable = p.ifr <= 0;
+      if (e.def.skel) e.atkAnimT = 0.46; // dispara la animación de golpe del esqueleto
       damagePlayer(e.dmg);
       // recovery: tras golpear se queda clavado un instante (los jefes siguen su patrón)
       if (!e.isBoss) e.pauseT = Math.max(e.pauseT, BALANCE.attackPause);

@@ -47,8 +47,6 @@ const ASSETS = {
   caballero: 'assets/caballero.png',
   golem_anciano: 'assets/golem_anciano.png',
   liche: 'assets/liche.png',
-  floor_catacumbas: 'assets/floor_catacumbas.png',
-  wall_catacumbas: 'assets/wall_catacumbas.png',
   floor_cavernas: 'assets/floor_cavernas.png',
   wall_cavernas: 'assets/wall_cavernas.png',
   floor_santuario: 'assets/floor_santuario.png',
@@ -710,6 +708,30 @@ function loadXpFlames() {
 // Escalera de bajada (PixelLab)
 let STAIRS_IMG = null;
 function loadStairsImg() { const im = new Image(); im.onload = () => { STAIRS_IMG = im; }; im.src = 'assets/stairs_down.png'; }
+
+// Tileset "Torre en Ruinas" (PixelLab tiles-pro, 32px): 8 variantes de piso
+// + 8 de muro. Se cargan como arrays y el render elige una por hash de celda
+// para romper la repetición. Si faltan, la zona cae a su paleta de colores.
+function loadTowerTiles() {
+  const grab = (prefix, n, key) => {
+    const arr = new Array(n); let left = n;
+    const done = () => { if (--left === 0) { const f = arr.filter(Boolean); if (f.length) Sprites[key] = f; } };
+    for (let i = 0; i < n; i++) {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = img.width; c.height = img.height;
+        c.getContext('2d').drawImage(img, 0, 0);
+        c.ws = 0.5;
+        arr[i] = c; done();
+      };
+      img.onerror = done;
+      img.src = `assets/tiles/torre/${prefix}_${i}.png`;
+    }
+  };
+  grab('floor', 8, 'floor_torre');
+  grab('wall', 8, 'wall_torre');
+}
 
 // Cofre (PixelLab): cerrado / abierto
 const CHEST_IMG = { closed: null, open: null };

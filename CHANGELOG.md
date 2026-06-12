@@ -3,7 +3,18 @@
 Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/es/). Las fechas son del desarrollo.
 
-## [Sin publicar] — 2026-06-11
+## [Sin publicar] — 2026-06-12
+
+### Arte / Mundo
+- **Esqueleto rediseñado** (PixelLab, 152px, 8 direcciones): reemplaza el sprite CC0 plano.
+  Camina con la animación *scary-walk* y tiene **ataque** propio (swing horizontal contenido,
+  con chispa fría azul). Mira hacia donde se mueve y, al golpear, encara al jugador.
+  Convención **5 direcciones + espejo** (W/SW/NW se reflejan de E/SE/NE) para abaratar la generación.
+- **Nueva ambientación "Torre en Ruinas"** (reemplaza Catacumbas como primera zona): tileset
+  PixelLab de **8 variantes de piso** (losas de piedra agrietada con musgo) + **8 de muro**
+  (ladrillo desgastado), elegidas por hash de celda para romper la repetición.
+
+## [Publicado] — 2026-06-11
 
 ### HUD / UI
 - Barras de vida y maná con relleno **procedural** (gradiente cilíndrico, sin la textura
