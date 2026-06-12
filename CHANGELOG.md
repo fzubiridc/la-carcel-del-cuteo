@@ -6,6 +6,10 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
 ## [Sin publicar] — 2026-06-12 (tarde/noche)
 
 ### UI / Arte
+- **Corona de ladrillo en los muros**: el tope negro justo encima de cada cara de
+  muro ahora lleva una fila de ladrillo (franja superior del mismo tile + sombra
+  fina), rematando el muro en vez del corte abrupto a negro. No toca caras
+  frontales ni el anclaje de antorchas (a diferencia del "lip" descartado).
 - **Pantalla de derrota** con marco ornamentado (PixelLab): "HAS CAÍDO", stats
   compactas y botones REINTENTAR (run nueva directa) / MENÚ. Fuentes del proyecto
   (Cinzel/Inter).

@@ -659,6 +659,15 @@ function render(dt) {
         } else {
           ctx.fillStyle = '#05040a';
           ctx.fillRect(X, Y, TILE, TILE);
+          // remate: si justo debajo hay una cara de muro, coronarla con una fila de
+          // ladrillo en el borde inferior de este tope negro (el muro "sobresale").
+          const belowFace = ty + 2 < lvl.H && lvl.map[ty + 1][tx] === 0 && lvl.map[ty + 2][tx] === 1;
+          if (belowFace && wallImg) {
+            const capH = 6; // una fila de ladrillo (~1/3 de TILE)
+            ctx.drawImage(wallImg, 0, 0, wallImg.width, wallImg.width * capH / TILE, X, Y + TILE - capH, TILE, capH);
+            ctx.fillStyle = 'rgba(0,0,0,0.30)';
+            ctx.fillRect(X, Y + TILE - capH, TILE, 1); // sombra fina que separa remate y cara
+          }
         }
         // antorcha cada tanto en las caras frontales
         if (floorBelow && bigHash === 0) torches.push([X + TILE / 2, Y, tx * 31 + ty]);
