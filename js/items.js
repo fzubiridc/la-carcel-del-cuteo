@@ -151,13 +151,15 @@ function bagCount(p) { return p.bag.reduce((n, it) => n + (it ? 1 : 0), 0); }
 // Daño base por golpe (sin crítico)
 function playerDamage(p) {
   const w = p.equip.arma;
-  const wdmg = w ? w.dmg : 5;
+  const wdmg = w ? w.dmg : weaponDef(p).dmg; // sin arma: daño del ataque desarmado
   return Math.round((wdmg + p.stats.dmgB) * CLASSES[p.cls].dmgMul * (p.bonus ? p.bonus.dmgMul : 1));
 }
 
+// arma desarmada por clase (al quedarte sin equipo): el mago tira una chispa débil
+const UNARMED = { mago: 'chispa', guerrero: 'espada', arquero: 'arco' };
 function weaponDef(p) {
   const w = p.equip.arma;
-  return WEAPON_TYPES[w ? w.weaponType : 'espada'];
+  return WEAPON_TYPES[w ? w.weaponType : (UNARMED[p.cls] || 'espada')];
 }
 
 function attackCooldown(p) {

@@ -31,6 +31,9 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
 - El orbe **ilumina** el entorno por donde pasa.
 - Items: se pueden **tirar** arrastrándolos fuera de cualquier slot (mochila o equipado).
 - Sonido de **pasos** del prota (sample real en loop mientras camina, reemplaza el beep).
+- Sonidos reales (pack RPG + samples sueltos) para **daño, monedas (3 variantes que alternan), poción, escalera, equipar, golpe melee y dash**.
+- Sonidos por archivo (explosión, cast, daño) ahora vía **WebAudio** → suenan también en móvil/iOS (antes los `<audio>` clonados quedaban mudos en iOS).
+- Podés **desequipar la staff**; sin arma el mago lanza una **chispa arcana** débil y sin maná.
 
 ### IA
 - Los enemigos requieren **línea de visión** (ya no detectan a través de paredes).

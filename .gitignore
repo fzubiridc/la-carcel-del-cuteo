@@ -1,3 +1,6 @@
 .playwright-mcp/
 .DS_Store
 assets/ui/inv_src/
+
+# pack de sonidos completo: solo versionamos los usados (assets/sfx/)
+assets/RPG Sound Pack/

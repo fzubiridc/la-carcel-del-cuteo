@@ -411,8 +411,11 @@ function renderInv() {
   stage.className = 'invherostage';
   const plat = document.createElement('img');
   plat.className = 'invplatform'; plat.src = 'assets/ui/hud/inv_platform.png?v=63';
-  const himg = document.createElement('img');
-  himg.className = 'invheroimg px'; himg.src = 'assets/v2_test/mage/idle/south_0.png?v=63';
+  const himg = document.createElement('canvas');
+  himg.className = 'invheroimg px'; himg.width = 120; himg.height = 120;
+  { const hg = himg.getContext('2d'); hg.imageSmoothingEnabled = false;
+    const f0 = (typeof V2H !== 'undefined' && V2H.imgs) ? V2H.imgs['idle_south_0'] : null;
+    if (f0) hg.drawImage(f0, 0, 0, 120, 120); }
   stage.appendChild(plat); stage.appendChild(himg);
   const quick = document.createElement('div');
   quick.className = 'invquick';
@@ -470,6 +473,17 @@ function renderInv() {
   inv.appendChild(title); inv.appendChild(hint); inv.appendChild(wrap); inv.appendChild(st);
 }
 
+// anima el mago del inventario con el ciclo idle south (el mismo sprite del personaje en juego)
+let _invHeroFrame = 0;
+setInterval(() => {
+  const cv = document.querySelector('#inv .invheroimg');
+  if (!cv || !cv.getContext || typeof V2H === 'undefined' || !V2H.ready) return;
+  const n = (V2H.anims && V2H.anims.idle.n) || 4;
+  _invHeroFrame = (_invHeroFrame + 1) % n;
+  const img = V2H.imgs['idle_south_' + _invHeroFrame];
+  if (img) { const g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height); g.imageSmoothingEnabled = false; g.drawImage(img, 0, 0, cv.width, cv.height); }
+}, 220);
+
 // ordenar la mochila por tipo / rareza / poder (compacta los huecos al frente)
 function sortBag(by) {
   const p = state.player;
@@ -510,7 +524,6 @@ function unequipItem(slot) {
   const p = state.player;
   const it = p.equip[slot];
   if (!it) return;
-  if (slot === 'arma') { toast('No podés quedarte sin arma', '#ff6b6b'); return; }
   if (!bagAdd(p, it)) { toast('Inventario lleno', '#ff6b6b'); return; }
   p.equip[slot] = null;
   calcStats(p);
@@ -760,6 +773,7 @@ let AC = null;
 function initAudio() {
   if (!AC) {
     try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { }
+    loadSfxBuffers();
     startAmbient();
     startMusic();
   }
@@ -873,19 +887,41 @@ const SFX = {
 
 // Sonidos por archivo (assets/sfx/*.m4a): pisan al sintetizado si existen.
 // Volumen por sonido porque los packs vienen a niveles distintos.
-const SFX_FILES = { cast: { vol: 0.4 }, boom: { vol: 0.55 } };
-for (const name in SFX_FILES) {
-  const a = new Audio('assets/sfx/' + name + '.m4a');
-  a.preload = 'auto';
-  a.addEventListener('canplaythrough', () => { SFX_FILES[name].audio = a; }, { once: true });
-  a.onerror = () => { delete SFX_FILES[name]; }; // sin archivo → queda el sintetizado
+// Sonidos por archivo, decodificados a buffers de WebAudio. En iOS los <audio>
+// clonados quedan mudos si no los desbloqueó un gesto; con WebAudio (el AC ya
+// desbloqueado por el primer toque) suenan bien. Se cargan al iniciar el audio.
+const SFX_FILES = {
+  cast:   { vol: 0.4 },
+  boom:   { vol: 0.55 },
+  hurt:   { vol: 0.42, ext: 'mp3', offset: 0.2 },
+  dash:   { vol: 0.45, ext: 'mp3' },
+  coin:   { vol: 0.4, ext: 'wav', n: 3, lowpass: 1400 }, // 3 variantes; lowpass = suenan más lejanas
+  heal:   { vol: 0.5, ext: 'wav' },
+  stairs: { vol: 0.5, ext: 'wav' },
+  equip:  { vol: 0.45, ext: 'wav' },
+  swing:  { vol: 0.4, ext: 'wav' },
+};
+let _sfxLoaded = false;
+function loadSfxBuffers() {
+  if (_sfxLoaded || !AC) return;
+  _sfxLoaded = true;
+  for (const name in SFX_FILES) {
+    const f = SFX_FILES[name], ext = f.ext || 'm4a';
+    const names = f.n ? Array.from({ length: f.n }, (_, i) => name + (i ? i + 1 : '')) : [name];
+    f.buffers = [];
+    names.forEach((nm, i) => fetch('assets/sfx/' + nm + '.' + ext)
+      .then(r => r.arrayBuffer())
+      .then(b => AC.decodeAudioData(b))
+      .then(buf => { f.buffers[i] = buf; })
+      .catch(() => { }));
+  }
 }
 // pasos del prota: sample en loop mientras camina (assets/sfx/footsteps.mp3)
 let _footstepSfx = null, _footstepsOn = false;
 function setFootsteps(on) {
   if (!_footstepSfx) {
     _footstepSfx = new Audio('assets/sfx/footsteps.mp3');
-    _footstepSfx.loop = true; _footstepSfx.volume = 0.35; _footstepSfx.playbackRate = 1.4;
+    _footstepSfx.loop = true; _footstepSfx.volume = 0.6; _footstepSfx.playbackRate = 1.95;
   }
   if (on && !_footstepsOn) { _footstepsOn = true; _footstepSfx.play().catch(() => { }); }
   else if (!on && _footstepsOn) { _footstepsOn = false; _footstepSfx.pause(); }
@@ -893,11 +929,19 @@ function setFootsteps(on) {
 
 function sfx(name) {
   const f = SFX_FILES[name];
-  if (f && f.audio) {
-    const inst = f.audio.cloneNode(); // permite solaparse (disparos seguidos)
-    inst.volume = f.vol;
-    inst.play().catch(() => { });
-    return;
+  if (f && AC && f.buffers && f.buffers.length) {
+    const buf = f.buffers[(Math.random() * f.buffers.length) | 0]; // variante al azar si hay varias
+    if (buf) {
+      const src = AC.createBufferSource(); src.buffer = buf;
+      const g = AC.createGain(); g.gain.value = f.vol;
+      src.connect(g);
+      if (f.lowpass) { // apaga agudos → el sonido se percibe más lejano
+        const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f.lowpass;
+        g.connect(lp); lp.connect(AC.destination);
+      } else g.connect(AC.destination);
+      src.start(0, f.offset || 0); // offset recorta delay inicial
+      return;
+    }
   }
   if (SFX[name]) SFX[name]();
 }

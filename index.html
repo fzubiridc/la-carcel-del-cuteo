@@ -212,8 +212,8 @@
   .eqcol{ display:flex; flex-direction:column; gap:1vh; }
   .herocenter{ display:flex; flex-direction:column; align-items:center; gap:1vh; }
   .invherostage{ position:relative; display:flex; align-items:flex-end; justify-content:center; }
-  .invplatform{ position:absolute; bottom:1.5vh; left:50%; transform:translateX(-50%); width:34vh; height:auto; pointer-events:none; }
-  .invheroimg{ position:relative; height:40vh; width:auto; image-rendering:pixelated; pointer-events:none; filter:drop-shadow(0 6px 10px #000a); z-index:1; }
+  .invplatform{ position:absolute; bottom:2vh; left:50%; transform:translateX(-50%); width:34vh; height:19vh; object-fit:fill; pointer-events:none; }
+  .invheroimg{ position:relative; height:34vh; width:auto; margin-bottom:1vh; image-rendering:pixelated; pointer-events:none; filter:drop-shadow(0 6px 10px #000a); z-index:1; }
   .invbagcol{ display:flex; flex-direction:column; gap:1vh; align-items:center; }
   .invsortbar{ display:flex; gap:8px; }
   .invsortbtn{ font-family:Cinzel,serif; font-size:calc(13px * var(--huds,1)); color:#e9bc4a; cursor:pointer;
@@ -345,7 +345,7 @@
     </div>
 
     <div id="xpwrap">
-      <div id="abilitybar"><div id="dashwrap" class="abilityslot"><img id="dashicon" class="px" src="assets/ui/hud/dash_boot.png?v=75" alt="dash"><div id="dashcd"></div></div></div>
+      <div id="abilitybar"><div id="dashwrap" class="abilityslot"><img id="dashicon" class="px" src="assets/ui/hud/dash_boot.png?v=90" alt="dash"><div id="dashcd"></div></div></div>
       <div id="xplevel"></div>
       <div class="fillclip"><img class="px" src="assets/ui/hud/xp_fill.png" alt=""></div>
       <img class="px" src="assets/ui/hud/xp_frame.png" alt="">
@@ -405,16 +405,16 @@
 </div>
 
 <!-- ?v=N evita que el navegador sirva JS viejo de caché; subir N al editar -->
-<script src="js/data.js?v=75"></script>
-<script src="js/sprites.js?v=75"></script>
-<script src="js/anim-rig.js?v=75"></script>
-<script src="js/hero.js?v=75"></script>
-<script src="js/heropack.js?v=75"></script>
-<script src="js/v2hero.js?v=75"></script>
-<script src="js/dungeon.js?v=75"></script>
-<script src="js/items.js?v=75"></script>
-<script src="js/entities.js?v=75"></script>
-<script src="js/ui.js?v=75"></script>
-<script src="js/main.js?v=75"></script>
+<script src="js/data.js?v=90"></script>
+<script src="js/sprites.js?v=90"></script>
+<script src="js/anim-rig.js?v=90"></script>
+<script src="js/hero.js?v=90"></script>
+<script src="js/heropack.js?v=90"></script>
+<script src="js/v2hero.js?v=90"></script>
+<script src="js/dungeon.js?v=90"></script>
+<script src="js/items.js?v=90"></script>
+<script src="js/entities.js?v=90"></script>
+<script src="js/ui.js?v=90"></script>
+<script src="js/main.js?v=90"></script>
 </body>
 </html>
