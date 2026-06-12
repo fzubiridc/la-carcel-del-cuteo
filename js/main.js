@@ -33,6 +33,9 @@ window.addEventListener('load', () => {
   if (typeof loadStaffIcons === 'function') loadStaffIcons(); // íconos de vara arcana por tier (PixelLab)
   if (typeof loadCoinPiles === 'function') loadCoinPiles(); // pilas de monedas por valor
   if (typeof preloadInvAssets === 'function') preloadInvAssets(); // evita el lag de abrir el inventario por 1ª vez
+  if (typeof loadXpFlames === 'function') loadXpFlames(); // llamas de experiencia (colores)
+  if (typeof loadStairsImg === 'function') loadStairsImg(); // escalera de bajada
+  if (typeof loadChestImg === 'function') loadChestImg(); // cofre cerrado/abierto
   canvas = $('game'); ctx = canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
   resize();
@@ -421,8 +424,15 @@ let lastT = 0;
 function loop(t) {
   const dt = Math.min((t - lastT) / 1000, 0.05);
   lastT = t;
-  if (state.mode === 'play' && !state.invOpen && !state.paused && !state.upgradeOpen && !state.shopOpen) update(dt);
-  render(dt);
+  // blindado: una excepción en un frame ya no detiene el loop (antes congelaba el juego);
+  // se registra para diagnóstico y el loop sigue
+  try {
+    if (state.mode === 'play' && !state.invOpen && !state.paused && !state.upgradeOpen && !state.shopOpen) update(dt);
+    render(dt);
+  } catch (e) {
+    if (!loop._errN) loop._errN = 0;
+    if (loop._errN++ < 20) console.error('[loop] frame error:', e && e.stack ? e.stack : e);
+  }
   requestAnimationFrame(loop);
 }
 
@@ -647,11 +657,16 @@ function render(dt) {
 
   // escalera de salida
   if (lvl.exitOpen) {
-    const X = lvl.exit.tx * TILE, Y = lvl.exit.ty * TILE;
-    ctx.fillStyle = '#0b0a0f';
-    ctx.fillRect(X + 1, Y + 1, TILE - 2, TILE - 2);
-    ctx.fillStyle = pal.accent;
-    for (let i = 0; i < 4; i++) ctx.fillRect(X + 2 + i, Y + 3 + i * 3, TILE - 4 - i * 2, 2);
+    if (typeof STAIRS_IMG !== 'undefined' && STAIRS_IMG && STAIRS_IMG.width) {
+      const cx = (lvl.exit.tx + 0.5) * TILE, cy = (lvl.exit.ty + 0.5) * TILE, s = 22;
+      ctx.drawImage(STAIRS_IMG, cx - s / 2, cy - s / 2, s, s);
+    } else {
+      const X = lvl.exit.tx * TILE, Y = lvl.exit.ty * TILE;
+      ctx.fillStyle = '#0b0a0f';
+      ctx.fillRect(X + 1, Y + 1, TILE - 2, TILE - 2);
+      ctx.fillStyle = pal.accent;
+      for (let i = 0; i < 4; i++) ctx.fillRect(X + 2 + i, Y + 3 + i * 3, TILE - 4 - i * 2, 2);
+    }
   }
 
   // escalera de subida (por donde llegaste): escalones invertidos, más tenue
@@ -672,9 +687,14 @@ function render(dt) {
 
   // cofres
   for (const ch of lvl.chests) {
-    const spr = ch.opened ? Sprites.cofre_abierto : Sprites.cofre;
     drawShadow(ch.x, ch.y - 1, 5);
-    ctx.drawImage(spr, ch.x - spr.width / 2, ch.y - spr.height / 2);
+    const cimg = typeof CHEST_IMG !== 'undefined' ? (ch.opened ? CHEST_IMG.open : CHEST_IMG.closed) : null;
+    if (cimg && cimg.width) {
+      const s = 20; ctx.drawImage(cimg, ch.x - s / 2, ch.y - s / 2 - 1, s, s);
+    } else {
+      const spr = ch.opened ? Sprites.cofre_abierto : Sprites.cofre;
+      ctx.drawImage(spr, ch.x - spr.width / 2, ch.y - spr.height / 2);
+    }
   }
 
   // cofre dorado y altar
@@ -742,14 +762,26 @@ function render(dt) {
       ctx.drawImage(Sprites.llave, pk.x - 4, pk.y - 2 + bob);
     }
     else if (pk.kind === 'xp') {
-      // puntito rojo de experiencia, titila
-      const tw = 1 + Math.sin(pk.t * 2.5) * 0.35;
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = 'rgba(255,70,60,0.28)';
-      ctx.beginPath(); ctx.arc(pk.x, pk.y + bob * 0.4, 3.6 * tw, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ff5a4a';
-      ctx.beginPath(); ctx.arc(pk.x, pk.y + bob * 0.4, 1.7 * tw, 0, Math.PI * 2); ctx.fill();
-      ctx.globalCompositeOperation = 'source-over';
+      const col = (typeof XP_FLAMES !== 'undefined' && pk.xpColor) ? pk.xpColor : 'blue';
+      let img = null;
+      if (typeof XP_FLAMES !== 'undefined') {
+        if (col === 'blue' && XP_FLAMES.blue.length === 9)
+          img = XP_FLAMES.blue[(Math.floor(state.time * 1000 / 80) + Math.floor(pk.t * 3)) % 9];
+        else img = XP_FLAMES[col];
+      }
+      if (img && img.width) {
+        const w = 5, pulse = col === 'blue' ? 1 : (1 + Math.sin(state.time * 7 + pk.t) * 0.12), h = 5 * pulse;
+        ctx.drawImage(img, pk.x - w / 2, pk.y - h + 1 + bob, w, h); // anclada por la base de la llama
+      } else {
+        // fallback: puntito titilante
+        const tw = 1 + Math.sin(pk.t * 2.5) * 0.35;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = 'rgba(255,70,60,0.28)';
+        ctx.beginPath(); ctx.arc(pk.x, pk.y + bob * 0.4, 3.6 * tw, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ff5a4a';
+        ctx.beginPath(); ctx.arc(pk.x, pk.y + bob * 0.4, 1.7 * tw, 0, Math.PI * 2); ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }
     }
     else if (pk.kind === 'item') {
       const r = rarityOf(pk.item);

@@ -642,6 +642,7 @@ function dropLoot(e) {
   for (let i = 0; i < orbs; i++) {
     const pk = spawnPickup('xp', e.x + randInt(-12, 12), e.y + randInt(-12, 12));
     pk.val = e.isBoss ? 6 : e.elite ? 4 : 2;
+    pk.xpColor = XP_COLORS[(Math.random() * XP_COLORS.length) | 0]; // color al azar (mezcla)
   }
   // los élite siempre sueltan un ítem
   if (e.elite) {
@@ -698,12 +699,15 @@ function updatePickups(dt) {
     const d = Math.hypot(dx, dy);
     if (pk.noPickT > 0) continue;
     // los orbes de XP se magnetizan hacia el personaje desde lejos
-    if (pk.kind === 'xp' && d < 70 && d > 0.1) {
-      const pull = 90 + (70 - d) * 5;
+    if (pk.kind === 'xp' && d < 38 && d > 0.1) {
+      const pull = 90 + (38 - d) * 5;
       pk.x += dx / d * pull * dt; pk.y += dy / d * pull * dt;
     }
-    // imán suave
-    if (d < 30 && pk.kind !== 'item') { pk.x += dx / d * 130 * dt; pk.y += dy / d * 130 * dt; }
+    // imán suave: no atrae lo que no se puede levantar ahora (poción con cupo lleno),
+    // así no se queda "pegada" al cuerpo siguiéndote
+    const potFull = (pk.kind === 'potion' && p.potions >= BALANCE.maxPotions) ||
+                    (pk.kind === 'manapotion' && (p.manaPotions || 0) >= BALANCE.maxPotions);
+    if (d < 30 && pk.kind !== 'item' && !potFull) { pk.x += dx / d * 130 * dt; pk.y += dy / d * 130 * dt; }
     if (d < 14) {
       if (pk.kind === 'xp') { gainXP(pk.val || 2); pk.dead = true; sfx('xp'); }
       else if (pk.kind === 'key') { p.hasKey = true; pk.dead = true; sfx('pickup'); toast('¡Conseguiste la llave del cofre dorado!', '#ffd84f'); }

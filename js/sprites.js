@@ -699,6 +699,25 @@ function preloadInvAssets() {
   for (const p of paths) { const im = new Image(); im.src = p; }
 }
 
+// Llamas de experiencia (PixelLab): azul animada (9f) + rojo/verde/amarillo (1f).
+const XP_FLAMES = { blue: [], red: null, green: null, yellow: null };
+const XP_COLORS = ['blue', 'red', 'green', 'yellow'];
+function loadXpFlames() {
+  for (let i = 0; i < 9; i++) { const im = new Image(), ii = i; im.onload = () => { XP_FLAMES.blue[ii] = im; }; im.src = 'assets/xp/blue_' + ii + '.png'; }
+  for (const c of ['red', 'green', 'yellow']) { const im = new Image(), cc = c; im.onload = () => { XP_FLAMES[cc] = im; }; im.src = 'assets/xp/' + cc + '.png'; }
+}
+
+// Escalera de bajada (PixelLab)
+let STAIRS_IMG = null;
+function loadStairsImg() { const im = new Image(); im.onload = () => { STAIRS_IMG = im; }; im.src = 'assets/stairs_down.png'; }
+
+// Cofre (PixelLab): cerrado / abierto
+const CHEST_IMG = { closed: null, open: null };
+function loadChestImg() {
+  const a = new Image(); a.onload = () => { CHEST_IMG.closed = a; }; a.src = 'assets/chest_closed.png';
+  const b = new Image(); b.onload = () => { CHEST_IMG.open = b; }; b.src = 'assets/chest_open.png';
+}
+
 // =====================================================================
 // Equipo visible sobre el personaje: capas teñidas por rareza.
 // P = color primario de la rareza, S = sombra. Cada capa sabe en qué
