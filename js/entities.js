@@ -141,7 +141,7 @@ function updateEnemies(dt) {
       e.windupT -= dt;
       if (e.windupT <= 0) {
         e.windupT = 0;
-        fireProj({ x: e.x, y: e.y, ang: e.aimAng, spd: e.def.projSpd, dmg: e.dmg, friendly: false, color: '#ff7b5a', range: e.def.range + 50 });
+        fireProj({ x: e.x, y: e.y, ang: e.aimAng, spd: e.def.projSpd, dmg: e.dmg, friendly: false, color: e.def.projColor || '#ff7b5a', range: e.def.range + 50 });
         sfx('eshoot');
       }
     }
@@ -182,6 +182,7 @@ function updateEnemies(dt) {
           // anticipación: apunta, se clava y telegrafia; el disparo sale al expirar windupT
           e.aimAng = Math.atan2(dy, dx);
           e.windupT = BALANCE.shooterWindup;
+          if (e.def.slime) e.atkAnimT = BALANCE.shooterWindup + 0.25; // anim de casteo del sheet-mob
           e.pauseT = BALANCE.shooterWindup + BALANCE.shooterRecover;
           state.fx.push({ type: 'ring', x: e.x, y: e.y, t: BALANCE.shooterWindup, t0: BALANCE.shooterWindup, maxR: 12, color: '#ff7b5a' });
         }

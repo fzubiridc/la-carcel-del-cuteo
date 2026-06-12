@@ -98,7 +98,7 @@ const MODS = [
 const ENEMIES = {
   rata:        { name: 'Rata',              sprite: 'rata',       hp: 14,  dmg: 6,  spd: 78,  ai: 'chaser',  size: 7, scale: 0.34, skel: true, skelSet: 'rata' },
   slime:       { name: 'Slime',             sprite: 'rata',       hp: 26,  dmg: 8,  spd: 46,  ai: 'chaser',  size: 12, scale: 1, slime: true, slimeSet: 'slime' },
-  lich:        { name: 'Liche menor',       sprite: 'rata',       hp: 36,  dmg: 12, spd: 48,  ai: 'chaser',  size: 12, scale: 1, slime: true, slimeSet: 'lich' },
+  lich:        { name: 'Liche menor',       sprite: 'rata',       hp: 36,  dmg: 11, spd: 44,  ai: 'shooter', size: 12, scale: 1, range: 150, fireCd: 1.8, projSpd: 150, projColor: '#b15cff', slime: true, slimeSet: 'lich' },
   fantasma:    { name: 'Fantasma',          sprite: 'rata',       hp: 28,  dmg: 10, spd: 70,  ai: 'erratic', size: 11, scale: 1, slime: true, slimeSet: 'ghost', ghost: true },
   zombi:       { name: 'Zombi',             sprite: 'rata',       hp: 40,  dmg: 12, spd: 38,  ai: 'chaser',  size: 12, scale: 1, slime: true, slimeSet: 'zombie' },
   orco:        { name: 'Orco',              sprite: 'rata',       hp: 36,  dmg: 11, spd: 52,  ai: 'chaser',  size: 13, scale: 1, slime: true, slimeSet: 'orc' },

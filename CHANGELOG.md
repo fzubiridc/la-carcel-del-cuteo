@@ -21,6 +21,11 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
   propio de la Torre.
 
 ### Gameplay
+- **Liche a distancia**: pasó de chaser melee a **shooter** — mantiene distancia y
+  lanza proyectiles mágicos violetas, reproduciendo su animación de casteo. (Los
+  proyectiles de enemigos ahora soportan color por-def vía `projColor`.)
+- **Glow del cofre con llave**: ahora es una **elipse dorada achatada** (perspectiva
+  top-down) con gradiente, dibujada detrás del cofre, en vez del círculo plano.
 - **Cofres animados** (CC-BY Bonsaiheldin, tira de 4 frames): al abrirse reproducen
   la animación de apertura (cerrado → abierto) en vez del swap instantáneo. Común
   marrón + dorado para el de llave. Reemplaza el set estático anterior.

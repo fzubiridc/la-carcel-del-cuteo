@@ -759,10 +759,20 @@ function render(dt) {
   if (lvl.lockedChest) {
     const lc = lvl.lockedChest;
     if (!lc.opened) {
-      // halo dorado pulsante: distingue al cofre con llave del cofre común
+      // glow dorado pulsante DETRÁS del cofre: elipse achatada (perspectiva top-down)
+      // con gradiente radial, dibujada antes del sprite → queda por detrás.
+      ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = 'rgba(255,210,90,0.10)';
-      ctx.beginPath(); ctx.arc(lc.x, lc.y, 11 + Math.sin(state.time * 3) * 2, 0, Math.PI * 2); ctx.fill();
+      const gr = 15 + Math.sin(state.time * 3) * 1.5;
+      ctx.translate(lc.x, lc.y + 1);
+      ctx.scale(1, 0.5); // achatado: elipse vista desde arriba
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, gr);
+      g.addColorStop(0, 'rgba(255,216,110,0.55)');
+      g.addColorStop(0.55, 'rgba(255,196,70,0.20)');
+      g.addColorStop(1, 'rgba(255,190,60,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0, 0, gr, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
       ctx.globalCompositeOperation = 'source-over';
     }
     if (!drawChestImg(lc, lc.x, lc.y, 0.95, true)) {
