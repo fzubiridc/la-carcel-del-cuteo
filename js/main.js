@@ -474,7 +474,8 @@ function update(dt) {
     p.moving = !!(mx || my);
     if (mx || my) {
       const n = Math.max(1, Math.hypot(mx, my)); // el joystick permite caminar lento
-      moveWithCollision(lvl, p, (mx / n) * p.stats.spd * dt, (my / n) * p.stats.spd * dt, false);
+      const psp = p.stats.spd * BALANCE.speedMul;
+      moveWithCollision(lvl, p, (mx / n) * psp * dt, (my / n) * psp * dt, false);
       if (mx) p.dir = mx > 0 ? 1 : -1;
     }
 

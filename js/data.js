@@ -180,6 +180,7 @@ const BALANCE = {
   maxPotions: 3,
   eliteChance: 0.08,     // prob. de que un spawn sea élite
   playerIfr: 0.6,        // segundos de invulnerabilidad tras recibir daño
+  speedMul: 0.8,         // factor global de velocidad de movimiento (jugador + mobs)
 
   // --- IA de mobs ---
   aggroRadius: 5.5,      // tiles: te ven a esta distancia aunque no estés en su sala

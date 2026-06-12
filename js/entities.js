@@ -36,7 +36,7 @@ function spawnEnemy(typeId, x, y, depth, isBossType, elite) {
     w: def.size, h: def.size,
     hp: Math.round(def.hp * hpMul), maxhp: Math.round(def.hp * hpMul),
     dmg: Math.round(def.dmg * dmgMul),
-    spd: def.spd * (elite ? 1.05 : 1), ai: isBossType ? 'boss' : def.ai,
+    spd: def.spd * (elite ? 1.05 : 1) * BALANCE.speedMul, ai: isBossType ? 'boss' : def.ai,
     dir: 1, flashT: 0, hitCd: 0, fireT: Math.random() * 1.5,
     kbx: 0, kby: 0, wobble: Math.random() * Math.PI * 2,
     // hogar (para wander y leash) + pausas de ataque
