@@ -38,9 +38,8 @@ function makeItem(depth, slot) {
   if (slot === 'arma') {
     // las armas que aparecen son siempre de tu clase (cualquiera de sus tipos)
     const cls = state.player ? state.player.cls : null;
-    const opciones = cls
-      ? Object.keys(WEAPON_TYPES).filter(k => WEAPON_TYPES[k].cls === cls)
-      : Object.keys(WEAPON_TYPES);
+    const opciones = Object.keys(WEAPON_TYPES)
+      .filter(k => !WEAPON_TYPES[k].unarmed && (!cls || WEAPON_TYPES[k].cls === cls));
     item.weaponType = pick(opciones);
     const wt = WEAPON_TYPES[item.weaponType];
     item.dmg = Math.round(wt.dmg * mat.mult * rarity.mult);

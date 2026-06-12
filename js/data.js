@@ -35,7 +35,7 @@ const WEAPON_TYPES = {
   baston:   { name: 'Bastón',   cls: 'mago',     dmg: 15, cd: 0.70, style: 'bolt',  projSpd: 190, splash: 18, projSize: 12, projRange: 128, manaCost: 22, icon: 'baston', baseRot: Math.PI / 2 },
   varita:   { name: 'Varita',   cls: 'mago',     dmg: 7,  cd: 0.26, style: 'bolt',  projSpd: 270, splash: 0, projSize: 8, projRange: 105, manaCost: 9, icon: 'varita', baseRot: Math.PI / 4 },
   // ataque desarmado del mago: chispa arcana muy débil, sin maná (al quedarte sin staff)
-  chispa:   { name: 'Chispa arcana', cls: 'mago', dmg: 4, cd: 0.42, style: 'bolt', projSpd: 220, splash: 0, projSize: 4, projRange: 78, manaCost: 0, icon: 'varita', baseRot: Math.PI / 4 },
+  chispa:   { name: 'Chispa arcana', cls: 'mago', dmg: 4, cd: 0.42, style: 'bolt', projSpd: 220, splash: 0, projSize: 4, projRange: 78, manaCost: 0, icon: 'varita', baseRot: Math.PI / 4, unarmed: true },
 };
 
 // Materiales: escalera ordenada de calidad. El material define el stat base

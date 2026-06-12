@@ -805,7 +805,7 @@ function render(dt) {
         ctx.imageSmoothingEnabled = sm;
       } else {
         const spr = itemIcon(pk.item);
-        ctx.drawImage(spr, pk.x - spr.width / 2, pk.y - spr.height / 2 + bob);
+        if (spr) ctx.drawImage(spr, pk.x - spr.width / 2, pk.y - spr.height / 2 + bob);
       }
     }
   }

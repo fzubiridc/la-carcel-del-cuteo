@@ -646,8 +646,12 @@ function tintedSprite(spr, color, alpha) {
 
 // Icono según slot/arma de un ítem
 function itemIcon(item) {
-  if (item.slot === 'arma') return Sprites['icon_' + item.weaponType];
-  return Sprites['icon_' + item.slot];
+  if (item.slot === 'arma') {
+    // usar el campo .icon del tipo (mapea p.ej. chispa→varita); fallback al tipo o a espada
+    const wt = WEAPON_TYPES[item.weaponType];
+    return Sprites['icon_' + ((wt && wt.icon) || item.weaponType)] || Sprites.icon_espada;
+  }
+  return Sprites['icon_' + item.slot] || Sprites.icon_amuleto;
 }
 
 // Íconos PNG de varas arcanas por tier (PixelLab, 128px). Si cargaron, reemplazan
