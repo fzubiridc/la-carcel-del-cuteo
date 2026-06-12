@@ -777,13 +777,12 @@ function loadDungeonTiles() {
   img.src = 'assets/packs/dungeon/PNG/walls_floor.png?v=' + DUNGEON_TILE_V;
 }
 
-// Cofre (PixelLab): cerrado / abierto
-// El cofre se ancla por su CONTENIDO (bbox de alfa), no por el canvas: así un
-// estado con padding (cerrado reframeado) o que crece (abierto, tapa arriba) no
-// encoge ni desalinea. La base (maxy) y el centro X se calculan al cargar el PNG.
-const CHEST_IMG = { closed: null, open: null, closedBox: null, openBox: null };
-const CHEST_V = 2;     // cache-bust al reemplazar los PNG del cofre
-const CHEST_K = 0.22;  // px de pantalla por píxel nativo del sprite
+// Cofres (CraftPix CC-BY Bonsaiheldin, 32×32): 'common' (marrón) y 'gold' (con
+// candado, para el cofre con llave). Se anclan por su CONTENIDO (bbox de alfa),
+// no por el canvas: estados que crecen (tapa arriba) no encogen ni desalinean.
+const CHEST_IMG = {}; // set -> { closed, open, closedBox, openBox }
+const CHEST_V = 3;     // cache-bust al reemplazar los PNG del cofre
+const CHEST_K = 0.6;   // px de pantalla por píxel nativo (arte de 32px)
 function chestBBox(img) {
   const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
   const g = c.getContext('2d'); g.drawImage(img, 0, 0);
@@ -795,14 +794,21 @@ function chestBBox(img) {
   return found ? { cx: (minx + maxx) / 2, baseY: maxy } : { cx: c.width / 2, baseY: c.height / 2 };
 }
 function loadChestImg() {
-  const a = new Image(); a.onload = () => { CHEST_IMG.closed = a; CHEST_IMG.closedBox = chestBBox(a); }; a.src = 'assets/chest_closed.png?v=' + CHEST_V;
-  const b = new Image(); b.onload = () => { CHEST_IMG.open = b; CHEST_IMG.openBox = chestBBox(b); }; b.src = 'assets/chest_open.png?v=' + CHEST_V;
+  const load = (set, closedSrc, openSrc) => {
+    const s = CHEST_IMG[set] = { closed: null, open: null, closedBox: null, openBox: null };
+    const a = new Image(); a.onload = () => { s.closed = a; s.closedBox = chestBBox(a); }; a.src = closedSrc + '?v=' + CHEST_V;
+    const b = new Image(); b.onload = () => { s.open = b; s.openBox = chestBBox(b); }; b.src = openSrc + '?v=' + CHEST_V;
+  };
+  load('common', 'assets/chest_closed.png', 'assets/chest_open.png');
+  load('gold', 'assets/chest_gold_closed.png', 'assets/chest_gold_open.png');
 }
-// Dibuja el cofre anclado por base/centro de su contenido. Devuelve false si el
-// PNG aún no cargó (el caller cae al sprite procedural).
-function drawChestImg(opened, x, y, bright) {
-  const img = opened ? CHEST_IMG.open : CHEST_IMG.closed;
-  const box = opened ? CHEST_IMG.openBox : CHEST_IMG.closedBox;
+// Dibuja el cofre (set 'common' o, si gold, 'gold') anclado por base/centro de su
+// contenido. Devuelve false si el PNG aún no cargó (el caller cae al procedural).
+function drawChestImg(opened, x, y, bright, gold) {
+  const s = CHEST_IMG[gold ? 'gold' : 'common'];
+  if (!s) return false;
+  const img = opened ? s.open : s.closed;
+  const box = opened ? s.openBox : s.closedBox;
   if (!img || !img.width || !box) return false;
   ctx.filter = 'brightness(' + bright + ')';
   ctx.drawImage(img, x - box.cx * CHEST_K, y + 1 - box.baseY * CHEST_K, img.naturalWidth * CHEST_K, img.naturalHeight * CHEST_K);

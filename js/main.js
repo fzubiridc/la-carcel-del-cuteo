@@ -749,7 +749,7 @@ function render(dt) {
 
   // cofres (sin sombra: el sprite ya apoya solo)
   for (const ch of lvl.chests) {
-    if (!drawChestImg(ch.opened, ch.x, ch.y, 0.78)) {
+    if (!drawChestImg(ch.opened, ch.x, ch.y, 0.92, false)) {
       const spr = ch.opened ? Sprites.cofre_abierto : Sprites.cofre;
       ctx.drawImage(spr, ch.x - spr.width / 2, ch.y - spr.height / 2);
     }
@@ -765,7 +765,7 @@ function render(dt) {
       ctx.beginPath(); ctx.arc(lc.x, lc.y, 11 + Math.sin(state.time * 3) * 2, 0, Math.PI * 2); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
-    if (!drawChestImg(lc.opened, lc.x, lc.y, 0.82)) {
+    if (!drawChestImg(lc.opened, lc.x, lc.y, 0.95, true)) {
       const spr = lc.opened ? Sprites.cofre_abierto : Sprites.cofre_dorado;
       ctx.drawImage(spr, lc.x - spr.width / 2, lc.y - spr.height / 2);
     }

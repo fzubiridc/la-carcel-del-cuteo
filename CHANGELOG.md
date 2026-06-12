@@ -18,6 +18,9 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
   propio de la Torre.
 
 ### Gameplay
+- **Cofres nuevos** (CraftPix CC-BY Bonsaiheldin, 32×32): común marrón + dorado con
+  candado (para el cofre con llave). Sistema de cofre ahora multi-set; `CHEST_K`
+  reajustado al arte de 32px. Sheet completo guardado en `assets/packs/chests/`.
 - **Cofres con colisión + abrir con [E]**: ya no se atraviesan ni se abren solos al
   tocarlos; bloquean el paso y se abren apretando E al lado (al abrirse dejan de
   bloquear). El cofre dorado igual, pidiendo la llave. Hint "[E] Abrir cofre".
