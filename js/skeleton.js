@@ -1,14 +1,18 @@
 // =====================================================================
-// skeleton.js — esqueletos PixelLab de 152×152 (8 direcciones por espejado).
-// Soporta varios "sets" (mismo motor, distintos sprites):
-//   skeleton        → base: walk 7 dirs (+E espejada) + attack 5 dirs (+3 esp.)
-//   skeleton_espada → variante con espada: walk S+E (+W esp.) + slash S+SE (+SW esp.)
+// skeleton.js — motor de mobs animados PixelLab por dirección (con espejado).
+// Soporta varios "sets" (mismo motor, distintos sprites/tamaños):
+//   skeleton        → base 152px: walk 7 dirs (+E espejada) + attack 5 dirs (+3 esp.)
+//   skeleton_espada → variante 152px con espada: walk S+E (+W esp.) + slash S (+...)
+//   rata            → 56px, 4 dirs cardinales (S/E/N/W), sólo walk de 6 frames
+// Cada set declara su tamaño nativo (px), su fila de pies (foot) y su factor de
+// dibujo (draw); los defaults reproducen al esqueleto de 152px tal cual.
 // Las direcciones que un set no tiene se resuelven a la lateral más cercana
 // (este/oeste) o al frente, así nunca miran mal. El attack es opcional.
 // =====================================================================
 
-const SKEL_ASSET_V = 1;
-const SKEL_DRAW = 0.27;  // 152 * 0.27 ≈ 41px de marco
+const SKEL_ASSET_V = 2;
+const SKEL_DRAW = 0.27;  // factor de dibujo por defecto: 152 * 0.27 ≈ 41px de marco
+const SKEL_PX = 152;     // tamaño nativo por defecto del frame
 const SKEL_FOOT = 95;    // fila del frame que cae en la sombra (drawShadow va en e.y+5)
 const SKEL_OCTANTS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
 
@@ -27,9 +31,17 @@ const SKEL_CFG = {
   skeleton_espada: {
     // slash sólo en south por ahora (el SE salió mal); el resto cae al walk.
     // Al generar más direcciones en la UI: agregar PNGs + sumarlas a native.
+    fallbackTo: 'skeleton', // si sus assets no cargan, usa el esqueleto base
     anims: { walk: { n: 8, ms: 105 }, attack: { n: 9, ms: 55 } },
     native: { walk: ['south', 'east'], attack: ['south'] },
     mirror: { walk: { 'west': 'east' } },
+  },
+  rata: {
+    // PixelLab "Dungeon Rat": 56px, 4 dirs cardinales nativas (W es propia, no
+    // espejada). Sin attack: las diagonales caen a la lateral más cercana.
+    px: 56, foot: 41, draw: 1.6,
+    anims: { walk: { n: 6, ms: 90 } },
+    native: { walk: ['south', 'east', 'north', 'west'] },
   },
 };
 
@@ -41,7 +53,11 @@ function loadSkeleton() {
 
 function loadSkelSet(folder) {
   const cfg = SKEL_CFG[folder];
-  const set = SKEL_SETS[folder] = { ready: false, imgs: {}, anims: cfg.anims };
+  const set = SKEL_SETS[folder] = {
+    ready: false, imgs: {}, anims: cfg.anims,
+    px: cfg.px || SKEL_PX, foot: cfg.foot != null ? cfg.foot : SKEL_FOOT,
+    draw: cfg.draw || SKEL_DRAW, fallbackTo: cfg.fallbackTo || null,
+  };
   for (const anim in cfg.anims) {
     const dirs = cfg.native[anim] || [];
     const n = cfg.anims[anim].n;
@@ -92,9 +108,22 @@ function skelResolveFace(set, anim, face) {
   return face;
 }
 
+// ¿hay un set listo para dibujar a esta entidad? (su set propio o su fallback)
+function skelReady(e) {
+  const want = e.def.skelSet || 'skeleton';
+  const set = SKEL_SETS[want];
+  if (set && set.ready) return true;
+  const fb = set && set.fallbackTo;
+  return !!(fb && SKEL_SETS[fb] && SKEL_SETS[fb].ready);
+}
+
 function drawSkel(e) {
-  let set = SKEL_SETS[e.def.skelSet || 'skeleton'];
-  if (!set || !set.ready) set = SKEL_SETS.skeleton; // fallback al base si la variante no cargó
+  const want = e.def.skelSet || 'skeleton';
+  let set = SKEL_SETS[want];
+  if (!set || !set.ready) { // su set no cargó: usa el fallback declarado (o no dibuja)
+    const fb = set && set.fallbackTo;
+    set = fb ? SKEL_SETS[fb] : null;
+  }
   if (!set || !set.ready) return;
 
   // mira hacia donde se mueve (velocidad suavizada EMA + umbral, sin flip-flop);
@@ -132,6 +161,6 @@ function drawSkel(e) {
   if (e.flashT > 0) img = tintedSprite(img, '#ffffff', 0.8);
   else if (e.enraged) img = tintedSprite(img, '#ff3030', 0.3);
 
-  const S = e.scale * SKEL_DRAW;
-  ctx.drawImage(img, e.x - 76 * S, e.y - SKEL_FOOT * S, 152 * S, 152 * S);
+  const S = e.scale * set.draw;
+  ctx.drawImage(img, e.x - set.px / 2 * S, e.y - set.foot * S, set.px * S, set.px * S);
 }

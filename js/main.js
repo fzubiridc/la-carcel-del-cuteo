@@ -1434,8 +1434,8 @@ function drawHeldWeapon(p) {
 function drawEnemy(e) {
   if (!e.def.ghost) drawShadow(e.x, e.y, e.w * e.scale * 0.45);
 
-  // esqueleto PixelLab de 8 direcciones (scary-walk + attack)
-  if (e.def.skel && typeof SKEL !== 'undefined' && SKEL.ready) {
+  // mob PixelLab animado por dirección (esqueletos, rata, …) — gate por su set
+  if (e.def.skel && typeof skelReady === 'function' && skelReady(e)) {
     drawSkel(e);
     drawEnemyExtras(e);
     return;
