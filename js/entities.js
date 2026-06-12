@@ -614,7 +614,8 @@ function killEnemy(e) {
       dir: e.dir, scale: e.scale, t: 4.5, t0: 4.5, start: state.time });
   }
   burst(e.x, e.y, e.isBoss ? '#ffd84f' : '#c44', e.isBoss ? 30 : 8);
-  sfx(e.isBoss ? 'bossdie' : 'die');
+  // sonido de muerte por tipo: esqueletos crujen huesos, rata chilla, resto genérico
+  sfx(e.isBoss ? 'bossdie' : (e.def.skel ? 'skel_death' : (e.type === 'rata' ? 'rat_death' : 'die')));
   dropLoot(e);
   if (e.isBoss) onBossKilled(e);
   state.enemies = state.enemies.filter(o => o !== e);

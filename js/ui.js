@@ -898,6 +898,8 @@ const SFX_FILES = {
   stairs: { vol: 0.5, ext: 'wav' },
   equip:  { vol: 0.45, ext: 'wav' },
   swing:  { vol: 0.4, ext: 'wav' },
+  rat_death:  { vol: 0.45, ext: 'mp3' }, // chillido de rata al morir
+  skel_death: { vol: 0.55, ext: 'mp3' }, // crujido de huesos al morir esqueleto
 };
 let _sfxLoaded = false;
 function loadSfxBuffers() {
