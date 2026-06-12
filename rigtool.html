@@ -55,7 +55,9 @@
       <button id="toolHand" class="on">mano</button>
       <button id="toolGrip">grip staff</button>
       <button id="toolContour">contorno</button>
+      <button id="toolMeasure">medir</button>
     </div>
+    <div class="row" id="measRow" style="display:none;color:#9a93a8">Clic punto A, clic punto B → distancia. <b id="measlbl"></b></div>
     <div class="row" id="contourRow" style="display:none">
       <label>pincel</label><input id="brush" type="number" value="4" style="width:50px">
       <button id="eraseBtn">borrar</button>
@@ -80,7 +82,7 @@ const ed = document.getElementById('editor'), ex = ed.getContext('2d');
 ex.imageSmoothingEnabled = false;
 let CFG = {}, frames = [], staff = null, hands = [], masks = [], grip = { x: 32, y: 42 };
 let cur = 0, playing = false, depthFront = true, tool = 'hand', erase = false, SCALE = 5, OX = 30, OY = 30;
-let painting = false;
+let painting = false, measA = null, measB = null;
 const $ = id => document.getElementById(id);
 const tmp = document.createElement('canvas'), tg = tmp.getContext('2d'); // scratch para overlay
 tg.imageSmoothingEnabled = false;
@@ -148,6 +150,17 @@ function render(fi) {
     ex.strokeStyle = hand.guess ? '#ff3b8b88' : '#3bff8b'; ex.lineWidth = 1;
     ex.beginPath(); ex.moveTo(hx - 9, hy); ex.lineTo(hx + 9, hy); ex.moveTo(hx, hy - 9); ex.lineTo(hx, hy + 9); ex.stroke();
   }
+  if (tool === 'measure') { // regla: puntos A/B + distancia en px del frame
+    const pt = (p, col) => { const X = OX + p.x * SCALE, Y = OY + p.y * SCALE; ex.fillStyle = col; ex.fillRect(X - 2, Y - 2, 4, 4); };
+    if (measA) pt(measA, '#ffd84f');
+    if (measA && measB) {
+      pt(measB, '#9ad8ff');
+      ex.strokeStyle = '#fff'; ex.lineWidth = 1; ex.beginPath();
+      ex.moveTo(OX + measA.x * SCALE, OY + measA.y * SCALE); ex.lineTo(OX + measB.x * SCALE, OY + measB.y * SCALE); ex.stroke();
+      const dx = Math.abs(measB.x - measA.x), dy = Math.abs(measB.y - measA.y);
+      $('measlbl').textContent = `ancho ${dx}px · alto ${dy}px · diag ${Math.hypot(dx, dy).toFixed(1)}px`;
+    } else $('measlbl').textContent = 'clic punto B…';
+  }
   $('curlbl').textContent = fi;
   document.querySelectorAll('#thumbs canvas').forEach((c, i) => c.classList.toggle('cur', i === cur));
 }
@@ -162,6 +175,7 @@ function paint(fp) {
 }
 ed.addEventListener('pointerdown', e => {
   ed.setPointerCapture(e.pointerId); const fp = evtToFrame(e);
+  if (tool === 'measure') { if (!measA || measB) { measA = { x: Math.round(fp.x), y: Math.round(fp.y) }; measB = null; } else { measB = { x: Math.round(fp.x), y: Math.round(fp.y) }; } render(); return; }
   if (tool === 'contour') { painting = true; paint(fp); render(); }
   else if (tool === 'grip') { const hand = hands[cur]; grip = { x: Math.round(fp.x - hand.x + grip.x), y: Math.round(fp.y - hand.y + grip.y) }; $('griplbl').textContent = `{x:${grip.x}, y:${grip.y}}`; save(); render(); }
   else { hands[cur] = { x: Math.round(fp.x), y: Math.round(fp.y) }; save(); render(); buildThumbs(); }
@@ -176,10 +190,11 @@ $('copyContour').onclick = () => { const pc = masks[(cur - 1 + CFG.n) % CFG.n]; 
 $('clearContour').onclick = () => { masks[cur].getContext('2d').clearRect(0, 0, CFG.f, CFG.f); save(); render(); buildThumbs(); };
 $('depthbtn').onclick = () => { depthFront = !depthFront; $('depthbtn').textContent = 'staff: ' + (depthFront ? 'adelante' : 'atrás'); save(); render(); };
 $('eraseBtn').onclick = () => { erase = !erase; $('eraseBtn').classList.toggle('on', erase); };
-function setTool(t) { tool = t; ['Hand', 'Grip', 'Contour'].forEach(n => $('tool' + n).classList.toggle('on', t === n.toLowerCase())); $('contourRow').style.display = t === 'contour' ? 'flex' : 'none'; render(); }
+function setTool(t) { tool = t; ['Hand', 'Grip', 'Contour', 'Measure'].forEach(n => $('tool' + n).classList.toggle('on', t === n.toLowerCase())); $('contourRow').style.display = t === 'contour' ? 'flex' : 'none'; $('measRow').style.display = t === 'measure' ? 'flex' : 'none'; render(); }
 $('toolHand').onclick = () => setTool('hand');
 $('toolGrip').onclick = () => setTool('grip');
 $('toolContour').onclick = () => setTool('contour');
+$('toolMeasure').onclick = () => setTool('measure');
 $('btnLoad').onclick = load;
 $('copybtn').onclick = () => { navigator.clipboard.writeText($('out').value); $('saved').textContent = '✓ copiado'; setTimeout(() => $('saved').textContent = '', 900); };
 $('exportFront').onclick = () => {
