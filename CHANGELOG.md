@@ -5,6 +5,13 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
 
 ## [Sin publicar] — 2026-06-12 (tarde/noche)
 
+### Gameplay
+- **Cofres con colisión + abrir con [E]**: ya no se atraviesan ni se abren solos al
+  tocarlos; bloquean el paso y se abren apretando E al lado (al abrirse dejan de
+  bloquear). El cofre dorado igual, pidiendo la llave. Hint "[E] Abrir cofre".
+- **Drops más juntos**: la dispersión lateral al soltarse bajó de ±55 a ±24 px.
+- **Monedas más chicas** en el piso (15 → 10 px).
+
 ### UI / Arte
 - **Corona de ladrillo en los muros**: el tope negro justo encima de cada cara de
   muro ahora lleva una fila de ladrillo (franja superior del mismo tile + sombra

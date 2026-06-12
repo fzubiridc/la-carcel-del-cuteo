@@ -169,11 +169,22 @@ function rectHitsWall(level, x, y, w, h) {
   return false;
 }
 
-// Mover entidad eje por eje (permite deslizarse por paredes)
+// ¿El rectángulo choca con un cofre cerrado? (solo bloquea al jugador)
+function rectHitsChest(level, x, y, w, h) {
+  const hw = w / 2 + 5, hh = h / 2 + 5; // 5 = medio-tamaño de colisión del cofre
+  const hit = (cx, cy) => Math.abs(x - cx) < hw && Math.abs(y - cy) < hh;
+  for (const ch of level.chests) if (!ch.opened && hit(ch.x, ch.y)) return true;
+  const lc = level.lockedChest;
+  return !!(lc && !lc.opened && hit(lc.x, lc.y));
+}
+
+// Mover entidad eje por eje (permite deslizarse por paredes). Los cofres cerrados
+// bloquean al jugador (no se puede pasar por arriba; se abren con [E]).
 function moveWithCollision(level, e, dx, dy, noclip) {
   if (noclip) { e.x += dx; e.y += dy; clampToLevel(level, e); return; }
-  if (dx !== 0 && !rectHitsWall(level, e.x + dx, e.y, e.w, e.h)) e.x += dx;
-  if (dy !== 0 && !rectHitsWall(level, e.x, e.y + dy, e.w, e.h)) e.y += dy;
+  const chestBlock = (typeof state !== 'undefined' && e === state.player);
+  if (dx !== 0 && !rectHitsWall(level, e.x + dx, e.y, e.w, e.h) && !(chestBlock && rectHitsChest(level, e.x + dx, e.y, e.w, e.h))) e.x += dx;
+  if (dy !== 0 && !rectHitsWall(level, e.x, e.y + dy, e.w, e.h) && !(chestBlock && rectHitsChest(level, e.x, e.y + dy, e.w, e.h))) e.y += dy;
 }
 
 function clampToLevel(level, e) {

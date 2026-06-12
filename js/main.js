@@ -368,6 +368,28 @@ function tryDash() {
   sfx('dash');
 }
 
+// cofre común: tapa que cruje, loot y se vuelve transitable (deja de bloquear)
+function openChest(ch) {
+  ch.opened = true;
+  sfx('chest');
+  burst(ch.x, ch.y, '#ffd84f', 10);
+  spawnPickup('item', ch.x, ch.y - 6, makeItem(state.run.depth + 1));
+  spawnPickup('coin', ch.x, ch.y + 4).val = randInt(5, 12) + state.run.depth * 2;
+  if (Math.random() < 0.5) spawnPickup('potion', ch.x + randInt(-6, 6), ch.y + 8);
+  if (Math.random() < 0.4) spawnPickup('manapotion', ch.x + randInt(-6, 6), ch.y - 2);
+}
+
+// cofre dorado: consume la llave, loot raro+ y fanfarria
+function openLockedChest(lc) {
+  lc.opened = true;
+  state.player.hasKey = false;
+  sfx('chest'); sfx('levelup');
+  burst(lc.x, lc.y, '#ffd84f', 20);
+  spawnPickup('item', lc.x - 8, lc.y - 6, makeItemMinRare(state.run.depth + 1));
+  spawnPickup('item', lc.x + 8, lc.y - 6, makeItem(state.run.depth + 1));
+  spawnPickup('coin', lc.x, lc.y + 6).val = randInt(15, 30) + state.run.depth * 4;
+}
+
 function tryInteract() {
   if (state.shopOpen) { closeShop(); return; }
   if (state.mode !== 'play' || state.paused || state.invOpen || state.upgradeOpen) return;
@@ -389,6 +411,16 @@ function tryInteract() {
     sfx('summon');
     spawnPickup('item', lvl.altar.x, lvl.altar.y - 10, makeItemMinRare(state.run.depth + 1));
     toast('El altar acepta tu sacrificio...', '#d8403f');
+    return;
+  }
+  // cofre común: abrir estando al lado (el cofre bloquea el paso)
+  for (const ch of lvl.chests) {
+    if (!ch.opened && Math.hypot(p.x - ch.x, p.y - ch.y) < TILE * 1.4) { openChest(ch); return; }
+  }
+  // cofre dorado: necesita la llave
+  if (lvl.lockedChest && !lvl.lockedChest.opened && Math.hypot(p.x - lvl.lockedChest.x, p.y - lvl.lockedChest.y) < TILE * 1.4) {
+    if (p.hasKey) openLockedChest(lvl.lockedChest);
+    else toast('Cerrado — la llave la tiene una criatura de este piso', '#8a8496');
     return;
   }
   // escalera de subida: volver al piso anterior (queda como lo dejaste)
@@ -534,30 +566,7 @@ function update(dt) {
     if (m.y < 0) m.y += lvl.H * TILE; if (m.y > lvl.H * TILE) m.y -= lvl.H * TILE;
   }
 
-  // cofres: se abren al tocarlos
-  for (const ch of lvl.chests) {
-    if (!ch.opened && Math.hypot(p.x - ch.x, p.y - ch.y) < 16) {
-      ch.opened = true;
-      sfx('chest'); // crujido de tapa de madera
-      burst(ch.x, ch.y, '#ffd84f', 10);
-      spawnPickup('item', ch.x, ch.y - 6, makeItem(state.run.depth + 1));
-      spawnPickup('coin', ch.x, ch.y + 4).val = randInt(5, 12) + state.run.depth * 2;
-      if (Math.random() < 0.5) spawnPickup('potion', ch.x + randInt(-10, 10), ch.y + 8); // poción de vida frecuente en cofres
-      if (Math.random() < 0.4) spawnPickup('manapotion', ch.x + randInt(-10, 10), ch.y - 2); // y a veces poción de maná
-    }
-  }
-
-  // cofre dorado: solo se abre con la llave
-  const lc = lvl.lockedChest;
-  if (lc && !lc.opened && Math.hypot(p.x - lc.x, p.y - lc.y) < 16 && p.hasKey) {
-    lc.opened = true;
-    p.hasKey = false;
-    sfx('chest'); sfx('levelup'); // crujido de tapa + fanfarria de recompensa
-    burst(lc.x, lc.y, '#ffd84f', 20);
-    spawnPickup('item', lc.x - 8, lc.y - 6, makeItemMinRare(state.run.depth + 1));
-    spawnPickup('item', lc.x + 8, lc.y - 6, makeItem(state.run.depth + 1));
-    spawnPickup('coin', lc.x, lc.y + 6).val = randInt(15, 30) + state.run.depth * 4;
-  }
+  // cofres: ahora bloquean el paso y se abren con [E] (ver tryInteract/openChest)
 
   // niebla explorada (para el minimapa)
   const ptx = Math.floor(p.x / TILE), pty = Math.floor(p.y / TILE);
@@ -585,8 +594,10 @@ function updatePrompt() {
     msg = '[E] Comerciar';
   else if (lvl.altar && !lvl.altar.used && Math.hypot(p.x - lvl.altar.x, p.y - lvl.altar.y) < TILE * 1.4)
     msg = '[E] Sacrificar 25% de vida por un tesoro';
-  else if (lvl.lockedChest && !lvl.lockedChest.opened && Math.hypot(p.x - lvl.lockedChest.x, p.y - lvl.lockedChest.y) < TILE * 1.6 && !p.hasKey)
-    msg = 'Cerrado — la llave la tiene una criatura de este piso';
+  else if (lvl.chests.some(ch => !ch.opened && Math.hypot(p.x - ch.x, p.y - ch.y) < TILE * 1.4))
+    msg = '[E] Abrir cofre';
+  else if (lvl.lockedChest && !lvl.lockedChest.opened && Math.hypot(p.x - lvl.lockedChest.x, p.y - lvl.lockedChest.y) < TILE * 1.6)
+    msg = p.hasKey ? '[E] Abrir cofre dorado' : 'Cerrado — la llave la tiene una criatura de este piso';
   else if (state.run.depth > 1 && Math.hypot(p.x - lvl.start.x, p.y - lvl.start.y) < TILE * 1.2)
     msg = '[E] Volver al piso anterior';
   else if (lvl.exitOpen) {
@@ -785,7 +796,7 @@ function render(dt) {
     const bob = -(pk.hz || 0); // altura del salto al caer; asentado = 0 (sin flote)
     if (pk.kind === 'coin') {
       const cimg = typeof coinPileImg === 'function' ? coinPileImg(pk.val || 1) : null;
-      if (cimg) { const s = 15; ctx.drawImage(cimg, pk.x - s / 2, pk.y - s / 2 + bob, s, s); }
+      if (cimg) { const s = 10; ctx.drawImage(cimg, pk.x - s / 2, pk.y - s / 2 + bob, s, s); }
       else ctx.drawImage(Sprites.moneda, pk.x - 3, pk.y - 3 + bob);
     }
     else if (pk.kind === 'heart') ctx.drawImage(Sprites.corazon, pk.x - 3.5, pk.y - 3 + bob);

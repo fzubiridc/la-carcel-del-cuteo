@@ -691,7 +691,7 @@ function spawnPickup(kind, x, y, item) {
   // al soltarse, el drop salta un poco hacia arriba y al costado y cae seco al piso
   const pk = { kind, x, y, item: item || null, t: Math.random() * Math.PI * 2, noPickT: 0.4,
     hz: 4, vz: 55 + Math.random() * 55,                       // altura/velocidad del salto
-    sx: (Math.random() * 2 - 1) * 55, sy: (Math.random() * 2 - 1) * 55, // dispersión lateral
+    sx: (Math.random() * 2 - 1) * 24, sy: (Math.random() * 2 - 1) * 24, // dispersión lateral (juntos)
     settled: false };
   state.pickups.push(pk);
   return pk;
