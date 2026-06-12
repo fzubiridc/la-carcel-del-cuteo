@@ -654,6 +654,24 @@ function itemIcon(item) {
   return Sprites['icon_' + item.slot];
 }
 
+// Íconos PNG de varas arcanas por tier (PixelLab, 128px). Si cargaron, reemplazan
+// el icono pixel del bastón según el material/tier (0-5) del arma.
+const STAFF_ICONS = {};
+function loadStaffIcons() {
+  for (const n of ['t1', 't2', 't3', 'base']) {
+    const im = new Image(), nn = n;
+    im.onload = () => { STAFF_ICONS[nn] = im; };
+    im.src = 'assets/items/weapons/staffs/arcane/staff_arcane_' + nn + '.png';
+  }
+}
+// Devuelve la Image de vara para el tier del arma (mapea 0-5 → t1/t2/t3), o null
+// si no es un bastón o todavía no cargaron los PNG.
+function staffIconImg(item) {
+  if (!item || item.weaponType !== 'baston') return null;
+  const tierMap = ['t1', 't1', 't2', 't2', 't3', 't3'];
+  return STAFF_ICONS[tierMap[weaponTier(item)]] || STAFF_ICONS.base || null;
+}
+
 // =====================================================================
 // Equipo visible sobre el personaje: capas teñidas por rareza.
 // P = color primario de la rareza, S = sombra. Cada capa sabe en qué

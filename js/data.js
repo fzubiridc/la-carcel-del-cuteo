@@ -32,8 +32,8 @@ const WEAPON_TYPES = {
   martillo: { name: 'Martillo', cls: 'guerrero', dmg: 24, cd: 0.85, style: 'smash', range: 30, icon: 'martillo', baseRot: Math.PI / 4 },
   arco:     { name: 'Arco',     cls: 'arquero',  dmg: 10, cd: 0.50, style: 'arrow', projSpd: 300, icon: 'arco', baseRot: 0 },
   ballesta: { name: 'Ballesta', cls: 'arquero',  dmg: 15, cd: 0.78, style: 'arrow', projSpd: 350, pierce: 2, icon: 'ballesta', baseRot: 0 },
-  baston:   { name: 'Bastón',   cls: 'mago',     dmg: 15, cd: 0.70, style: 'bolt',  projSpd: 190, splash: 18, projSize: 12, projRange: 128, icon: 'baston', baseRot: Math.PI / 2 },
-  varita:   { name: 'Varita',   cls: 'mago',     dmg: 7,  cd: 0.26, style: 'bolt',  projSpd: 270, splash: 0, projSize: 8, projRange: 105, icon: 'varita', baseRot: Math.PI / 4 },
+  baston:   { name: 'Bastón',   cls: 'mago',     dmg: 15, cd: 0.70, style: 'bolt',  projSpd: 190, splash: 18, projSize: 12, projRange: 128, manaCost: 22, icon: 'baston', baseRot: Math.PI / 2 },
+  varita:   { name: 'Varita',   cls: 'mago',     dmg: 7,  cd: 0.26, style: 'bolt',  projSpd: 270, splash: 0, projSize: 8, projRange: 105, manaCost: 9, icon: 'varita', baseRot: Math.PI / 4 },
 };
 
 // Materiales: escalera ordenada de calidad. El material define el stat base
@@ -170,7 +170,7 @@ const BALANCE = {
   dropItem: 0.13,        // prob. de ítem al matar
   dropCoin: 0.30,        // prob. de moneda
   dropHeart: 0.11,       // prob. de corazón
-  dropPotion: 0.04,      // prob. de poción
+  dropPotion: 0.10,      // prob. de poción
   heartHeal: 22,
   bagSize: 24,
   maxPotions: 3,

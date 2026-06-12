@@ -1,0 +1,67 @@
+{
+  "group_id": "e4845e79-27c4-405d-8470-af0de2ca4cbb",
+  "objects": [
+    {
+      "id": "caf89452-0730-4659-a7c9-8a175ee2d661",
+      "name": "Base",
+      "prompt": "Create a single 2D pixel art mage staff for a medieval fantasy dungeon crawler RPG, top-down inventory style, one direction, transparent background. Design the BASE IDENTITY of an Arcane Staff weapon family. Core identity: - dark wooden shaft - a purple arcane crystal as the main focal point at the top - symmetrical magical headpiece - dark fantasy medieval style - polished pixel art - readable silhouette - vertical centered composition - suitable for a 128x128 inventory asset Important: This is the BASE DESIGN of the arcane staff family. Keep the identity clean, consistent, and reusable for future tier variations. Future tiers must feel like evolutions of this same weapon family. Do not make it overly legendary yet. Do not add excessive magical effects. No character, no UI, no text, no environment, no background. Focus on: - clean silhouette - clear hierarchy of materials - elegant arcane look - strong readability",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    },
+    {
+      "id": "7d57bb3e-2e95-4c17-9f79-1fe59aed74b9",
+      "name": "T1",
+      "prompt": "Create a single 2D pixel art mage staff for a medieval fantasy dungeon crawler RPG, top-down inventory style, one direction, transparent background. Design the BASE IDENTITY of an Arcane Staff weapon family. Core identity: - dark wooden shaft - a purple arcane crystal as the main focal point at the top - symmetrical magical headpiece - dark fantasy medieval style - polished pixel art - readable silhouette - vertical centered composition - suitable for a 128x128 inventory asset Important: This is the BASE DESIGN of the arcane staff family. Keep the identity clean, consistent, and reusable for future tier variations. Future tiers must feel like evolutions of this same weapon family. Do not make it overly legendary yet. Do not add excessive magical effects. No character, no UI, no text, no environment, no background. Focus on: - clean silhouette - clear hierarchy of materials - elegant arcane look - strong readability",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    },
+    {
+      "id": "53c71e37-68a9-4ad1-b5ec-b4f69f62e057",
+      "name": "T2",
+      "prompt": "Create a single 2D pixel art mage staff for a medieval fantasy dungeon crawler RPG, top-down inventory style, one direction, transparent background. Design the BASE IDENTITY of an Arcane Staff weapon family. Core identity: - dark wooden shaft - a purple arcane crystal as the main focal point at the top - symmetrical magical headpiece - dark fantasy medieval style - polished pixel art - readable silhouette - vertical centered composition - suitable for a 128x128 inventory asset Important: This is the BASE DESIGN of the arcane staff family. Keep the identity clean, consistent, and reusable for future tier variations. Future tiers must feel like evolutions of this same weapon family. Do not make it overly legendary yet. Do not add excessive magical effects. No character, no UI, no text, no environment, no background. Focus on: - clean silhouette - clear hierarchy of materials - elegant arcane look - strong readability",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    },
+    {
+      "id": "308cad6b-6513-4bf3-bc42-af746cb47941",
+      "name": "T3",
+      "prompt": "Create a single 2D pixel art mage staff for a medieval fantasy dungeon crawler RPG, top-down inventory style, one direction, transparent background. Design the BASE IDENTITY of an Arcane Staff weapon family. Core identity: - dark wooden shaft - a purple arcane crystal as the main focal point at the top - symmetrical magical headpiece - dark fantasy medieval style - polished pixel art - readable silhouette - vertical centered composition - suitable for a 128x128 inventory asset Important: This is the BASE DESIGN of the arcane staff family. Keep the identity clean, consistent, and reusable for future tier variations. Future tiers must feel like evolutions of this same weapon family. Do not make it overly legendary yet. Do not add excessive magical effects. No character, no UI, no text, no environment, no background. Focus on: - clean silhouette - clear hierarchy of materials - elegant arcane look - strong readability",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-06-12T00:07:12.726595"
+}

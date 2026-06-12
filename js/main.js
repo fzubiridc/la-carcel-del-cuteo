@@ -29,6 +29,7 @@ window.addEventListener('load', () => {
   if (typeof loadHeroPack === 'function') loadHeroPack(); // asset pack final del héroe (reemplaza en caliente)
   if (typeof loadV2Hero === 'function') loadV2Hero(); // mago v2 experimental (PixelLab)
   loadAssets(); // los CC0 de 32px reemplazan en caliente; hay fallback por código
+  if (typeof loadStaffIcons === 'function') loadStaffIcons(); // íconos de vara arcana por tier (PixelLab)
   canvas = $('game'); ctx = canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
   resize();
@@ -64,6 +65,7 @@ function bindInput() {
     if (k === 'e') tryInteract();
     if (k === ' ') { e.preventDefault(); tryDash(); }
     if (k === 'q') drinkPotion();
+    if (k === 'f') drinkManaPotion();
     if (k === 'm') toggleMusic();
     // autoplay: si la música quedó bloqueada, este gesto la destraba
     if (music && music.paused && musicOk && !musicMuted) music.play().catch(() => { });
@@ -472,6 +474,12 @@ function update(dt) {
   }
 
   p.atkCd = Math.max(0, p.atkCd - dt);
+  // maná: se regenera al dejar de castear (delay 0.6s, ~28%/s → full en ~3.5s)
+  if (p.stats && p.stats.maxMana) {
+    p.noCastT = (p.noCastT || 0) + dt;
+    if (p.mana < p.stats.maxMana && p.noCastT > 0.6)
+      p.mana = Math.min(p.stats.maxMana, p.mana + p.stats.maxMana * 0.28 * dt);
+  }
   p.ifr = Math.max(0, p.ifr - dt);
   p.swingT = Math.max(0, p.swingT - dt);
   p.attackT = Math.max(0, (p.attackT || 0) - dt);
@@ -499,6 +507,8 @@ function update(dt) {
       burst(ch.x, ch.y, '#ffd84f', 10);
       spawnPickup('item', ch.x, ch.y - 6, makeItem(state.run.depth + 1));
       for (let i = 0; i < 3; i++) spawnPickup('coin', ch.x + randInt(-12, 12), ch.y + randInt(-10, 10));
+      if (Math.random() < 0.5) spawnPickup('potion', ch.x + randInt(-10, 10), ch.y + 8); // poción de vida frecuente en cofres
+      if (Math.random() < 0.4) spawnPickup('manapotion', ch.x + randInt(-10, 10), ch.y - 2); // y a veces poción de maná
     }
   }
 
@@ -709,6 +719,15 @@ function render(dt) {
     if (pk.kind === 'coin') ctx.drawImage(Sprites.moneda, pk.x - 3, pk.y - 3 + bob);
     else if (pk.kind === 'heart') ctx.drawImage(Sprites.corazon, pk.x - 3.5, pk.y - 3 + bob);
     else if (pk.kind === 'potion') ctx.drawImage(Sprites.pocion, pk.x - 3, pk.y - 4 + bob);
+    else if (pk.kind === 'manapotion') {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(90,170,255,0.22)';
+      ctx.beginPath(); ctx.arc(pk.x, pk.y + bob, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#2f7fe6'; ctx.fillRect(pk.x - 2.5, pk.y - 2 + bob, 5, 6);
+      ctx.fillStyle = '#9ad8ff'; ctx.fillRect(pk.x - 2.5, pk.y + bob, 5, 2);
+      ctx.fillStyle = '#d8d2c8'; ctx.fillRect(pk.x - 1, pk.y - 4 + bob, 2, 2);
+    }
     else if (pk.kind === 'key') {
       ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = 'rgba(255,216,79,0.2)';
@@ -727,11 +746,18 @@ function render(dt) {
       ctx.globalCompositeOperation = 'source-over';
     }
     else if (pk.kind === 'item') {
-      const spr = itemIcon(pk.item);
       const r = rarityOf(pk.item);
       ctx.fillStyle = r.color + '44';
       ctx.beginPath(); ctx.arc(pk.x, pk.y + 2, 7, 0, Math.PI * 2); ctx.fill();
-      ctx.drawImage(spr, pk.x - spr.width / 2, pk.y - spr.height / 2 + bob);
+      const simg = staffIconImg(pk.item);
+      if (simg) { // vara arcana 128px → escalada a tamaño de drop, con suavizado
+        const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(simg, pk.x - 9, pk.y - 11 + bob, 18, 18);
+        ctx.imageSmoothingEnabled = sm;
+      } else {
+        const spr = itemIcon(pk.item);
+        ctx.drawImage(spr, pk.x - spr.width / 2, pk.y - spr.height / 2 + bob);
+      }
     }
   }
 
@@ -764,6 +790,17 @@ function render(dt) {
 
   // proyectiles
   for (const pr of state.projs) {
+    // luz ambiental del orbe mágico: ilumina el piso por donde pasa (en cualquier sala)
+    if (pr.style === 'bolt') {
+      ctx.globalCompositeOperation = 'lighter';
+      const lr = 38, lg = ctx.createRadialGradient(pr.x, pr.y, 0, pr.x, pr.y, lr);
+      lg.addColorStop(0, 'rgba(130,195,255,0.36)');
+      lg.addColorStop(0.5, 'rgba(120,90,225,0.14)');
+      lg.addColorStop(1, 'rgba(120,90,225,0)');
+      ctx.fillStyle = lg;
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, lr, 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
     if (pr.style === 'arrow') {
       ctx.save();
       ctx.translate(pr.x, pr.y); ctx.rotate(pr.ang);
@@ -925,6 +962,18 @@ function render(dt) {
     grad.addColorStop(1, 'rgba(5,4,8,0.94)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // los orbes mágicos iluminan por donde pasan: perforan la oscuridad
+    ctx.globalCompositeOperation = 'destination-out';
+    for (const pr of state.projs) {
+      if (pr.dead || pr.style !== 'bolt') continue;
+      const bx = (pr.x - state.cam.x) * ZOOM, by = (pr.y - state.cam.y) * ZOOM;
+      const lg = ctx.createRadialGradient(bx, by, 2 * ZOOM, bx, by, 30 * ZOOM);
+      lg.addColorStop(0, 'rgba(0,0,0,0.92)');
+      lg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = lg;
+      ctx.fillRect(bx - 30 * ZOOM, by - 30 * ZOOM, 60 * ZOOM, 60 * ZOOM);
+    }
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   // números flotantes (en espacio de pantalla para que el texto sea nítido)

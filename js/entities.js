@@ -11,7 +11,8 @@ function makePlayer(clsId) {
     hp: cls.hp, stats: null,
     equip: { arma: makeStarterWeapon(cls.weapon), casco: null, coraza: null, botas: null, anillo: null, amuleto: null,
       foco: null, guantes: null, cinturon: null, anillo2: null },
-    bag: Array(BALANCE.bagSize).fill(null), coins: 0, potions: 1,
+    bag: Array(BALANCE.bagSize).fill(null), coins: 0, potions: 1, manaPotions: 1,
+    mana: 0, noCastT: 0,
     level: 1, xp: 0, xpNext: 25,
     bonus: { hp: 0, spd: 0, crit: 0, atkspd: 0, def: 0, dmgMul: 1 },
     atkCd: 0, ifr: 0, stunT: 0, dir: 1,
@@ -21,6 +22,7 @@ function makePlayer(clsId) {
   };
   calcStats(p);
   p.hp = p.stats.maxhp;
+  p.mana = p.stats.maxMana;
   return p;
 }
 
@@ -49,8 +51,60 @@ function spawnEnemy(typeId, x, y, depth, isBossType, elite) {
 
 // ---------------- Actualización de enemigos ----------------
 
+// --- pathfinding: campo de flujo (BFS desde el jugador) + línea de visión ---
+let _flow = null;
+function buildFlow(lvl, px, py) {
+  const W = lvl.W, H = lvl.H, sx = Math.floor(px / TILE), sy = Math.floor(py / TILE);
+  if (sx < 0 || sy < 0 || sx >= W || sy >= H || tileSolid(lvl, sx, sy)) { _flow = null; return; }
+  const dist = new Int16Array(W * H); dist.fill(-1);
+  const q = [sy * W + sx]; dist[sy * W + sx] = 0;
+  const MAX = 32;
+  for (let head = 0; head < q.length; head++) {
+    const cur = q[head], cd = dist[cur];
+    if (cd >= MAX) continue;
+    const cx = cur % W, cy = (cur / W) | 0;
+    const nx = [cx + 1, cx - 1, cx, cx], ny = [cy, cy, cy + 1, cy - 1];
+    for (let k = 0; k < 4; k++) {
+      if (nx[k] < 0 || nx[k] >= W || ny[k] < 0 || ny[k] >= H) continue;
+      const ni = ny[k] * W + nx[k];
+      if (dist[ni] !== -1 || tileSolid(lvl, nx[k], ny[k])) continue;
+      dist[ni] = cd + 1; q.push(ni);
+    }
+  }
+  _flow = { dist, W };
+}
+// siguiente paso ortogonal hacia el jugador, descendiendo el gradiente del campo
+function flowStep(lvl, e) {
+  if (!_flow) return null;
+  const W = _flow.W, dist = _flow.dist;
+  const ex = Math.floor(e.x / TILE), ey = Math.floor(e.y / TILE);
+  if (ex < 0 || ey < 0 || ex >= lvl.W || ey >= lvl.H) return null;
+  const here = dist[ey * W + ex];
+  if (here <= 0) return null; // fuera del campo, o ya sobre el jugador
+  let best = null, bestD = here;
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (const [ddx, ddy] of dirs) {
+    const nx = ex + ddx, ny = ey + ddy;
+    if (nx < 0 || ny < 0 || nx >= lvl.W || ny >= lvl.H) continue;
+    const d = dist[ny * W + nx];
+    if (d >= 0 && d < bestD) { bestD = d; best = [ddx, ddy]; }
+  }
+  return best;
+}
+// línea de visión: false si una pared corta el segmento enemigo→jugador
+function hasLOS(lvl, x0, y0, x1, y1) {
+  const dx = x1 - x0, dy = y1 - y0, dlen = Math.hypot(dx, dy) || 1;
+  const steps = Math.ceil(dlen / (TILE * 0.5));
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    if (tileSolid(lvl, Math.floor((x0 + dx * t) / TILE), Math.floor((y0 + dy * t) / TILE))) return false;
+  }
+  return true;
+}
+
 function updateEnemies(dt) {
   const p = state.player, lvl = state.level;
+  buildFlow(lvl, p.x, p.y);
   for (const e of state.enemies) {
     e.flashT = Math.max(0, e.flashT - dt);
     e.hitCd = Math.max(0, e.hitCd - dt);
@@ -66,11 +120,13 @@ function updateEnemies(dt) {
     const dist = Math.hypot(dx, dy) || 1;
     // aggro: el jugador en la sala del enemigo (o muy cerca, p.ej. pasillo).
     // Una vez en contacto persigue 1.5 s más; si te vas de la sala, deja de seguir.
+    const los = e.def.ghost || hasLOS(lvl, e.x, e.y, p.x, p.y);
     let inContact = dist < BALANCE.aggroRadius * TILE;
     if (e.room) {
       const ptx = p.x / TILE, pty = p.y / TILE, r = e.room;
       if (ptx >= r.x - 1 && ptx <= r.x + r.w && pty >= r.y - 1 && pty <= r.y + r.h) inContact = true;
     } else if (dist < BALANCE.aggroRadiusOpen * TILE) inContact = true; // sin sala (arena/llave): radio
+    if (!los) inContact = false; // no te detecta a través de paredes (pero si ya te vio, te persigue rodeando)
     // leash: demasiado lejos de su origen → suelta al jugador y vuelve a casa
     const homeD = e.isBoss ? 0 : Math.hypot(e.hx - e.x, e.hy - e.y);
     const leashed = !e.isBoss && homeD > BALANCE.leashTiles * TILE;
@@ -95,15 +151,19 @@ function updateEnemies(dt) {
       e.dir = dx >= 0 ? 1 : -1;
     } else if (aggro) {
       if (e.ai === 'chaser') {
-        // persecución ortogonal (en escalera): avanza por el eje dominante;
-        // si está bloqueado por pared, prueba el otro eje
-        const stepX = Math.abs(dx) >= Math.abs(dy);
-        const ox = e.x, oy = e.y;
-        if (stepX) moveWithCollision(lvl, e, Math.sign(dx) * e.spd * dt, 0, e.def.ghost);
-        else moveWithCollision(lvl, e, 0, Math.sign(dy) * e.spd * dt, e.def.ghost);
-        if (Math.abs(e.x - ox) < 0.01 && Math.abs(e.y - oy) < 0.01) {
-          if (stepX) moveWithCollision(lvl, e, 0, Math.sign(dy) * e.spd * dt, e.def.ghost);
-          else moveWithCollision(lvl, e, Math.sign(dx) * e.spd * dt, 0, e.def.ghost);
+        // pathfinding: sigue el campo de flujo (camino ortogonal más corto, rodea paredes)
+        const step = flowStep(lvl, e);
+        if (step) {
+          moveWithCollision(lvl, e, step[0] * e.spd * dt, step[1] * e.spd * dt, e.def.ghost);
+        } else {
+          // fallback (fuera del campo de flujo): persecución ortogonal greedy
+          const stepX = Math.abs(dx) >= Math.abs(dy), ox = e.x, oy = e.y;
+          if (stepX) moveWithCollision(lvl, e, Math.sign(dx) * e.spd * dt, 0, e.def.ghost);
+          else moveWithCollision(lvl, e, 0, Math.sign(dy) * e.spd * dt, e.def.ghost);
+          if (Math.abs(e.x - ox) < 0.01 && Math.abs(e.y - oy) < 0.01) {
+            if (stepX) moveWithCollision(lvl, e, 0, Math.sign(dy) * e.spd * dt, e.def.ghost);
+            else moveWithCollision(lvl, e, Math.sign(dx) * e.spd * dt, 0, e.def.ghost);
+          }
         }
       } else if (e.ai === 'erratic') {
         const wob = Math.sin(e.wobble) * 0.6;
@@ -329,9 +389,10 @@ function updateProjectiles(dt) {
     pr.life -= dt;
     pr.t += dt;
     if (pr.life <= 0) {
-      // el poder se agota: chisporroteo y muere
+      // al llegar a destino: el orbe con área estalla (animación + splash); el resto chisporrotea
       pr.dead = true;
-      burst(pr.x, pr.y, pr.color, 3);
+      if (pr.splash) explode(pr);
+      else burst(pr.x, pr.y, pr.color, 3);
       continue;
     }
 
@@ -440,6 +501,8 @@ function playerAttack(aimAng) {
   const p = state.player;
   if (p.atkCd > 0) return;
   const wt = weaponDef(p);
+  // los hechizos consumen maná: sin maná suficiente no se castea (ni gasta cooldown)
+  if (wt.style === 'bolt' && (p.mana || 0) < (wt.manaCost || 0)) return;
   p.atkCd = attackCooldown(p);
   // sólo melee hace el golpe del cuerpo; magia/distancia no "cortan"
   if (wt.style === 'melee') p.attackT = 0.30;
@@ -504,8 +567,16 @@ function playerAttack(aimAng) {
     sfx('shoot');
   } else if (wt.style === 'bolt') {
     // el hechizo sale de la punta del bastón/varita, no del cuerpo
+    p.mana = Math.max(0, (p.mana || 0) - (wt.manaCost || 0)); p.noCastT = 0;
     const mx = p.x + Math.cos(aimAng) * 16, my = p.y - 6 + Math.sin(aimAng) * 16;
-    fireProj({ x: mx, y: my, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit, size: wt.projSize || 6, range: wt.projRange });
+    // en desktop el orbe termina donde apuntás (no sigue de largo); tope = alcance del arma
+    let boltRange = wt.projRange;
+    if (!touch.enabled) {
+      const cd = Math.hypot(mouseWorldX() - mx, mouseWorldY() - my);
+      // recorre un mínimo aunque apuntes cerca (no estalla pegado al mago); tope = alcance del arma
+      boltRange = Math.max(50, Math.min(wt.projRange, cd));
+    }
+    fireProj({ x: mx, y: my, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit, size: wt.projSize || 6, range: boltRange });
     // destello de lanzamiento en la punta del bastón
     const hx = p.x + Math.cos(aimAng) * 9, hy = p.y + Math.sin(aimAng) * 9;
     for (let i = 0; i < 5; i++) {
@@ -585,11 +656,19 @@ function dropLoot(e) {
     spawnPickup('heart', e.x + randInt(-10, 10), e.y + 16);
     return;
   }
+  // monedas: cantidad random escalada con la dureza del bicho — los fáciles dan
+  // menos, los duros más. Base ~ maxhp/14 (rata≈1, esqueleto≈2, gólem≈5, caballero≈6),
+  // luego un rango random para que varíe entre kills del mismo enemigo.
+  const coinBase = Math.max(1, Math.round((e.maxhp || 14) / 14));
+  const coinCount = randInt(coinBase, coinBase * 2 + 1);
+  for (let i = 0; i < coinCount; i++)
+    spawnPickup('coin', e.x + randInt(-12, 12), e.y + randInt(-12, 12));
+  // drop extra (ítem / corazón / poción) — las monedas ya se resolvieron arriba
   const r = Math.random();
   if (r < BALANCE.dropItem) spawnPickup('item', e.x, e.y, makeItem(depth));
-  else if (r < BALANCE.dropItem + BALANCE.dropCoin) spawnPickup('coin', e.x, e.y);
-  else if (r < BALANCE.dropItem + BALANCE.dropCoin + BALANCE.dropHeart) spawnPickup('heart', e.x, e.y);
-  else if (r < BALANCE.dropItem + BALANCE.dropCoin + BALANCE.dropHeart + BALANCE.dropPotion) spawnPickup('potion', e.x, e.y);
+  else if (r < BALANCE.dropItem + BALANCE.dropHeart) spawnPickup('heart', e.x, e.y);
+  else if (r < BALANCE.dropItem + BALANCE.dropHeart + BALANCE.dropPotion) spawnPickup('potion', e.x, e.y);
+  else if (r < BALANCE.dropItem + BALANCE.dropHeart + BALANCE.dropPotion * 2) spawnPickup('manapotion', e.x, e.y);
 }
 
 // re-tirar mods si subimos la rareza del drop de jefe
@@ -629,6 +708,10 @@ function updatePickups(dt) {
       else if (pk.kind === 'potion') {
         if (p.potions < BALANCE.maxPotions) { p.potions++; pk.dead = true; sfx('pickup'); toast('Poción de vida (+1) — Q para beber', '#f08a88'); }
         else if (!pk.warned) { pk.warned = true; toast('Ya llevás ' + BALANCE.maxPotions + ' pociones', '#8a8496'); }
+      }
+      else if (pk.kind === 'manapotion') {
+        if ((p.manaPotions || 0) < BALANCE.maxPotions) { p.manaPotions++; pk.dead = true; sfx('pickup'); toast('Poción de maná (+1) — F para beber', '#6cb8ff'); }
+        else if (!pk.warned) { pk.warned = true; toast('Ya llevás ' + BALANCE.maxPotions + ' pociones de maná', '#8a8496'); }
       }
       else if (pk.kind === 'coin') { p.coins++; pk.dead = true; sfx('coin'); }
       else if (pk.kind === 'heart') {
@@ -696,6 +779,20 @@ function drinkPotion() {
   p.hp = Math.min(p.stats.maxhp, p.hp + heal);
   addFloater(p.x, p.y - 14, '+' + heal, '#7fc97f', true);
   burst(p.x, p.y, '#f08a88', 10);
+  sfx('heal');
+}
+
+// Beber poción de maná (tecla F): restaura 50% del maná máximo
+function drinkManaPotion() {
+  const p = state.player;
+  if (!p || state.mode !== 'play') return;
+  if ((p.manaPotions || 0) <= 0) { toast('No tenés pociones de maná', '#8a8496'); return; }
+  if (p.mana >= p.stats.maxMana) { toast('Ya estás al máximo de maná', '#8a8496'); return; }
+  p.manaPotions--;
+  const restore = Math.round(p.stats.maxMana * 0.5);
+  p.mana = Math.min(p.stats.maxMana, p.mana + restore);
+  addFloater(p.x, p.y - 14, '+' + restore + ' MP', '#6cb8ff', true);
+  burst(p.x, p.y, '#6cb8ff', 10);
   sfx('heal');
 }
 

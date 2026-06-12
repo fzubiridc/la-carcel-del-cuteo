@@ -95,8 +95,10 @@ function genDungeon(zone, depth, isBoss) {
 
   // Altar de sacrificio: vida a cambio de un tesoro
   let altar = null;
-  if (rooms.length > 2 && Math.random() < 0.45) {
-    const r = pick(rooms.slice(1));
+  // nunca en la sala inicial ni en la de la escalera de salida (no bloquear el paso)
+  const altarRooms = rooms.slice(1, -1);
+  if (altarRooms.length && Math.random() < 0.45) {
+    const r = pick(altarRooms);
     altar = { x: (r.cx + 0.5) * TILE, y: (r.cy + 0.5) * TILE, used: false };
   }
 

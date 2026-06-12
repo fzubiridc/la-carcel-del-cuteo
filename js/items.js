@@ -122,7 +122,8 @@ function calcStats(p) {
   const base = CLASSES[p.cls];
   const b = p.bonus || { hp: 0, spd: 0, crit: 0, atkspd: 0, def: 0, dmgMul: 1 };
   const s = { maxhp: base.hp + b.hp, spd: base.spd + b.spd, def: base.def + b.def,
-    crit: base.crit + b.crit, dmgB: 0, atkspd: 1 + b.atkspd };
+    crit: base.crit + b.crit, dmgB: 0, atkspd: 1 + b.atkspd,
+    maxMana: (p.cls === 'mago' ? 350 : 120) + ((b.mana) || 0) };
   for (const slot of SLOTS) {
     const it = p.equip[slot];
     if (!it) continue;

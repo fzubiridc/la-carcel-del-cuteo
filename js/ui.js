@@ -125,18 +125,20 @@ function updateHUD() {
   // barra vital (marco v2: ventana delimitada por CSS)
   setBarPct('#hpbar', p.hp / p.stats.maxhp);
   $('hptext').textContent = Math.ceil(p.hp) + ' / ' + p.stats.maxhp;
-  $('lvltitle').textContent = 'ARCHIMAGO · NIVEL ' + p.level;
-  // barra de maná — PLACEHOLDER: el cast aún no consume maná (ver V2_BACKLOG)
-  const manaPct = 1;
+  $('xplevel').textContent = p.level;
+  // barra de maná (real: consumo al castear + regen)
+  const manaPct = p.stats.maxMana ? p.mana / p.stats.maxMana : 1;
   setBarPct('#manabar', manaPct);
-  $('manatitle').textContent = 'MANÁ ' + Math.round(350 * manaPct) + ' / 350';
+  $('manatitle').textContent = 'MANÁ ' + Math.round(p.mana) + ' / ' + p.stats.maxMana;
   // XP (ventana 1000×40: x=28 w=944)
   setBarFill('#xpwrap', 28, 944, 1000, p.xp / p.xpNext);
   // extras
   $('zonelabel').textContent = zone.name + (state.level.isBoss ? ' · JEFE' : ' · Piso ' + run.floorInZone);
   $('coinlabel').textContent = '◉ ' + p.coins + ' monedas';
-  $('potlabel').textContent = '⚗ ' + p.potions + '/' + BALANCE.maxPotions + ' [Q]';
-  $('dashfill').style.width = (100 * (1 - p.dashCd / 1.2)) + '%';
+  $('potlabel').textContent = '⚗ ' + p.potions + '/' + BALANCE.maxPotions + ' [Q]   ✦ ' + (p.manaPotions || 0) + '/' + BALANCE.maxPotions + ' [F]';
+  const dashFrac = Math.max(0, Math.min(1, p.dashCd / 1.2));
+  $('dashcd').style.height = (dashFrac * 100) + '%';
+  $('dashwrap').classList.toggle('ready', p.dashCd <= 0);
   updateRunes(p);
   updateBossBar();
 }
@@ -227,6 +229,14 @@ function bigToast(msg, color) {
 
 function iconCanvasFor(item) {
   const c = document.createElement('canvas');
+  // vara arcana (PNG 128px): rasterizar grande y detallado para el slot
+  const simg = typeof staffIconImg === 'function' ? staffIconImg(item) : null;
+  if (simg) {
+    c.width = 64; c.height = 64;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = true;
+    g.drawImage(simg, 0, 0, 64, 64);
+    return c;
+  }
   const spr = itemIcon(item);
   c.width = spr.width; c.height = spr.height;
   c.getContext('2d').drawImage(spr, 0, 0);
@@ -315,8 +325,8 @@ function onInvDragUp(ev) {
   const under = document.elementFromPoint(ev.clientX, ev.clientY);
   const destEl = under && under.closest('.invslot');
   if (!destEl) {
-    // soltado fuera de un slot: si salió del panel y venía de la mochila, tirar al piso
-    if ((!under || !under.closest('#inv')) && drag.from.kind === 'bag') { dropItem(+drag.from.idx); renderInv(); }
+    // soltado fuera de cualquier slot → tirar el ítem al piso (venga de mochila o equipo)
+    dropFromSlot(drag.from);
     return;
   }
   resolveInvDrop(drag.from, { ...destEl.dataset });
@@ -397,12 +407,17 @@ function renderInv() {
   const colL = document.createElement('div'); colL.className = 'eqcol';
   const colR = document.createElement('div'); colR.className = 'eqcol';
   const center = document.createElement('div'); center.className = 'herocenter';
+  const stage = document.createElement('div');
+  stage.className = 'invherostage';
+  const plat = document.createElement('img');
+  plat.className = 'invplatform'; plat.src = 'assets/ui/hud/inv_platform.png?v=63';
   const himg = document.createElement('img');
-  himg.className = 'invheroimg'; himg.src = 'assets/ui/hud/inv/inv_hero.png';
+  himg.className = 'invheroimg px'; himg.src = 'assets/v2_test/mage/idle/south_0.png?v=63';
+  stage.appendChild(plat); stage.appendChild(himg);
   const quick = document.createElement('div');
   quick.className = 'invquick';
   for (let i = 0; i < 5; i++) quick.appendChild(invSlotDiv(null, 'slot_round', 'qslot', { kind: 'quick', idx: i }));
-  center.appendChild(himg); center.appendChild(quick);
+  center.appendChild(stage); center.appendChild(quick);
   for (const [slot, side] of EQ_LAYOUT) {
     const it = p.equip[slot];
     const d = invSlotDiv(it, 'slot_octagon', 'eqslot', { kind: 'equip', slot });
@@ -426,7 +441,20 @@ function renderInv() {
   }
   bag.appendChild(grid);
 
-  wrap.appendChild(hero); wrap.appendChild(bag);
+  // barra de orden de la mochila
+  const sortbar = document.createElement('div');
+  sortbar.className = 'invsortbar';
+  for (const [key, label] of [['tipo', 'Tipo'], ['rareza', 'Rareza'], ['poder', 'Poder']]) {
+    const b = document.createElement('button');
+    b.className = 'invsortbtn'; b.type = 'button'; b.textContent = label;
+    b.onclick = () => sortBag(key);
+    sortbar.appendChild(b);
+  }
+  const bagcol = document.createElement('div');
+  bagcol.className = 'invbagcol';
+  bagcol.appendChild(sortbar); bagcol.appendChild(bag);
+
+  wrap.appendChild(hero); wrap.appendChild(bagcol);
 
   // --- atributos (franja abajo) ---
   const s = p.stats;
@@ -440,6 +468,19 @@ function renderInv() {
     <span>Vel.atq <b>${(1 / attackCooldown(p)).toFixed(1)}/s</b></span>`;
 
   inv.appendChild(title); inv.appendChild(hint); inv.appendChild(wrap); inv.appendChild(st);
+}
+
+// ordenar la mochila por tipo / rareza / poder (compacta los huecos al frente)
+function sortBag(by) {
+  const p = state.player;
+  const rarIdx = it => RARITIES.findIndex(r => r.id === it.rarity);
+  const power = it => (it.dmg || 0) + (it.def || 0) + (it.hp || 0) * 0.25 + (it.crit || 0) + rarIdx(it) * 4;
+  const items = p.bag.filter(Boolean);
+  if (by === 'tipo') items.sort((a, b) => (a.slot < b.slot ? -1 : a.slot > b.slot ? 1 : 0) || rarIdx(b) - rarIdx(a));
+  else if (by === 'rareza') items.sort((a, b) => rarIdx(b) - rarIdx(a) || power(b) - power(a));
+  else if (by === 'poder') items.sort((a, b) => power(b) - power(a));
+  for (let i = 0; i < p.bag.length; i++) p.bag[i] = items[i] || null;
+  sfx('equip'); renderInv();
 }
 
 function equipItem(bagIdx) {
@@ -484,6 +525,23 @@ function dropItem(bagIdx) {
   spawnPickup('item', p.x + randInt(-8, 8), p.y + randInt(-8, 8), it);
   state.pickups[state.pickups.length - 1].noPickT = 1.5;
   renderInv();
+}
+
+// tirar al piso un ítem equipado (lo desequipa y recalcula stats)
+function dropEquipped(slot) {
+  const p = state.player, it = p.equip[slot];
+  if (!it) return;
+  p.equip[slot] = null;
+  spawnPickup('item', p.x + randInt(-8, 8), p.y + randInt(-8, 8), it);
+  state.pickups[state.pickups.length - 1].noPickT = 1.5;
+  calcStats(p); sfx('equip'); renderInv();
+}
+
+// tirar desde cualquier origen del inventario (mochila o equipo)
+function dropFromSlot(from) {
+  if (from.kind === 'bag') dropItem(+from.idx);
+  else if (from.kind === 'equip') dropEquipped(from.slot);
+  else renderInv();
 }
 
 // ---------------- Mercader ----------------

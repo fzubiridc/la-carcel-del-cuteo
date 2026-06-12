@@ -57,10 +57,12 @@
   .hudbar .barwin{ position:absolute; left:15.2%; right:6.2%; top:25%; bottom:26.8%; overflow:hidden; }
   .hudbar .fillclip{ position:absolute; left:0; top:0; bottom:0; width:100%;
     overflow:hidden; transition:width .18s ease-out; }
-  .hudbar .filltex{ position:absolute; left:0; top:0; height:100%; width:calc(var(--bw) * 0.786);
-    background-repeat:repeat-x; background-size:auto 100%; }
-  .hudbar.left .filltex{ background-image:url(assets/ui/hud/bar_hp_fill.png); }
-  .hudbar.right .filltex{ background-image:url(assets/ui/hud/bar_mana_fill.png); }
+  .hudbar .filltex{ position:absolute; left:0; top:0; height:100%; width:100%; }
+  /* gradiente CILÍNDRICO: negro en bordes → claro al centro → negro (reflejo de tubo) */
+  .hudbar.left .filltex{ background:
+      linear-gradient(to bottom, #3A0907 0%, #6E1410 16%, #B20403 36%, #FF4136 50%, #B20403 64%, #6E1410 84%, #3A0907 100%); }
+  .hudbar.right .filltex{ background:
+      linear-gradient(to bottom, #0A1A3A 0%, #123A7E 16%, #0F57B8 36%, #5FA8FF 50%, #0F57B8 64%, #123A7E 84%, #0A1A3A 100%); }
   .hudbar .barframe{ position:absolute; inset:0; width:100%; height:100%; }
   #hptext{ position:absolute; left:15.2%; right:6.2%; top:25%; bottom:26.8%;
     display:flex; align-items:center; justify-content:center;
@@ -84,6 +86,9 @@
   #xpwrap{ position:absolute; bottom:calc(14px * var(--huds,1)); left:50%; transform:translateX(-50%);
     width:calc(1000px * var(--huds,1)); height:calc(40px * var(--huds,1)); z-index:2; }
   #xpwrap > img{ position:absolute; inset:0; width:100%; height:100%; }
+  #xplevel{ position:absolute; left:50%; bottom:calc(100% + 4px); transform:translateX(-50%);
+    font-family:Cinzel,serif; font-weight:700; font-size:calc(30px * var(--huds,1)); color:#e9bc4a;
+    text-shadow:0 2px 4px #000, 0 0 8px #000; pointer-events:none; z-index:3; }
   #xpwrap .fillclip{ position:absolute; left:0; top:0; bottom:0; overflow:hidden;
     width:0%; transition:width .18s ease-out; }
   #xpwrap .fillclip img{ position:absolute; left:0; top:0; height:100%;
@@ -92,14 +97,21 @@
   /* extras que el diseño no cubre: zona, monedas, pociones, dash, debug (arriba-izq) */
   #hudextra{ position:absolute; left:max(58px, 3.4vw); top:max(54px, 3vw);
     display:flex; flex-direction:column; gap:4px; pointer-events:none; text-shadow:1px 1px 0 #000; }
-  #zonelabel{ font-family:Cinzel,serif; font-size:15px; font-weight:600; color:#e6ddcf; }
+  #zonelabel{ position:absolute; top:max(28px,2.2vw); left:50%; transform:translateX(-50%);
+    font-family:Cinzel,serif; font-size:calc(26px * var(--huds,1)); font-weight:700; color:#e6ddcf;
+    letter-spacing:1px; text-shadow:0 2px 5px #000, 1px 1px 0 #000; z-index:2;
+    pointer-events:none; white-space:nowrap; }
   #coinlabel{ font-family:Inter,sans-serif; font-size:13px; color:#ffd84f; }
   #potlabel{ font-family:Inter,sans-serif; font-size:13px; color:#f08a88; }
-  #dashwrap{ display:flex; align-items:center; gap:6px; margin-top:2px; }
-  #dashbar{ width:60px; height:5px; background:#1c1722; border:2px solid #000;
-    border-radius:3px; overflow:hidden; }
-  #dashfill{ height:100%; width:100%; background:#9ab8d8; transition:width .1s; }
-  #dashlabel{ font-family:Inter,sans-serif; font-size:9px; color:#9ab8d8; letter-spacing:1px; }
+  /* barra de habilidades sobre la XP: slots circulares (dash + futuras) */
+  #abilitybar{ position:absolute; left:0; bottom:calc(100% + 6px); display:flex; gap:calc(8px * var(--huds,1)); }
+  .abilityslot{ position:relative; width:calc(58px * var(--huds,1)); height:calc(58px * var(--huds,1)); border-radius:50%;
+    background:radial-gradient(circle at 50% 35%, #2a2433, #110d18); border:2px solid #5a4a2e;
+    box-shadow:inset 0 0 8px #000c, 0 2px 5px #0008; overflow:hidden; pointer-events:none; }
+  #dashicon{ position:absolute; inset:8%; width:84%; height:84%; object-fit:contain; filter:drop-shadow(0 1px 2px #000a); transition:filter .15s; }
+  #dashcd{ position:absolute; left:0; top:0; right:0; height:0%; background:rgba(8,6,12,.62); pointer-events:none; transition:height .08s linear; }
+  .abilityslot.ready{ border-color:#8fd0ff; box-shadow:inset 0 0 8px #000c, 0 0 9px #8fd0ff55; }
+  .abilityslot.ready #dashicon{ filter:drop-shadow(0 0 5px #8fd0ff); }
   #debugboss{ pointer-events:auto; align-self:flex-start; margin-top:4px;
     font-family:Inter,sans-serif; font-size:10px; padding:3px 8px; cursor:pointer;
     background:#2a1a08; color:#ffb04f; border:1px solid #5a3a18; border-radius:3px;
@@ -190,8 +202,8 @@
   /* ===== Inventario v2 — arte ilustrado (slots + mago + marco recortados) ===== */
   #inv{ position:absolute; inset:0; z-index:20; display:flex; align-items:center;
     justify-content:center; background:rgba(8,7,12,.82); }
-  .invwrap{ display:flex; align-items:center; justify-content:center; gap:1.4vw;
-    max-width:98vw; max-height:82vh; }
+  .invwrap{ display:flex; align-items:center; justify-content:center; gap:2vw;
+    max-width:98vw; max-height:94vh; }
   .invtitle{ position:absolute; left:50%; top:2.5vh; transform:translateX(-50%);
     font-family:Cinzel,serif; font-size:20px; font-weight:700; color:#e9bc4a;
     letter-spacing:3px; text-shadow:0 3px 4px #000; }
@@ -199,12 +211,19 @@
   .invhero{ display:flex; align-items:center; gap:.8vh; flex:none; }
   .eqcol{ display:flex; flex-direction:column; gap:1vh; }
   .herocenter{ display:flex; flex-direction:column; align-items:center; gap:1vh; }
-  .invheroimg{ height:36vh; width:auto; pointer-events:none; filter:drop-shadow(0 6px 14px #000a); }
-  .eqslot{ width:5.4vh; height:5.4vh; }
-  .invquick{ display:flex; gap:.8vh; }
-  .qslot{ width:4.4vh; height:4.4vh; }
+  .invherostage{ position:relative; display:flex; align-items:flex-end; justify-content:center; }
+  .invplatform{ position:absolute; bottom:1.5vh; left:50%; transform:translateX(-50%); width:34vh; height:auto; pointer-events:none; }
+  .invheroimg{ position:relative; height:40vh; width:auto; image-rendering:pixelated; pointer-events:none; filter:drop-shadow(0 6px 10px #000a); z-index:1; }
+  .invbagcol{ display:flex; flex-direction:column; gap:1vh; align-items:center; }
+  .invsortbar{ display:flex; gap:8px; }
+  .invsortbtn{ font-family:Cinzel,serif; font-size:calc(13px * var(--huds,1)); color:#e9bc4a; cursor:pointer;
+    background:#2a2012; border:1px solid #5a4218; border-radius:5px; padding:4px 12px; letter-spacing:1px; pointer-events:auto; }
+  .invsortbtn:hover{ background:#3a2c16; border-color:#e9bc4a; }
+  .eqslot{ width:7vh; height:7vh; }
+  .invquick{ display:flex; gap:1vh; }
+  .qslot{ width:5.6vh; height:5.6vh; }
   /* zona de la mochila: marco a proporción fija + grilla 4×6 en la ventana */
-  .invbag{ position:relative; height:48vh; aspect-ratio:947/1331; flex:none; }
+  .invbag{ position:relative; height:64vh; aspect-ratio:947/1331; flex:none; }
   .invframeimg{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
   .baggrid{ position:absolute; left:10.5%; right:10.5%; top:8%; bottom:8%;
     display:grid; grid-template-columns:repeat(4,1fr); grid-template-rows:repeat(6,1fr);
@@ -304,17 +323,15 @@
   <div id="hud" class="hidden">
     <div id="screenframe" class="px"></div>
 
+    <div id="zonelabel"></div>
     <div id="hudextra">
-      <div id="zonelabel"></div>
       <div id="coinlabel"></div>
       <div id="potlabel"></div>
-      <div id="dashwrap"><div id="dashbar"><div id="dashfill"></div></div><span id="dashlabel">DASH</span></div>
       <button id="debugboss" type="button">→ JEFE (debug)</button>
     </div>
 
     <div id="runes"></div>
 
-    <div id="lvltitle" class="hudtitle"></div>
     <div class="hudbar left" id="hpbar">
       <div class="barwin"><div class="fillclip"><div class="filltex"></div></div></div>
       <img class="barframe px" src="assets/ui/hud/barv2_frame.png" alt="">
@@ -328,6 +345,8 @@
     </div>
 
     <div id="xpwrap">
+      <div id="abilitybar"><div id="dashwrap" class="abilityslot"><img id="dashicon" class="px" src="assets/ui/hud/dash_boot.png?v=66" alt="dash"><div id="dashcd"></div></div></div>
+      <div id="xplevel"></div>
       <div class="fillclip"><img class="px" src="assets/ui/hud/xp_fill.png" alt=""></div>
       <img class="px" src="assets/ui/hud/xp_frame.png" alt="">
     </div>
@@ -386,16 +405,16 @@
 </div>
 
 <!-- ?v=N evita que el navegador sirva JS viejo de caché; subir N al editar -->
-<script src="js/data.js?v=60"></script>
-<script src="js/sprites.js?v=60"></script>
-<script src="js/anim-rig.js?v=60"></script>
-<script src="js/hero.js?v=60"></script>
-<script src="js/heropack.js?v=60"></script>
-<script src="js/v2hero.js?v=60"></script>
-<script src="js/dungeon.js?v=60"></script>
-<script src="js/items.js?v=60"></script>
-<script src="js/entities.js?v=60"></script>
-<script src="js/ui.js?v=60"></script>
-<script src="js/main.js?v=60"></script>
+<script src="js/data.js?v=66"></script>
+<script src="js/sprites.js?v=66"></script>
+<script src="js/anim-rig.js?v=66"></script>
+<script src="js/hero.js?v=66"></script>
+<script src="js/heropack.js?v=66"></script>
+<script src="js/v2hero.js?v=66"></script>
+<script src="js/dungeon.js?v=66"></script>
+<script src="js/items.js?v=66"></script>
+<script src="js/entities.js?v=66"></script>
+<script src="js/ui.js?v=66"></script>
+<script src="js/main.js?v=66"></script>
 </body>
 </html>
