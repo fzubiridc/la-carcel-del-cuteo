@@ -96,7 +96,7 @@ const MODS = [
 // ---------- Enemigos ----------
 // ai: 'chaser' persigue · 'shooter' dispara a distancia · 'erratic' persigue zigzagueando · 'boss' usa patterns
 const ENEMIES = {
-  rata:        { name: 'Rata',              sprite: 'rata',       hp: 14,  dmg: 6,  spd: 78,  ai: 'chaser',  size: 9 },
+  rata:        { name: 'Rata',              sprite: 'rata',       hp: 14,  dmg: 6,  spd: 78,  ai: 'chaser',  size: 7, scale: 0.34 },
   esqueleto:   { name: 'Esqueleto',         sprite: 'esqueleto',  hp: 30,  dmg: 10, spd: 52,  ai: 'chaser',  size: 11, skel: true },
   // TODO: el esqueleto arquero tendrá su propio sprite/animaciones (PixelLab) más
   // adelante. Hasta entonces NO se spawnea (lo quitamos de las listas de zona).

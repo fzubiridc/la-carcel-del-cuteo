@@ -401,8 +401,8 @@ function tryInteract() {
   if (lvl.exitOpen) {
     const ex = (lvl.exit.tx + 0.5) * TILE, ey = (lvl.exit.ty + 0.5) * TILE;
     if (Math.hypot(p.x - ex, p.y - ey) < TILE * 1.2) {
-      if (lvl.isBoss) { state.run.zoneIdx++; state.run.floorInZone = 0; }
-      nextFloor();
+      // arranca la animación de meterse en la escalera; nextFloor lo hace update al terminar
+      if (!state.descend) { state.descend = { t: 0, dur: 0.55, boss: lvl.isBoss }; sfx('stairs'); }
       return;
     }
   }
@@ -444,6 +444,19 @@ function update(dt) {
   state.time += dt;
   state.run.time = (state.run.time || 0) + dt;
   const p = state.player, lvl = state.level;
+
+  // transición de bajada: el personaje se achica/oscurece "metiéndose" en la
+  // escalera; al terminar, recién carga el piso siguiente. Congela el resto.
+  if (state.descend) {
+    state.descend.t += dt;
+    if (state.descend.t >= state.descend.dur) {
+      const boss = state.descend.boss;
+      state.descend = null;
+      if (boss) { state.run.zoneIdx++; state.run.floorInZone = 0; }
+      nextFloor();
+    }
+    return;
+  }
 
   // victoria diferida tras matar al jefe final
   if (state.winT > 0) {
@@ -755,7 +768,7 @@ function render(dt) {
 
   // pickups
   for (const pk of state.pickups) {
-    const bob = Math.sin(pk.t) * 1.5;
+    const bob = -(pk.hz || 0); // altura del salto al caer; asentado = 0 (sin flote)
     if (pk.kind === 'coin') {
       const cimg = typeof coinPileImg === 'function' ? coinPileImg(pk.val || 1) : null;
       if (cimg) { const s = 15; ctx.drawImage(cimg, pk.x - s / 2, pk.y - s / 2 + bob, s, s); }
@@ -827,7 +840,20 @@ function render(dt) {
   // entidades ordenadas por Y (las de abajo tapan a las de arriba)
   const drawables = [...state.enemies, p].sort((a, b) => a.y - b.y);
   for (const e of drawables) {
-    if (e === p) drawPlayer(p);
+    if (e === p) {
+      if (state.descend) {
+        // se achica y se oscurece "metiéndose" en la escalera. ifr=0 temporal:
+        // update está congelado y el parpadeo de invuln lo haría desaparecer
+        const k = Math.min(1, state.descend.t / state.descend.dur);
+        const savedIfr = p.ifr; p.ifr = 0;
+        ctx.save();
+        ctx.globalAlpha = 1 - 0.78 * k;
+        ctx.translate(p.x, p.y + 7 * k); ctx.scale(1 - 0.72 * k, 1 - 0.72 * k); ctx.translate(-p.x, -p.y);
+        drawPlayer(p);
+        ctx.restore();
+        p.ifr = savedIfr;
+      } else drawPlayer(p);
+    }
     else drawEnemy(e);
   }
 
@@ -1437,8 +1463,8 @@ function drawEnemy(e) {
   const alpha = e.def.ghost ? 0.75 : 1;
   // telegrafiado de carga del jefe: tiembla
   const ox = (e.telegraphT > 0) ? (Math.random() - 0.5) * 2 : 0;
-  // bob de vida propia + squash al recibir un golpe
-  const bob = Math.sin(e.wobble * 1.1) * 0.8;
+  // sólo los fantasmas flotan; el resto queda quieto en idle. squash al recibir golpe aparte
+  const bob = e.def.ghost ? Math.sin(e.wobble * 1.1) * 0.8 : 0;
   const sq = e.flashT > 0 ? 0.16 : 0;
   const k = spr.ws || 1;
   const S = e.scale * k;

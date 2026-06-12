@@ -773,9 +773,9 @@ function showEnd(victory) {
     return it ? `<span style="color:${rarityOf(it).color}">${it.name}</span>` : null;
   }).filter(Boolean).join(' · ');
   $('endstats').innerHTML = `
-    Piso <b>${run.depth}</b> · Nivel <b>${p.level}</b><br>
-    <b>${run.kills}</b> criaturas · <b>${p.coins}</b> monedas<br>
-    Duración <b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b>
+    <div>Piso <b>${run.depth}</b> · Nivel <b>${p.level}</b></div>
+    <div><b>${run.kills}</b> criaturas · <b>${p.coins}</b> monedas</div>
+    <div>Duración <b>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</b></div>
   `;
   $('endscreen').classList.remove('hidden');
 }

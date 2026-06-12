@@ -688,7 +688,11 @@ function makeItemRespectRarity(proto, depth) {
 }
 
 function spawnPickup(kind, x, y, item) {
-  const pk = { kind, x, y, item: item || null, t: Math.random() * Math.PI * 2, noPickT: 0.4 };
+  // al soltarse, el drop salta un poco hacia arriba y al costado y cae seco al piso
+  const pk = { kind, x, y, item: item || null, t: Math.random() * Math.PI * 2, noPickT: 0.4,
+    hz: 4, vz: 55 + Math.random() * 55,                       // altura/velocidad del salto
+    sx: (Math.random() * 2 - 1) * 55, sy: (Math.random() * 2 - 1) * 55, // dispersión lateral
+    settled: false };
   state.pickups.push(pk);
   return pk;
 }
@@ -698,6 +702,14 @@ function updatePickups(dt) {
   for (const pk of state.pickups) {
     pk.t += dt * 4;
     pk.noPickT = Math.max(0, pk.noPickT - dt);
+    // fase de salto: sube, cae por gravedad y se asienta seco; no se levanta ni se imanta mientras tanto
+    if (!pk.settled) {
+      pk.hz += pk.vz * dt; pk.vz -= 320 * dt;
+      pk.x += pk.sx * dt; pk.y += pk.sy * dt;
+      const fr = Math.pow(0.015, dt); pk.sx *= fr; pk.sy *= fr;
+      if (pk.hz <= 0 && pk.vz <= 0) { pk.hz = 0; pk.vz = 0; pk.sx = 0; pk.sy = 0; pk.settled = true; }
+      continue;
+    }
     const dx = p.x - pk.x, dy = p.y - pk.y;
     const d = Math.hypot(dx, dy);
     if (pk.noPickT > 0) continue;
