@@ -464,6 +464,8 @@ function updateProjectiles(dt) {
 
 // Explosión con área (bastón de mago)
 function explode(pr) {
+  // destello de luz: ilumina el área un instante y se desvanece (se nota en pisos oscuros)
+  state.fx.push({ type: 'lightburst', x: pr.x, y: pr.y, t: 0.95, t0: 0.95, r: 74 });
   const v2boom = typeof V2H !== 'undefined' && V2H.ready && V2H.fx.boom.length;
   if (v2boom) {
     // explosión sprite del energyblast: trae sus propios anillos horneados —
@@ -644,7 +646,7 @@ function dropLoot(e) {
   // los élite siempre sueltan un ítem
   if (e.elite) {
     spawnPickup('item', e.x, e.y, makeItem(depth + 1));
-    for (let i = 0; i < 3; i++) spawnPickup('coin', e.x + randInt(-10, 10), e.y + randInt(-10, 10));
+    spawnPickup('coin', e.x, e.y).val = randInt(6, 12) + depth * 2;
     return;
   }
   if (e.isBoss) {
@@ -652,7 +654,7 @@ function dropLoot(e) {
     const it = makeItem(depth + 2);
     if (it.rarity === 'comun' || it.rarity === 'magico') it.rarity = 'raro';
     spawnPickup('item', e.x, e.y, makeItemRespectRarity(it, depth));
-    for (let i = 0; i < 8; i++) spawnPickup('coin', e.x + randInt(-14, 14), e.y + randInt(-14, 14));
+    spawnPickup('coin', e.x, e.y).val = randInt(40, 70) + depth * 5;
     spawnPickup('heart', e.x + randInt(-10, 10), e.y + 16);
     return;
   }
@@ -661,8 +663,8 @@ function dropLoot(e) {
   // luego un rango random para que varíe entre kills del mismo enemigo.
   const coinBase = Math.max(1, Math.round((e.maxhp || 14) / 14));
   const coinCount = randInt(coinBase, coinBase * 2 + 1);
-  for (let i = 0; i < coinCount; i++)
-    spawnPickup('coin', e.x + randInt(-12, 12), e.y + randInt(-12, 12));
+  // una sola pila con el valor acumulado; el sprite escala por tier (pocas→miles)
+  spawnPickup('coin', e.x + randInt(-8, 8), e.y + randInt(-8, 8)).val = coinCount;
   // drop extra (ítem / corazón / poción) — las monedas ya se resolvieron arriba
   const r = Math.random();
   if (r < BALANCE.dropItem) spawnPickup('item', e.x, e.y, makeItem(depth));
@@ -713,7 +715,7 @@ function updatePickups(dt) {
         if ((p.manaPotions || 0) < BALANCE.maxPotions) { p.manaPotions++; pk.dead = true; sfx('pickup'); toast('Poción de maná (+1) — F para beber', '#6cb8ff'); }
         else if (!pk.warned) { pk.warned = true; toast('Ya llevás ' + BALANCE.maxPotions + ' pociones de maná', '#8a8496'); }
       }
-      else if (pk.kind === 'coin') { p.coins++; pk.dead = true; sfx('coin'); }
+      else if (pk.kind === 'coin') { p.coins += (pk.val || 1); pk.dead = true; sfx('coin'); }
       else if (pk.kind === 'heart') {
         if (p.hp < p.stats.maxhp) {
           // cura un mínimo fijo o un % de la vida máxima (escala en runs avanzadas)

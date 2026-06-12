@@ -672,6 +672,33 @@ function staffIconImg(item) {
   return STAFF_ICONS[tierMap[weaponTier(item)]] || STAFF_ICONS.base || null;
 }
 
+// Pilas de monedas por valor (exponencial): <10 t1 · <100 t2 · <1000 t3 · +1000 t4
+const COIN_PILES = {};
+function loadCoinPiles() {
+  for (const t of [1, 2, 3, 4]) {
+    const im = new Image(), tt = t;
+    im.onload = () => { COIN_PILES[tt] = im; };
+    im.src = 'assets/coins/coin_t' + tt + '.png';
+  }
+}
+function coinPileImg(val) {
+  const t = val >= 1000 ? 4 : val >= 100 ? 3 : val >= 10 ? 2 : 1;
+  return COIN_PILES[t] || null;
+}
+
+// Precarga de los PNG del inventario (plataforma, marco, slots) para que la
+// primera apertura no se trabe esperando a decodificarlos.
+function preloadInvAssets() {
+  const paths = [
+    'assets/ui/hud/inv_platform.png',
+    'assets/ui/hud/inv/inv_frame.png',
+    'assets/ui/hud/inv/slot_octagon.png',
+    'assets/ui/hud/inv/slot_round.png',
+    'assets/ui/hud/inv/slot_square.png',
+  ];
+  for (const p of paths) { const im = new Image(); im.src = p; }
+}
+
 // =====================================================================
 // Equipo visible sobre el personaje: capas teñidas por rareza.
 // P = color primario de la rareza, S = sombra. Cada capa sabe en qué

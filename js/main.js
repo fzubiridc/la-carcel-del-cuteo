@@ -14,6 +14,7 @@ const state = {
 
 let canvas, ctx, mini, mctx;
 let ZOOM = 3;
+let _darkCv = null, _darkCx = null; // capa de oscuridad offscreen (pisos "oscuro")
 const keys = new Set();
 const mouse = { sx: 0, sy: 0, down: false };
 // Controles táctiles: joystick de movimiento + botón ATK que también apunta
@@ -30,6 +31,8 @@ window.addEventListener('load', () => {
   if (typeof loadV2Hero === 'function') loadV2Hero(); // mago v2 experimental (PixelLab)
   loadAssets(); // los CC0 de 32px reemplazan en caliente; hay fallback por código
   if (typeof loadStaffIcons === 'function') loadStaffIcons(); // íconos de vara arcana por tier (PixelLab)
+  if (typeof loadCoinPiles === 'function') loadCoinPiles(); // pilas de monedas por valor
+  if (typeof preloadInvAssets === 'function') preloadInvAssets(); // evita el lag de abrir el inventario por 1ª vez
   canvas = $('game'); ctx = canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
   resize();
@@ -461,9 +464,6 @@ function update(dt) {
       const n = Math.max(1, Math.hypot(mx, my)); // el joystick permite caminar lento
       moveWithCollision(lvl, p, (mx / n) * p.stats.spd * dt, (my / n) * p.stats.spd * dt, false);
       if (mx) p.dir = mx > 0 ? 1 : -1;
-      // pasos sutiles
-      p.stepT = (p.stepT || 0) - dt;
-      if (p.stepT <= 0) { p.stepT = 0.28; sfx('step'); }
     }
 
     // apuntado y ataque
@@ -484,6 +484,8 @@ function update(dt) {
   p.swingT = Math.max(0, p.swingT - dt);
   p.attackT = Math.max(0, (p.attackT || 0) - dt);
   p.hurtT = Math.max(0, (p.hurtT || 0) - dt);
+  // pasos: el loop suena solo mientras el prota camina de verdad
+  if (typeof setFootsteps === 'function') setFootsteps(state.mode === 'play' && !!p.moving && p.stunT <= 0 && p.dashT <= 0);
 
   updateEnemies(dt);
   updateProjectiles(dt);
@@ -506,7 +508,7 @@ function update(dt) {
       sfx('pickup');
       burst(ch.x, ch.y, '#ffd84f', 10);
       spawnPickup('item', ch.x, ch.y - 6, makeItem(state.run.depth + 1));
-      for (let i = 0; i < 3; i++) spawnPickup('coin', ch.x + randInt(-12, 12), ch.y + randInt(-10, 10));
+      spawnPickup('coin', ch.x, ch.y + 4).val = randInt(5, 12) + state.run.depth * 2;
       if (Math.random() < 0.5) spawnPickup('potion', ch.x + randInt(-10, 10), ch.y + 8); // poción de vida frecuente en cofres
       if (Math.random() < 0.4) spawnPickup('manapotion', ch.x + randInt(-10, 10), ch.y - 2); // y a veces poción de maná
     }
@@ -521,7 +523,7 @@ function update(dt) {
     burst(lc.x, lc.y, '#ffd84f', 20);
     spawnPickup('item', lc.x - 8, lc.y - 6, makeItemMinRare(state.run.depth + 1));
     spawnPickup('item', lc.x + 8, lc.y - 6, makeItem(state.run.depth + 1));
-    for (let i = 0; i < 6; i++) spawnPickup('coin', lc.x + randInt(-14, 14), lc.y + randInt(-10, 10));
+    spawnPickup('coin', lc.x, lc.y + 6).val = randInt(15, 30) + state.run.depth * 4;
   }
 
   // niebla explorada (para el minimapa)
@@ -716,7 +718,11 @@ function render(dt) {
   // pickups
   for (const pk of state.pickups) {
     const bob = Math.sin(pk.t) * 1.5;
-    if (pk.kind === 'coin') ctx.drawImage(Sprites.moneda, pk.x - 3, pk.y - 3 + bob);
+    if (pk.kind === 'coin') {
+      const cimg = typeof coinPileImg === 'function' ? coinPileImg(pk.val || 1) : null;
+      if (cimg) { const s = 15; ctx.drawImage(cimg, pk.x - s / 2, pk.y - s / 2 + bob, s, s); }
+      else ctx.drawImage(Sprites.moneda, pk.x - 3, pk.y - 3 + bob);
+    }
     else if (pk.kind === 'heart') ctx.drawImage(Sprites.corazon, pk.x - 3.5, pk.y - 3 + bob);
     else if (pk.kind === 'potion') ctx.drawImage(Sprites.pocion, pk.x - 3, pk.y - 4 + bob);
     else if (pk.kind === 'manapotion') {
@@ -790,17 +796,6 @@ function render(dt) {
 
   // proyectiles
   for (const pr of state.projs) {
-    // luz ambiental del orbe mágico: ilumina el piso por donde pasa (en cualquier sala)
-    if (pr.style === 'bolt') {
-      ctx.globalCompositeOperation = 'lighter';
-      const lr = 38, lg = ctx.createRadialGradient(pr.x, pr.y, 0, pr.x, pr.y, lr);
-      lg.addColorStop(0, 'rgba(130,195,255,0.36)');
-      lg.addColorStop(0.5, 'rgba(120,90,225,0.14)');
-      lg.addColorStop(1, 'rgba(120,90,225,0)');
-      ctx.fillStyle = lg;
-      ctx.beginPath(); ctx.arc(pr.x, pr.y, lr, 0, Math.PI * 2); ctx.fill();
-      ctx.globalCompositeOperation = 'source-over';
-    }
     if (pr.style === 'arrow') {
       ctx.save();
       ctx.translate(pr.x, pr.y); ctx.rotate(pr.ang);
@@ -956,25 +951,54 @@ function render(dt) {
 
   // piso oscuro: viñeta que limita la visión alrededor del jugador
   if (lvl.evento === 'oscuro') {
-    const sx = (p.x - state.cam.x) * ZOOM, sy = (p.y - state.cam.y) * ZOOM;
-    const grad = ctx.createRadialGradient(sx, sy, 24 * ZOOM, sx, sy, 62 * ZOOM);
-    grad.addColorStop(0, 'rgba(0,0,0,0)');
-    grad.addColorStop(1, 'rgba(5,4,8,0.94)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // los orbes mágicos iluminan por donde pasan: perforan la oscuridad
-    ctx.globalCompositeOperation = 'destination-out';
+    // La oscuridad se arma en un canvas APARTE y se perforan ahí los "agujeros" de
+    // visión (jugador + orbes); recién después se pega encima. Así los agujeros sólo
+    // quitan oscuridad y no borran el piso ni los personajes del lienzo principal.
+    if (!_darkCv) { _darkCv = document.createElement('canvas'); _darkCx = _darkCv.getContext('2d'); }
+    if (_darkCv.width !== canvas.width || _darkCv.height !== canvas.height) {
+      _darkCv.width = canvas.width; _darkCv.height = canvas.height;
+    }
+    const dc = _darkCx;
+    dc.globalCompositeOperation = 'source-over';
+    dc.clearRect(0, 0, canvas.width, canvas.height);
+    dc.fillStyle = 'rgba(5,4,8,0.94)';
+    dc.fillRect(0, 0, canvas.width, canvas.height);
+    dc.globalCompositeOperation = 'destination-out';
+    const hole = (x, y, inner, outer) => {
+      const g = dc.createRadialGradient(x, y, inner, x, y, outer);
+      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      dc.fillStyle = g; dc.fillRect(x - outer, y - outer, outer * 2, outer * 2);
+    };
+    hole((p.x - state.cam.x) * ZOOM, (p.y - state.cam.y) * ZOOM, 24 * ZOOM, 62 * ZOOM);
     for (const pr of state.projs) {
       if (pr.dead || pr.style !== 'bolt') continue;
-      const bx = (pr.x - state.cam.x) * ZOOM, by = (pr.y - state.cam.y) * ZOOM;
-      const lg = ctx.createRadialGradient(bx, by, 2 * ZOOM, bx, by, 30 * ZOOM);
-      lg.addColorStop(0, 'rgba(0,0,0,0.92)');
-      lg.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = lg;
-      ctx.fillRect(bx - 30 * ZOOM, by - 30 * ZOOM, 60 * ZOOM, 60 * ZOOM);
+      hole((pr.x - state.cam.x) * ZOOM, (pr.y - state.cam.y) * ZOOM, 6 * ZOOM, 58 * ZOOM);
     }
-    ctx.globalCompositeOperation = 'source-over';
+    // destellos de explosión: el área iluminada se retiene y se apaga de a poco
+    for (const f of state.fx) {
+      if (f.type !== 'lightburst') continue;
+      const k = Math.max(0, f.t / f.t0), fx = (f.x - state.cam.x) * ZOOM, fy = (f.y - state.cam.y) * ZOOM, r = f.r * ZOOM;
+      const g = dc.createRadialGradient(fx, fy, 2 * ZOOM, fx, fy, r);
+      g.addColorStop(0, 'rgba(0,0,0,' + k + ')'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      dc.fillStyle = g; dc.fillRect(fx - r, fy - r, r * 2, r * 2);
+    }
+    dc.globalCompositeOperation = 'source-over';
+    ctx.drawImage(_darkCv, 0, 0);
   }
+
+  // aura leve del orbe (brillo propio, sutil para no saturar en sala clara)
+  ctx.globalCompositeOperation = 'lighter';
+  for (const pr of state.projs) {
+    if (pr.dead || pr.style !== 'bolt') continue;
+    const bx = (pr.x - state.cam.x) * ZOOM, by = (pr.y - state.cam.y) * ZOOM, lr = 44 * ZOOM;
+    const lg = ctx.createRadialGradient(bx, by, 0, bx, by, lr);
+    lg.addColorStop(0, 'rgba(150,200,255,0.14)');
+    lg.addColorStop(0.5, 'rgba(120,120,235,0.06)');
+    lg.addColorStop(1, 'rgba(110,90,225,0)');
+    ctx.fillStyle = lg;
+    ctx.fillRect(bx - lr, by - lr, lr * 2, lr * 2);
+  }
+  ctx.globalCompositeOperation = 'source-over';
 
   // números flotantes (en espacio de pantalla para que el texto sea nítido)
   for (const f of state.floaters) {

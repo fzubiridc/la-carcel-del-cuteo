@@ -15,17 +15,22 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
 - Vista de inventario agrandada; el personaje es el sprite del juego en idle parado sobre
   una **plataforma rúnica** (reemplaza la imagen render anterior).
 - Botones para **ordenar la mochila** por tipo / rareza / poder.
+- Precarga de los assets del inventario (sin tirón en la primera apertura).
 
 ### Gameplay
 - **Maná funcional**: los hechizos consumen maná, se regenera al dejar de castear
   (~3.5 s a full); sin maná no se castea.
 - **Pociones de maná** (tecla F), análogas a las de vida (Q); caen de cofres y enemigos.
 - Drops de monedas **aleatorios y escalados** por dureza del enemigo (los fáciles dan menos).
+- Monedas como **pilas con 4 niveles** visuales según el monto (pocas → miles); escalan con la profundidad.
+- En pisos oscuros, el orbe abre su propia "linterna" (perfora la oscuridad como el
+  personaje, vía capa offscreen) — iluminación pareja en sala clara u oscura.
 - Pociones de vida más frecuentes (cofres + enemigos).
 - El **orbe mágico explota** al llegar al punto apuntado (animación + daño en área) y
   **termina donde clickeás** en desktop (con un recorrido mínimo).
 - El orbe **ilumina** el entorno por donde pasa.
 - Items: se pueden **tirar** arrastrándolos fuera de cualquier slot (mochila o equipado).
+- Sonido de **pasos** del prota (sample real en loop mientras camina, reemplaza el beep).
 
 ### IA
 - Los enemigos requieren **línea de visión** (ya no detectan a través de paredes).

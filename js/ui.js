@@ -880,6 +880,17 @@ for (const name in SFX_FILES) {
   a.addEventListener('canplaythrough', () => { SFX_FILES[name].audio = a; }, { once: true });
   a.onerror = () => { delete SFX_FILES[name]; }; // sin archivo → queda el sintetizado
 }
+// pasos del prota: sample en loop mientras camina (assets/sfx/footsteps.mp3)
+let _footstepSfx = null, _footstepsOn = false;
+function setFootsteps(on) {
+  if (!_footstepSfx) {
+    _footstepSfx = new Audio('assets/sfx/footsteps.mp3');
+    _footstepSfx.loop = true; _footstepSfx.volume = 0.35; _footstepSfx.playbackRate = 1.4;
+  }
+  if (on && !_footstepsOn) { _footstepsOn = true; _footstepSfx.play().catch(() => { }); }
+  else if (!on && _footstepsOn) { _footstepsOn = false; _footstepSfx.pause(); }
+}
+
 function sfx(name) {
   const f = SFX_FILES[name];
   if (f && f.audio) {
