@@ -260,7 +260,6 @@ function restoreFloor(rec, px, py) {
   state.cam.x = p.x - canvas.width / ZOOM / 2;
   state.cam.y = p.y - canvas.height / ZOOM / 2;
   bigToast(ZONES[run.zoneIdx].name + ' · Piso ' + run.floorInZone);
-  sfx('stairs');
 }
 
 // Subir al piso anterior (aparece en su escalera de bajada)
@@ -321,7 +320,6 @@ function nextFloor() {
     if (lvl.evento === 'embrujado') toast('Este piso está embrujado: más peligro, más tesoro', '#c45cff');
   }
   for (const g of lvl.groundItems) spawnPickup('item', g.x, g.y, makeItem(run.depth));
-  sfx('stairs');
 }
 
 function onBossKilled(boss) {
@@ -403,7 +401,7 @@ function tryInteract() {
     const ex = (lvl.exit.tx + 0.5) * TILE, ey = (lvl.exit.ty + 0.5) * TILE;
     if (Math.hypot(p.x - ex, p.y - ey) < TILE * 1.2) {
       // arranca la animación: camina a la escalera, mira al norte y desciende oscureciéndose
-      if (!state.descend) { state.descend = { t: 0, dur: 0.8, boss: lvl.isBoss, x: ex, y: ey }; sfx('stairs'); }
+      if (!state.descend) { state.descend = { t: 0, dur: 0.8, boss: lvl.isBoss, x: ex, y: ey }; }
       return;
     }
   }
@@ -540,7 +538,7 @@ function update(dt) {
   for (const ch of lvl.chests) {
     if (!ch.opened && Math.hypot(p.x - ch.x, p.y - ch.y) < 16) {
       ch.opened = true;
-      sfx('pickup');
+      sfx('chest'); // crujido de tapa de madera
       burst(ch.x, ch.y, '#ffd84f', 10);
       spawnPickup('item', ch.x, ch.y - 6, makeItem(state.run.depth + 1));
       spawnPickup('coin', ch.x, ch.y + 4).val = randInt(5, 12) + state.run.depth * 2;
@@ -554,7 +552,7 @@ function update(dt) {
   if (lc && !lc.opened && Math.hypot(p.x - lc.x, p.y - lc.y) < 16 && p.hasKey) {
     lc.opened = true;
     p.hasKey = false;
-    sfx('levelup');
+    sfx('chest'); sfx('levelup'); // crujido de tapa + fanfarria de recompensa
     burst(lc.x, lc.y, '#ffd84f', 20);
     spawnPickup('item', lc.x - 8, lc.y - 6, makeItemMinRare(state.run.depth + 1));
     spawnPickup('item', lc.x + 8, lc.y - 6, makeItem(state.run.depth + 1));

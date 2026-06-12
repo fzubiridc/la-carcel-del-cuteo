@@ -890,7 +890,7 @@ const SFX = {
   heal:   () => beep(520, 0.15, 'sine', 0.05, 200),
   pickup: () => beep(660, 0.12, 'square', 0.05, 220),
   equip:  () => beep(440, 0.1, 'triangle', 0.05, 100),
-  stairs: () => { beep(330, 0.12, 'square', 0.05, -80); setTimeout(() => beep(247, 0.12, 'square', 0.05, -60), 110); },
+  chest:  () => { beep(330, 0.12, 'square', 0.05, -80); setTimeout(() => beep(247, 0.12, 'square', 0.05, -60), 110); },
   summon: () => beep(250, 0.2, 'sine', 0.05, 150),
   tackle: () => { beep(70, 0.3, 'sawtooth', 0.11, -30); setTimeout(() => beep(50, 0.2, 'square', 0.07, -20), 80); },
   kick:   () => beep(140, 0.18, 'square', 0.09, -90),
@@ -913,7 +913,7 @@ const SFX_FILES = {
   dash:   { vol: 0.45, ext: 'mp3' },
   coin:   { vol: 0.4, ext: 'wav', n: 3, lowpass: 1400 }, // 3 variantes; lowpass = suenan más lejanas
   heal:   { vol: 0.5, ext: 'wav' },
-  stairs: { vol: 0.5, ext: 'wav' },
+  chest:  { vol: 0.5, ext: 'wav' }, // crujido de madera (ex-escalera): ahora al abrir cofres
   equip:  { vol: 0.45, ext: 'wav' },
   swing:  { vol: 0.4, ext: 'wav' },
   rat_death:  { vol: 0.45, ext: 'mp3' }, // chillido de rata al morir

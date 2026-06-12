@@ -18,7 +18,12 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
 - **Cofre nuevo** (PixelLab): cerrado dorado-arcano + abierto con tapa levantada y
   brillo violeta. El render del cofre ahora **se ancla por el contenido** (bbox de
   alfa, base + centro) en vez de por el canvas: estados con padding o que crecen
-  (tapa que sube) ya no encogen ni saltan de base. Cache-bust `CHEST_V`.
+  (tapa que sube) ya no encogen ni saltan de base. Cache-bust `CHEST_V`. Sin sombra
+  (apoya solo, se iba el flote).
+- **Sonido de abrir cofre**: el crujido de madera (antes en las transiciones de
+  piso) pasó a sonar al abrir cofres. El común cruje; el dorado cruje + fanfarria.
+  Las transiciones de nivel ya no suenan ese efecto. El sample se renombró a
+  `chest.wav`.
 - **Sonidos de muerte por tipo**: rata (chillido) y esqueleto (crujido de huesos).
 - Fix: mobs estáticos ya no flotan (anclados por su fila de pies real).
 
