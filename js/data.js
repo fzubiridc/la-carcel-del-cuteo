@@ -98,7 +98,9 @@ const MODS = [
 const ENEMIES = {
   rata:        { name: 'Rata',              sprite: 'rata',       hp: 14,  dmg: 6,  spd: 78,  ai: 'chaser',  size: 9 },
   esqueleto:   { name: 'Esqueleto',         sprite: 'esqueleto',  hp: 30,  dmg: 10, spd: 52,  ai: 'chaser',  size: 11, skel: true },
-  arquero_esq: { name: 'Esqueleto arquero', sprite: 'arquero_esq',hp: 22,  dmg: 8,  spd: 44,  ai: 'shooter', size: 11, range: 150, fireCd: 1.7, projSpd: 130, skel: true },
+  // TODO: el esqueleto arquero tendrá su propio sprite/animaciones (PixelLab) más
+  // adelante. Hasta entonces NO se spawnea (lo quitamos de las listas de zona).
+  arquero_esq: { name: 'Esqueleto arquero', sprite: 'arquero_esq',hp: 22,  dmg: 8,  spd: 44,  ai: 'shooter', size: 11, range: 150, fireCd: 1.7, projSpd: 130 },
   murcielago:  { name: 'Murciélago',        sprite: 'murcielago', hp: 12,  dmg: 5,  spd: 115, ai: 'erratic', size: 9 },
   arana:       { name: 'Araña',             sprite: 'arana',      hp: 24,  dmg: 9,  spd: 88,  ai: 'erratic', size: 10 },
   golem_chico: { name: 'Gólem menor',       sprite: 'golem',      hp: 65,  dmg: 16, spd: 34,  ai: 'chaser',  size: 13 },
@@ -131,7 +133,7 @@ const ZONES = [
   {
     id: 'torre', name: 'Torre en Ruinas', floors: 2,
     palette: { floor: '#3a3a40', floorAlt: '#343438', wall: '#5a5a62', wallDark: '#3e3e46', accent: '#6e7d6a' },
-    enemies: ['rata', 'esqueleto', 'arquero_esq'],
+    enemies: ['rata', 'esqueleto'], // arquero_esq: pendiente de su sprite propio
     boss: 'bucle', density: 1.0,
   },
   {
