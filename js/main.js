@@ -725,9 +725,8 @@ function render(dt) {
     if (d.type === 'postes') drawRugbyPosts(d.x, d.y);
   }
 
-  // cofres
+  // cofres (sin sombra: el sprite ya apoya solo)
   for (const ch of lvl.chests) {
-    drawShadow(ch.x, ch.y - 1, 5);
     if (!drawChestImg(ch.opened, ch.x, ch.y, 0.78)) {
       const spr = ch.opened ? Sprites.cofre_abierto : Sprites.cofre;
       ctx.drawImage(spr, ch.x - spr.width / 2, ch.y - spr.height / 2);
@@ -737,7 +736,6 @@ function render(dt) {
   // cofre dorado y altar
   if (lvl.lockedChest) {
     const lc = lvl.lockedChest;
-    drawShadow(lc.x, lc.y - 1, 5);
     if (!lc.opened) {
       // halo dorado pulsante: distingue al cofre con llave del cofre común
       ctx.globalCompositeOperation = 'lighter';
