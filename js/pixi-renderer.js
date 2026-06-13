@@ -28,6 +28,7 @@ async function initPixiRenderer(view) {
     fx: new PIXI.Container(),
     screen: new PIXI.Container(),
     tex: new WeakMap(),
+    frameTex: new WeakMap(),
     tileCache: null,
     spritePool: [],
     spriteUsed: 0,
@@ -92,6 +93,49 @@ function pixiTexture(img) {
   return tex;
 }
 
+function pixiFrameTexture(img, sx, sy, sw, sh) {
+  const base = pixiTexture(img);
+  if (!base || !base.baseTexture) return null;
+  let byImage = PR.frameTex.get(img);
+  if (!byImage) {
+    byImage = new Map();
+    PR.frameTex.set(img, byImage);
+  }
+  const key = sx + ',' + sy + ',' + sw + ',' + sh;
+  let tex = byImage.get(key);
+  if (!tex) {
+    tex = new PIXI.Texture(base.baseTexture, new PIXI.Rectangle(sx, sy, sw, sh));
+    byImage.set(key, tex);
+  }
+  return tex;
+}
+
+function pixiSpriteFromTexture(parent, tex, x, y, opt) {
+  if (!tex) return null;
+  let s = PR.spritePool[PR.spriteUsed++];
+  if (!s) {
+    s = new PIXI.Sprite(tex);
+    s.roundPixels = true;
+    PR.spritePool.push(s);
+  } else {
+    s.texture = tex;
+    s.visible = true;
+    s.alpha = 1;
+    s.rotation = 0;
+    s.scale.set(1);
+    s.tint = 0xffffff;
+    s.anchor.set(0, 0);
+  }
+  s.position.set(x, y);
+  if (opt && opt.anchor) s.anchor.set(opt.anchor[0], opt.anchor[1]);
+  if (opt && opt.scale) s.scale.set(opt.scale[0], opt.scale[1]);
+  if (opt && opt.rotation) s.rotation = opt.rotation;
+  if (opt && opt.alpha != null) s.alpha = opt.alpha;
+  if (opt && opt.tint) s.tint = opt.tint;
+  parent.addChild(s);
+  return s;
+}
+
 function pixiSprite(parent, img, x, y, w, h, opt) {
   const tex = pixiTexture(img);
   if (!tex) return null;
@@ -123,28 +167,7 @@ function pixiSprite(parent, img, x, y, w, h, opt) {
 function pixiSpriteRaw(parent, img, x, y, opt) {
   const tex = pixiTexture(img);
   if (!tex) return null;
-  let s = PR.spritePool[PR.spriteUsed++];
-  if (!s) {
-    s = new PIXI.Sprite(tex);
-    s.roundPixels = true;
-    PR.spritePool.push(s);
-  } else {
-    s.texture = tex;
-    s.visible = true;
-    s.alpha = 1;
-    s.rotation = 0;
-    s.scale.set(1);
-    s.tint = 0xffffff;
-    s.anchor.set(0, 0);
-  }
-  s.position.set(x, y);
-  if (opt && opt.anchor) s.anchor.set(opt.anchor[0], opt.anchor[1]);
-  if (opt && opt.scale) s.scale.set(opt.scale[0], opt.scale[1]);
-  if (opt && opt.rotation) s.rotation = opt.rotation;
-  if (opt && opt.alpha != null) s.alpha = opt.alpha;
-  if (opt && opt.tint) s.tint = opt.tint;
-  parent.addChild(s);
-  return s;
+  return pixiSpriteFromTexture(parent, tex, x, y, opt);
 }
 
 function pixiGraphics(parent) {
@@ -489,8 +512,94 @@ function drawPixiV2Hero(p) {
   return true;
 }
 
+function pixiMobSet(e) {
+  if (typeof MOB_SETS === 'undefined' || typeof mobSetName !== 'function') return null;
+  let set = MOB_SETS[mobSetName(e)];
+  if (!set || !set.ready) {
+    const fb = set && set.fallbackTo;
+    set = fb ? MOB_SETS[fb] : null;
+  }
+  return set && set.ready ? set : null;
+}
+
+function pixiMobFace(e) {
+  const dxp = e.x - (e._mx !== undefined ? e._mx : e.x);
+  const dyp = e.y - (e._my !== undefined ? e._my : e.y);
+  e._mx = e.x; e._my = e.y;
+  e._mvx = (e._mvx || 0) * 0.82 + dxp * 0.18;
+  e._mvy = (e._mvy || 0) * 0.82 + dyp * 0.18;
+  const sp = Math.hypot(e._mvx, e._mvy);
+  if (sp > 0.06) e._mface = MOB_OCTANTS[(Math.round(Math.atan2(e._mvy, e._mvx) / (Math.PI / 4)) + 8) % 8];
+  return { face: e._mface || 'south', moving: sp > 0.06 };
+}
+
+function drawPixiMobFrame(set, anim, face, fi, dx, dy, dw, dh, opt) {
+  if (set.source === 'sheet') {
+    const img = set.imgs[anim];
+    if (!pixiImageReady(img)) return false;
+    const row = MOB_ROW[face] != null ? MOB_ROW[face] : 0;
+    const tex = pixiFrameTexture(img, fi * 64, row * 64, 64, 64);
+    pixiSpriteFromTexture(PR.objects, tex, dx, dy, {
+      scale: [dw / 64, dh / 64],
+      alpha: opt.alpha,
+      tint: opt.tint,
+    });
+    return true;
+  }
+
+  const rf = typeof mobResolveFace === 'function' ? mobResolveFace(set, anim, face) : face;
+  let img = set.imgs[`${anim}_${rf}_${fi}`];
+  if (!pixiImageReady(img)) {
+    const wf = typeof mobResolveFace === 'function' ? mobResolveFace(set, 'walk', face) : face;
+    img = set.imgs[`walk_${wf}_0`];
+  }
+  if (!pixiImageReady(img)) return false;
+  pixiSpriteRaw(PR.objects, img, dx, dy, {
+    scale: [dw / (img.naturalWidth || img.width), dh / (img.naturalHeight || img.height)],
+    alpha: opt.alpha,
+    tint: opt.tint,
+  });
+  return true;
+}
+
+function drawPixiMob(e) {
+  const set = pixiMobSet(e);
+  if (!set) return false;
+
+  const motion = pixiMobFace(e);
+  let face = motion.face;
+  const attacking = (e.atkAnimT || 0) > 0 && (typeof mobCanAttack !== 'function' || mobCanAttack(set, face));
+  if (attacking) {
+    face = MOB_OCTANTS[(Math.round(Math.atan2(state.player.y - e.y, state.player.x - e.x) / (Math.PI / 4)) + 8) % 8];
+    e._mface = face;
+  }
+
+  const anim = attacking ? 'attack' : (motion.moving ? 'walk' : (set.anims.idle ? 'idle' : 'walk'));
+  if (e._manim !== anim) { e._manim = anim; e._mt = state.time; }
+  const adef = set.anims[anim];
+  if (!adef) return false;
+  let fi = Math.floor((state.time - (e._mt || 0)) * 1000 / adef.ms);
+  if (anim === 'attack') fi = Math.min(fi, adef.n - 1);
+  else if (anim === 'idle') fi %= adef.n;
+  else fi = motion.moving ? fi % adef.n : 0;
+
+  const bob = set.float ? Math.sin(e.wobble * 1.2) * set.float : 0;
+  const S = e.scale * set.draw;
+  const dx = e.x - set.px / 2 * S;
+  const dy = e.y + 5 - set.foot * S + bob;
+  const dw = set.px * S;
+  const dh = set.px * S;
+  const alpha = set.alpha < 1 ? set.alpha : 1;
+  const tint = e.flashT > 0 ? 0xffffff : (e.enraged ? 0xff3030 : 0xffffff);
+  return drawPixiMobFrame(set, anim, face, fi, dx, dy, dw, dh, { alpha, tint });
+}
+
 function drawPixiEnemy(e) {
   if (!e.def.ghost) drawPixiShadow(e.x, e.y, e.w * e.scale * 0.45);
+  if ((e.def.skel || e.def.slime) && drawPixiMob(e)) {
+    drawPixiEnemyExtras(e);
+    return;
+  }
   const spr = Sprites[(e.hasBall === false && e.def.spriteNoBall ? e.def.spriteNoBall : e.def.sprite) + (e.dir < 0 ? '_L' : '')];
   const alpha = e.def.ghost ? 0.72 : 1;
   if (spr) {
@@ -504,8 +613,32 @@ function drawPixiEnemy(e) {
   }
 }
 
+function drawPixiEnemyExtras(e) {
+  if (e.keyCarrier && Math.floor(state.time * 4) % 2 === 0) {
+    pixiRect(PR.objects, e.x - 1, e.y - e.h * e.scale - 7, 2, 2, 0xffd84f, 1);
+  }
+  if (e.hp < e.maxhp) {
+    const w = 12 * e.scale;
+    pixiRect(PR.objects, e.x - w / 2, e.y - e.h - 5, w, 2, 0x000000, 0.8);
+    pixiRect(PR.objects, e.x - w / 2, e.y - e.h - 5, w * e.hp / e.maxhp, 2, 0xc0392b, 1);
+  }
+}
+
 function drawPixiChest(ch, gold) {
   drawPixiShadow(ch.x, ch.y, 5);
+  const chestSet = typeof CHEST_IMG !== 'undefined' ? CHEST_IMG[gold ? 'gold' : 'common'] : null;
+  if (chestSet) {
+    let fi = 0;
+    if (ch.opened) fi = Math.min(CHEST_FRAMES - 1, Math.floor((state.time - (ch.openT || 0)) * 1000 / CHEST_FRAME_MS));
+    const img = chestSet.frames[fi], box = chestSet.boxes[fi];
+    if (pixiImageReady(img) && box) {
+      pixiSpriteRaw(PR.objects, img, ch.x - box.cx * CHEST_K, ch.y + 1 - box.baseY * CHEST_K, {
+        scale: [CHEST_K, CHEST_K],
+        tint: gold ? 0xf2e3a3 : 0xebd7bd,
+      });
+      return;
+    }
+  }
   const spr = ch.opened ? Sprites.cofre_abierto : (gold ? Sprites.cofre_dorado : Sprites.cofre);
   if (spr) pixiSprite(PR.objects, spr, ch.x, ch.y, spr.width, spr.height, { anchor: [0.5, 0.5] });
   else pixiRect(PR.objects, ch.x - 5, ch.y - 4, 10, 8, gold ? 0xffd84f : 0x8b5a2b);
@@ -513,12 +646,45 @@ function drawPixiChest(ch, gold) {
 
 function drawPixiPickup(pk) {
   const bob = -(pk.hz || 0);
-  if (pk.kind === 'coin') pixiSprite(PR.objects, Sprites.moneda, pk.x - 3, pk.y - 3 + bob);
+  if (pk.kind === 'coin') {
+    const cimg = typeof coinPileImg === 'function' ? coinPileImg(pk.val || 1) : null;
+    if (pixiImageReady(cimg)) pixiSprite(PR.objects, cimg, pk.x, pk.y + bob, 10, 10, { anchor: [0.5, 0.5] });
+    else pixiSprite(PR.objects, Sprites.moneda, pk.x - 3, pk.y - 3 + bob);
+  }
   else if (pk.kind === 'heart') pixiSprite(PR.objects, Sprites.corazon, pk.x - 3.5, pk.y - 3 + bob);
   else if (pk.kind === 'potion') pixiSprite(PR.objects, Sprites.pocion, pk.x - 3, pk.y - 4 + bob);
-  else if (pk.kind === 'key') pixiSprite(PR.objects, Sprites.llave, pk.x - 4, pk.y - 2 + bob);
-  else if (pk.kind === 'xp') pixiCircle(PR.objects, pk.x, pk.y + bob, 2.2, 0xff5a4a, 0.9);
-  else if (pk.kind === 'item') pixiCircle(PR.objects, pk.x, pk.y + 2 + bob, 6, pcol(rarityOf(pk.item).color), 0.45);
+  else if (pk.kind === 'manapotion') {
+    pixiCircle(PR.objects, pk.x, pk.y + bob, 6, 0x5aaaff, 0.22);
+    pixiRect(PR.objects, pk.x - 2.5, pk.y - 2 + bob, 5, 6, 0x2f7fe6, 1);
+    pixiRect(PR.objects, pk.x - 2.5, pk.y + bob, 5, 2, 0x9ad8ff, 1);
+    pixiRect(PR.objects, pk.x - 1, pk.y - 4 + bob, 2, 2, 0xd8d2c8, 1);
+  }
+  else if (pk.kind === 'key') {
+    pixiCircle(PR.objects, pk.x, pk.y + bob, 6, 0xffd84f, 0.20);
+    pixiSprite(PR.objects, Sprites.llave, pk.x - 4, pk.y - 2 + bob);
+  }
+  else if (pk.kind === 'xp') {
+    const col = (typeof XP_FLAMES !== 'undefined' && pk.xpColor) ? pk.xpColor : 'blue';
+    let img = null;
+    if (typeof XP_FLAMES !== 'undefined') {
+      if (col === 'blue' && XP_FLAMES.blue.length === 9)
+        img = XP_FLAMES.blue[(Math.floor(state.time * 1000 / 80) + Math.floor(pk.t * 3)) % 9];
+      else img = XP_FLAMES[col];
+    }
+    if (pixiImageReady(img)) {
+      const pulse = col === 'blue' ? 1 : (1 + Math.sin(state.time * 7 + pk.t) * 0.12);
+      pixiSprite(PR.objects, img, pk.x, pk.y + 1 + bob, 5, 5 * pulse, { anchor: [0.5, 1] });
+    } else pixiCircle(PR.objects, pk.x, pk.y + bob, 2.2, 0xff5a4a, 0.9);
+  }
+  else if (pk.kind === 'item') {
+    pixiCircle(PR.objects, pk.x, pk.y + 2, 7, pcol(rarityOf(pk.item).color), 0.26);
+    const simg = typeof staffIconImg === 'function' ? staffIconImg(pk.item) : null;
+    if (pixiImageReady(simg)) pixiSprite(PR.objects, simg, pk.x, pk.y - 2 + bob, 18, 18, { anchor: [0.5, 0.5] });
+    else {
+      const spr = typeof itemIcon === 'function' ? itemIcon(pk.item) : null;
+      if (pixiImageReady(spr)) pixiSprite(PR.objects, spr, pk.x, pk.y + bob, spr.width, spr.height, { anchor: [0.5, 0.5] });
+    }
+  }
 }
 
 function drawPixiProjectiles() {

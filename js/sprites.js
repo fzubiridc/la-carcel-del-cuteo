@@ -109,6 +109,40 @@ function animFrame(def, elapsed) {
   return times.length - 1;
 }
 
+const WORLD_TEXTURES = { total: 0, loaded: 0, failed: 0, errors: [], ready: false };
+const PICKUP_TEXTURES = { total: 0, loaded: 0, failed: 0, errors: [], ready: false };
+function trackWorldTexture(src) {
+  WORLD_TEXTURES.total++;
+  WORLD_TEXTURES.ready = false;
+  let done = false;
+  return ok => {
+    if (done) return;
+    done = true;
+    WORLD_TEXTURES.loaded++;
+    if (!ok) {
+      WORLD_TEXTURES.failed++;
+      WORLD_TEXTURES.errors.push(src);
+    }
+    WORLD_TEXTURES.ready = WORLD_TEXTURES.loaded >= WORLD_TEXTURES.total && WORLD_TEXTURES.failed === 0;
+  };
+}
+
+function trackPickupTexture(src) {
+  PICKUP_TEXTURES.total++;
+  PICKUP_TEXTURES.ready = false;
+  let done = false;
+  return ok => {
+    if (done) return;
+    done = true;
+    PICKUP_TEXTURES.loaded++;
+    if (!ok) {
+      PICKUP_TEXTURES.failed++;
+      PICKUP_TEXTURES.errors.push(src);
+    }
+    PICKUP_TEXTURES.ready = PICKUP_TEXTURES.loaded >= PICKUP_TEXTURES.total && PICKUP_TEXTURES.failed === 0;
+  };
+}
+
 const ASSET_V = 2; // cache-bust de PNGs CC0/assets (subir al reemplazar uno, p.ej. rata.png)
 function loadAssets(done) {
   const keys = Object.keys(ASSETS);
@@ -116,6 +150,9 @@ function loadAssets(done) {
   let left = keys.length + sheetKeys.length;
   const finish = () => { if (--left === 0 && done) done(); };
   for (const k of keys) {
+    const isWorldTexture = k.startsWith('floor_') || k.startsWith('wall_');
+    const src = ASSETS[k] + '?v=' + ASSET_V;
+    const tracked = isWorldTexture ? trackWorldTexture(src) : null;
     const img = new Image();
     img.onload = () => {
       const c = document.createElement('canvas');
@@ -126,13 +163,14 @@ function loadAssets(done) {
       Sprites[k] = c;
       const cl = flipH(c); cl.footY = c.footY;
       Sprites[k + '_L'] = cl;
-      if ((k.startsWith('floor_') || k.startsWith('wall_')) && typeof invalidatePixiTileCache === 'function') {
+      if (isWorldTexture && typeof invalidatePixiTileCache === 'function') {
         invalidatePixiTileCache();
       }
+      if (tracked) tracked(true);
       finish();
     };
-    img.onerror = finish;
-    img.src = ASSETS[k] + '?v=' + ASSET_V;
+    img.onerror = () => { if (tracked) tracked(false); finish(); };
+    img.src = src;
   }
   // sheets: se cortan en frames individuales, con variante espejada
   for (const k of sheetKeys) {
@@ -697,9 +735,12 @@ function staffIconImg(item) {
 const COIN_PILES = {};
 function loadCoinPiles() {
   for (const t of [1, 2, 3, 4]) {
+    const src = 'assets/coins/coin_t' + t + '.png';
+    const tracked = trackPickupTexture(src);
     const im = new Image(), tt = t;
-    im.onload = () => { COIN_PILES[tt] = im; };
-    im.src = 'assets/coins/coin_t' + tt + '.png';
+    im.onload = () => { COIN_PILES[tt] = im; tracked(true); };
+    im.onerror = () => tracked(false);
+    im.src = src;
   }
 }
 function coinPileImg(val) {
@@ -724,8 +765,22 @@ function preloadInvAssets() {
 const XP_FLAMES = { blue: [], red: null, green: null, yellow: null };
 const XP_COLORS = ['blue', 'red', 'green', 'yellow'];
 function loadXpFlames() {
-  for (let i = 0; i < 9; i++) { const im = new Image(), ii = i; im.onload = () => { XP_FLAMES.blue[ii] = im; }; im.src = 'assets/xp/blue_' + ii + '.png'; }
-  for (const c of ['red', 'green', 'yellow']) { const im = new Image(), cc = c; im.onload = () => { XP_FLAMES[cc] = im; }; im.src = 'assets/xp/' + cc + '.png'; }
+  for (let i = 0; i < 9; i++) {
+    const src = 'assets/xp/blue_' + i + '.png';
+    const tracked = trackPickupTexture(src);
+    const im = new Image(), ii = i;
+    im.onload = () => { XP_FLAMES.blue[ii] = im; tracked(true); };
+    im.onerror = () => tracked(false);
+    im.src = src;
+  }
+  for (const c of ['red', 'green', 'yellow']) {
+    const src = 'assets/xp/' + c + '.png';
+    const tracked = trackPickupTexture(src);
+    const im = new Image(), cc = c;
+    im.onload = () => { XP_FLAMES[cc] = im; tracked(true); };
+    im.onerror = () => tracked(false);
+    im.src = src;
+  }
 }
 
 // Escalera de bajada (PixelLab)
@@ -768,16 +823,20 @@ function loadTowerTiles() {
       }
     };
     for (let i = 0; i < n; i++) {
+      const src = `assets/tiles/torre/${prefix}_${i}.png?v=${TORRE_TILE_V}`;
+      const tracked = trackWorldTexture(src);
       const img = new Image();
       img.onload = () => {
         const c = document.createElement('canvas');
         c.width = img.width; c.height = img.height;
         c.getContext('2d').drawImage(img, 0, 0);
         c.ws = 0.5;
-        arr[i] = c; done();
+        arr[i] = c;
+        tracked(true);
+        done();
       };
-      img.onerror = done;
-      img.src = `assets/tiles/torre/${prefix}_${i}.png?v=${TORRE_TILE_V}`;
+      img.onerror = () => { tracked(false); done(); };
+      img.src = src;
     }
   };
   grab('floor', 6, 'floor_torre'); // 6 variantes (piso oscuro continuo)
@@ -806,6 +865,8 @@ function chestBBox(img) {
 }
 function loadChestImg() {
   const load = (set, src) => {
+    const fullSrc = src + '?v=' + CHEST_V;
+    const tracked = trackPickupTexture(fullSrc);
     const img = new Image();
     img.onload = () => {
       const fw = img.naturalWidth / CHEST_FRAMES, fh = img.naturalHeight;
@@ -816,8 +877,10 @@ function loadChestImg() {
         frames.push(c); boxes.push(chestBBox(c));
       }
       CHEST_IMG[set] = { frames, boxes };
+      tracked(true);
     };
-    img.src = src + '?v=' + CHEST_V;
+    img.onerror = () => tracked(false);
+    img.src = fullSrc;
   };
   load('common', 'assets/chest_common.png');
   load('gold', 'assets/chest_gold.png');

@@ -79,6 +79,7 @@ http://localhost:8417/?pixi&debug
 ## Documentacion
 
 - Arquitectura actual: `docs/ARCHITECTURE.md`
+- Migracion Pixi: `docs/PIXI_MIGRATION.md`
 - Backlog activo: `docs/V2_BACKLOG.md`
 - Roadmap historico: `docs/ROADMAP.md`
 - Analisis estructural anterior: `docs/ANALYSIS.md`

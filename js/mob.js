@@ -16,6 +16,24 @@ const MOB_ASSET_V = 2;
 const MOB_OCTANTS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
 const MOB_ROW = { south: 0, 'south-east': 3, 'south-west': 2, north: 1, 'north-east': 3, 'north-west': 2, east: 3, west: 2 }; // sheet: dir → fila
 
+const MOB_TEXTURES = { total: 0, loaded: 0, failed: 0, errors: [], ready: false };
+
+function trackMobTexture(src) {
+  MOB_TEXTURES.total++;
+  MOB_TEXTURES.ready = false;
+  let done = false;
+  return ok => {
+    if (done) return;
+    done = true;
+    MOB_TEXTURES.loaded++;
+    if (!ok) {
+      MOB_TEXTURES.failed++;
+      MOB_TEXTURES.errors.push(src);
+    }
+    MOB_TEXTURES.ready = MOB_TEXTURES.loaded >= MOB_TEXTURES.total && MOB_TEXTURES.failed === 0;
+  };
+}
+
 const MOB_CFG = {
   // ---- frames (PixelLab por-frame) ----
   skeleton: {
@@ -58,8 +76,12 @@ function loadMobSet(folder) {
     let left = Object.keys(cfg.anims).length;
     const done = () => { if (--left === 0) set.ready = true; };
     for (const a in cfg.anims) {
-      const im = new Image(); im.onload = done; im.onerror = done;
-      im.src = cfg.base + cfg.anims[a].file + '.png?v=' + MOB_ASSET_V;
+      const src = cfg.base + cfg.anims[a].file + '.png?v=' + MOB_ASSET_V;
+      const tracked = trackMobTexture(src);
+      const im = new Image();
+      im.onload = () => { tracked(true); done(); };
+      im.onerror = () => { tracked(false); done(); };
+      im.src = src;
       set.imgs[a] = im;
     }
   } else { // frames
@@ -80,10 +102,12 @@ function loadMobSet(folder) {
       const done = () => { if (--left === 0) { buildMirror(); if (anim === 'walk') set.ready = true; } };
       for (const d of dirs) {
         for (let f = 0; f < n; f++) {
+          const src = `assets/mobs/${folder}/${anim}/${d}_${f}.png?v=${MOB_ASSET_V}`;
+          const tracked = trackMobTexture(src);
           const im = new Image();
-          im.onload = done;
-          im.onerror = () => { set.imgs[`${anim}_${d}_${f}`] = null; done(); };
-          im.src = `assets/mobs/${folder}/${anim}/${d}_${f}.png?v=${MOB_ASSET_V}`;
+          im.onload = () => { tracked(true); done(); };
+          im.onerror = () => { tracked(false); set.imgs[`${anim}_${d}_${f}`] = null; done(); };
+          im.src = src;
           set.imgs[`${anim}_${d}_${f}`] = im;
         }
       }

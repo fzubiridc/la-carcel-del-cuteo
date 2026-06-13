@@ -68,12 +68,15 @@ function bootAssetProgress() {
   if (typeof V2H === 'undefined') return { loaded: 0, total: 1, failed: 1, ready: false };
   const hero = V2H.loading || { loaded: 0, total: 0, failed: 0 };
   const rig = (V2H.staffRig && V2H.staffRig.loading) || { loaded: 0, total: 0, failed: 0 };
-  const loaded = hero.loaded + rig.loaded;
-  const total = Math.max(1, hero.total + rig.total);
-  const failed = hero.failed + rig.failed;
+  const world = typeof WORLD_TEXTURES !== 'undefined' ? WORLD_TEXTURES : { loaded: 0, total: 0, failed: 0, ready: true };
+  const mobs = typeof MOB_TEXTURES !== 'undefined' ? MOB_TEXTURES : { loaded: 0, total: 0, failed: 0, ready: true };
+  const pickups = typeof PICKUP_TEXTURES !== 'undefined' ? PICKUP_TEXTURES : { loaded: 0, total: 0, failed: 0, ready: true };
+  const loaded = hero.loaded + rig.loaded + world.loaded + mobs.loaded + pickups.loaded;
+  const total = Math.max(1, hero.total + rig.total + world.total + mobs.total + pickups.total);
+  const failed = hero.failed + rig.failed + world.failed + mobs.failed + pickups.failed;
   return {
     loaded, total, failed,
-    ready: !!(V2H.ready && V2H.staffRig && V2H.staffRig.ready && failed === 0),
+    ready: !!(V2H.ready && V2H.staffRig && V2H.staffRig.ready && world.ready && mobs.ready && pickups.ready && failed === 0),
   };
 }
 
@@ -91,7 +94,7 @@ function waitForBootAssets(start) {
   start = start || performance.now();
   const p = bootAssetProgress();
   const pct = Math.round((p.loaded / p.total) * 100);
-  setLoadingUI('Cargando arte del Archimago... ' + pct + '%', pct, false);
+  setLoadingUI('Cargando arte y texturas... ' + pct + '%', pct, false);
   if (p.ready) {
     state.mode = 'menu';
     $('loading').classList.add('hidden');
@@ -100,7 +103,7 @@ function waitForBootAssets(start) {
     return;
   }
   if (p.failed || performance.now() - start > 12000) {
-    const failed = p.failed ? 'Falto cargar un asset del Archimago.' : 'La carga tardo demasiado.';
+    const failed = p.failed ? 'Falto cargar un asset o textura.' : 'La carga tardo demasiado.';
     setLoadingUI(failed + ' Recarga la pagina para evitar el fallback.', pct, true);
     return;
   }
