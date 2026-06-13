@@ -126,6 +126,9 @@ function loadAssets(done) {
       Sprites[k] = c;
       const cl = flipH(c); cl.footY = c.footY;
       Sprites[k + '_L'] = cl;
+      if ((k.startsWith('floor_') || k.startsWith('wall_')) && typeof invalidatePixiTileCache === 'function') {
+        invalidatePixiTileCache();
+      }
       finish();
     };
     img.onerror = finish;
@@ -755,7 +758,15 @@ const TORRE_TILE_V = 4; // subir al reemplazar PNGs de tiles (mismo nombre, dist
 function loadTowerTiles() {
   const grab = (prefix, n, key) => {
     const arr = new Array(n); let left = n;
-    const done = () => { if (--left === 0) { const f = arr.filter(Boolean); if (f.length) Sprites[key] = f; } };
+    const done = () => {
+      if (--left === 0) {
+        const f = arr.filter(Boolean);
+        if (f.length) {
+          Sprites[key] = f;
+          if (typeof invalidatePixiTileCache === 'function') invalidatePixiTileCache();
+        }
+      }
+    };
     for (let i = 0; i < n; i++) {
       const img = new Image();
       img.onload = () => {

@@ -42,6 +42,10 @@ function resizePixiRenderer(w, h) {
   if (PR) PR.app.renderer.resize(w, h);
 }
 
+function invalidatePixiTileCache() {
+  if (PR) PR.tileCache = null;
+}
+
 function getPixiDebugStats() {
   if (!PR) return null;
   return {
