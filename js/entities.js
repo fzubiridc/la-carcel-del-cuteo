@@ -8,6 +8,9 @@ function makePlayer(clsId) {
   const cls = CLASSES[clsId];
   const p = {
     cls: clsId, x: 0, y: 0, w: 10, h: 10,
+    // caja de colision a los pies (centro en y+colDY, alto colH): te pegas a muros/
+    // cofres desde el sur. Subir colDY o bajar colH = mas pegado.
+    colDY: 5, colH: 6,
     hp: cls.hp, stats: null,
     equip: { arma: makeStarterWeapon(cls.weapon), casco: null, coraza: null, botas: null, anillo: null, amuleto: null,
       foco: null, guantes: null, cinturon: null, anillo2: null },

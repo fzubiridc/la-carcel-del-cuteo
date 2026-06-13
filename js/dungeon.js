@@ -192,8 +192,12 @@ function rectHitsChest(level, x, y, w, h) {
 function moveWithCollision(level, e, dx, dy, noclip) {
   if (noclip) { e.x += dx; e.y += dy; clampToLevel(level, e); return; }
   const chestBlock = (typeof state !== 'undefined' && e === state.player);
-  if (dx !== 0 && !rectHitsWall(level, e.x + dx, e.y, e.w, e.h) && !(chestBlock && rectHitsChest(level, e.x + dx, e.y, e.w, e.h))) e.x += dx;
-  if (dy !== 0 && !rectHitsWall(level, e.x, e.y + dy, e.w, e.h) && !(chestBlock && rectHitsChest(level, e.x, e.y + dy, e.w, e.h))) e.y += dy;
+  // caja de colision contra muros: por defecto centrada en (x,y). Si la entidad
+  // define colDY/colH usa una caja a la altura de los PIES (el jugador) -> te pegas
+  // a los muros desde el sur sin que la "cabeza" choque antes. Cofres ya usan pies.
+  const cy = e.y + (e.colDY || 0), ch = e.colH || e.h;
+  if (dx !== 0 && !rectHitsWall(level, e.x + dx, cy, e.w, ch) && !(chestBlock && rectHitsChest(level, e.x + dx, e.y, e.w, e.h))) e.x += dx;
+  if (dy !== 0 && !rectHitsWall(level, e.x, cy + dy, e.w, ch) && !(chestBlock && rectHitsChest(level, e.x, e.y + dy, e.w, e.h))) e.y += dy;
 }
 
 function clampToLevel(level, e) {
