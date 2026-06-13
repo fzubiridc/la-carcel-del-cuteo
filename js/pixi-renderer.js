@@ -316,7 +316,11 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
         } else {
           g.fillStyle = floorBelow ? pal.wall : '#05040a';
           g.fillRect(X, Y, TILE, TILE);
-          if (!floorBelow && ty > 0 && lvl.map[ty - 1][tx] === 1 && wallImg) {
+          // remate: si JUSTO DEBAJO hay una cara de muro (tile inferior solido con
+          // piso un tile mas abajo), coronar este tope negro con una fila de ladrillo
+          // en su borde inferior -> el muro "sobresale" y recupera su grosor.
+          const belowFace = ty + 2 < lvl.H && lvl.map[ty + 1][tx] === 0 && lvl.map[ty + 2][tx] === 1;
+          if (belowFace && wallImg) {
             const capH = 6;
             g.drawImage(wallImg, 0, 0, wallImg.width, wallImg.width * capH / TILE, X, Y + TILE - capH, TILE, capH);
             g.fillStyle = 'rgba(0,0,0,0.30)';
@@ -775,6 +779,10 @@ function drawPixiChest(ch, gold) {
 
 function drawPixiPickup(pk) {
   const bob = -(pk.hz || 0);
+  // sombra de contacto en el piso (mismo motor que mobs/cofres). Queda fija en el
+  // suelo aunque el item flote con el bob, y achica un toque al elevarse.
+  const sw = pk.kind === 'item' ? 5 : 3;
+  pixiContactBlob(pk.x, pk.y + 2, sw * (1 + bob * 0.03));
   if (pk.kind === 'coin') {
     const cimg = typeof coinPileImg === 'function' ? coinPileImg(pk.val || 1) : null;
     if (pixiImageReady(cimg)) pixiSprite(PR.objects, cimg, pk.x, pk.y + bob, 10, 10, { anchor: [0.5, 0.5] });
@@ -857,7 +865,7 @@ function drawPixiTorches() {
     if (typeof TORCH_IMG !== 'undefined' && TORCH_IMG && TORCH_IMG.width) {
       const fr = Math.floor(t * 10 + seed) % 8;
       const tex = pixiFrameTexture(TORCH_IMG, (fr % 4) * 64, (fr < 4 ? 0 : 1) * 64, 64, 64);
-      pixiSpriteFromTexture(PR.torches, tex, tX - 9, tY - 2, { scale: [18 / 64, 18 / 64] });
+      pixiSpriteFromTexture(PR.torches, tex, tX - 7, tY - 1, { scale: [14 / 64, 14 / 64] });
     } else {
       pixiRect(PR.torches, tX - 1, tY + 7, 2, 4, 0x6b4a2b, 1);
       const fl = Math.floor(t * 9 + seed) % 3;
