@@ -96,6 +96,7 @@ function renderPixi() {
   drawPixiObjects();
   drawPixiProjectiles();
   drawPixiParticles();
+  drawPixiFx();
   drawPixiLighting();
   PR.app.renderer.render(PR.app.stage);
   return true;
@@ -144,6 +145,7 @@ function pixiSpriteFromTexture(parent, tex, x, y, opt) {
     s.scale.set(1);
     s.tint = 0xffffff;
     s.anchor.set(0, 0);
+    s.blendMode = 'normal';
   }
   s.position.set(x, y);
   if (opt && opt.anchor) s.anchor.set(opt.anchor[0], opt.anchor[1]);
@@ -170,6 +172,7 @@ function pixiSprite(parent, img, x, y, w, h, opt) {
     s.rotation = 0;
     s.scale.set(1);
     s.tint = 0xffffff;
+    s.blendMode = 'normal';
   }
   s.position.set(x, y);
   s.width = w == null ? (img.naturalWidth || img.width) : w;
@@ -200,6 +203,7 @@ function pixiGraphics(parent) {
     g.rotation = 0;
     g.scale.set(1);
     g.position.set(0, 0);
+    g.blendMode = 'normal';
   }
   parent.addChild(g);
   return g;
@@ -902,6 +906,28 @@ function drawPixiParticles() {
   for (const pa of state.particles) pixiRect(PR.fx, pa.x - 1, pa.y - 1, 2, 2, pcol(pa.color), Math.min(1, pa.t * 3));
 }
 
+// Efectos one-shot (state.fx): explosion del orbe (v2boom), ondas expansivas y
+// destellos. Iban perdidos en Pixi (solo se dibujaban en canvas). Van en PR.fx,
+// por encima de la luz, con blend aditivo para que brillen sobre la oscuridad.
+function drawPixiFx() {
+  if (!state.fx) return;
+  for (const f of state.fx) {
+    if (f.type === 'v2boom' && typeof V2H !== 'undefined' && V2H.ready && V2H.fx && V2H.fx.boom && V2H.fx.boom.length) {
+      const bi = Math.min(V2H.fx.boom.length - 1, Math.floor((state.time - f.start) * 1000 / 60));
+      const img = V2H.fx.boom[bi];
+      if (pixiImageReady(img)) { const S = 0.6; const s = pixiSprite(PR.fx, img, f.x, f.y, 40 * S, 40 * S, { anchor: [0.5, 0.5] }); if (s) s.blendMode = 'add'; }
+    } else if (f.type === 'ring') {
+      const k = 1 - f.t / f.t0, ease = 1 - (1 - k) * (1 - k);
+      const g = pixiGraphics(PR.fx);
+      g.blendMode = 'add';
+      g.circle(f.x, f.y, Math.max(0.1, f.maxR * ease)).stroke({ color: pcol(f.color), width: 0.5 + 2 * (f.t / f.t0), alpha: f.t / f.t0 });
+    } else if (f.type === 'flash') {
+      const tex = PR.lights && PR.lights.lightTex;
+      if (tex) { const s = pixiSpriteFromTexture(PR.fx, tex, f.x, f.y, { anchor: [0.5, 0.5], scale: [(f.r * 2) / tex.width, (f.r * 2) / tex.height], alpha: (f.t / f.t0) * 0.85 }); if (s) s.blendMode = 'add'; }
+    }
+  }
+}
+
 // ---------------------------------------------------------------------
 // Iluminacion Pixi-nativa. No copia los gradientes del canvas pixel a
 // pixel: busca un dungeon oscuro pero legible. Arquitectura por capas:
@@ -1043,10 +1069,16 @@ function drawPixiLighting() {
   // luz del jugador: suave, no quema el centro
   pixiLight(L, px(p.x), py(p.y), 72 * ZOOM, 0xffd6a0, 0.34);
 
-  // auras magicas (orbes del jugador)
+  // auras magicas (orbes del jugador): a la altura VISUAL del orbe (pr.y - z)
   for (const pr of state.projs) {
     if (pr.dead || pr.style !== 'bolt') continue;
-    pixiLight(L, px(pr.x), py(pr.y), 46 * ZOOM, 0x88b4ff, 0.42);
+    pixiLight(L, px(pr.x), py(pr.y - (pr.z || 0)), 46 * ZOOM, 0x88b4ff, 0.42);
+  }
+
+  // destello de explosion (lightburst): ilumina el area un instante al estallar
+  if (state.fx) for (const f of state.fx) {
+    if (f.type !== 'lightburst') continue;
+    pixiLight(L, px(f.x), py(f.y), (f.r || 60) * ZOOM, 0xbfe0ff, 0.6 * (f.t / f.t0));
   }
 
   // ocultar sprites de luz sobrantes del pool

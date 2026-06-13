@@ -431,7 +431,8 @@ function updateProjectiles(dt) {
       if (pr.trailT <= 0) {
         pr.trailT = 0.016;
         state.particles.push({
-          x: pr.x + (Math.random() - 0.5) * 3, y: pr.y + (Math.random() - 0.5) * 3,
+          // la estela nace a la ALTURA VISUAL del orbe (pr.y - z), no en el piso
+          x: pr.x + (Math.random() - 0.5) * 3, y: pr.y - pr.z + (Math.random() - 0.5) * 3,
           vx: -pr.vx * 0.06 + (Math.random() - 0.5) * 14,
           vy: -pr.vy * 0.06 + (Math.random() - 0.5) * 14,
           t: 0.22 + Math.random() * 0.18,
@@ -614,7 +615,11 @@ function playerAttack(aimAng) {
     // adelantado en la dirección de tiro). drawDY eleva sólo el dibujo hasta la punta.
     const groundX = visX;
     const groundY = p.y + 5 + Math.sin(aimAng) * 6;
-    const z = groundY - visY; // altura del orbe: cuánto está la punta del bastón sobre el piso
+    // altura del orbe sobre el piso. Nace de la punta del bastón pero ACOTADA: si no,
+    // en diagonales pronunciadas z se dispara (apuntando arriba dio 21) y el orbe se
+    // dibuja muy por encima de donde colisiona -> "para mucho antes" contra un muro.
+    // Acotada a [2,12] el desfase perpendicular es chico y el remate del muro lo tapa.
+    const z = Math.max(2, Math.min(12, groundY - visY));
     // en desktop el orbe termina donde apuntás (no sigue de largo); tope = alcance del arma
     let boltRange = wt.projRange;
     if (!touch.enabled) {
