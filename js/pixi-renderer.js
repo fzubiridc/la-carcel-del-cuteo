@@ -7,18 +7,18 @@ let PR = null;
 
 async function initPixiRenderer(view) {
   if (typeof PIXI === 'undefined') throw new Error('PIXI no esta cargado');
-  const app = new PIXI.Application({
-    view,
+  const app = new PIXI.Application();
+  await app.init({
+    canvas: view,
     width: view.width,
     height: view.height,
     backgroundColor: 0x0b0a0f,
     antialias: false,
     autoDensity: false,
     resolution: 1,
-    forceCanvas: false,
   });
   app.ticker.stop();
-  app.view.style.imageRendering = 'pixelated';
+  view.style.imageRendering = 'pixelated';
 
   PR = {
     app,
@@ -43,7 +43,7 @@ async function initPixiRenderer(view) {
   PR.world.addChild(PR.tiles, PR.torches);
   // capa de sombras con blur: difumina los bordes del blob de contacto y de la
   // silueta proyectada de una sola pasada. Va debajo de los sprites de entidad.
-  const shadowBlur = new PIXI.BlurFilter(2.5, 2);
+  const shadowBlur = new PIXI.BlurFilter({ strength: 2.5, quality: 2 });
   shadowBlur.padding = 12;
   PR.shadows.filters = [shadowBlur];
   PR.entities.addChild(PR.wallTops, PR.shadows, PR.objects, PR.fx);
@@ -106,7 +106,7 @@ function pixiTexture(img) {
   let tex = PR.tex.get(img);
   if (!tex) {
     tex = PIXI.Texture.from(img);
-    if (tex.baseTexture) tex.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
+    if (tex.source) tex.source.scaleMode = 'nearest';
     PR.tex.set(img, tex);
   }
   return tex;
@@ -114,7 +114,7 @@ function pixiTexture(img) {
 
 function pixiFrameTexture(img, sx, sy, sw, sh) {
   const base = pixiTexture(img);
-  if (!base || !base.baseTexture) return null;
+  if (!base || !base.source) return null;
   let byImage = PR.frameTex.get(img);
   if (!byImage) {
     byImage = new Map();
@@ -123,7 +123,7 @@ function pixiFrameTexture(img, sx, sy, sw, sh) {
   const key = sx + ',' + sy + ',' + sw + ',' + sh;
   let tex = byImage.get(key);
   if (!tex) {
-    tex = new PIXI.Texture(base.baseTexture, new PIXI.Rectangle(sx, sy, sw, sh));
+    tex = new PIXI.Texture({ source: base.source, frame: new PIXI.Rectangle(sx, sy, sw, sh) });
     byImage.set(key, tex);
   }
   return tex;
@@ -214,23 +214,17 @@ function pcol(c, fallback) {
 
 function pixiRect(parent, x, y, w, h, color, alpha) {
   const g = pixiGraphics(parent);
-  g.beginFill(pcol(color), alpha == null ? 1 : alpha);
-  g.drawRect(x, y, w, h);
-  g.endFill();
+  g.rect(x, y, w, h).fill({ color: pcol(color), alpha: alpha == null ? 1 : alpha });
 }
 
 function pixiCircle(parent, x, y, r, color, alpha) {
   const g = pixiGraphics(parent);
-  g.beginFill(pcol(color), alpha == null ? 1 : alpha);
-  g.drawCircle(x, y, r);
-  g.endFill();
+  g.circle(x, y, r).fill({ color: pcol(color), alpha: alpha == null ? 1 : alpha });
 }
 
 function pixiEllipse(parent, x, y, rx, ry, color, alpha) {
   const g = pixiGraphics(parent);
-  g.beginFill(pcol(color), alpha == null ? 1 : alpha);
-  g.drawEllipse(x, y, rx, ry);
-  g.endFill();
+  g.ellipse(x, y, rx, ry).fill({ color: pcol(color), alpha: alpha == null ? 1 : alpha });
 }
 
 function pixiTileVariant(x, y, n) {
@@ -335,7 +329,7 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
   pixiDrawStaticStairs(g, lvl, pal);
 
   const tex = PIXI.Texture.from(cv);
-  if (tex.baseTexture) tex.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
+  if (tex.source) tex.source.scaleMode = 'nearest';
   const sprite = new PIXI.Sprite(tex);
   sprite.roundPixels = true;
   PR.tiles.removeChildren();
@@ -351,7 +345,7 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
     tg.drawImage(cv, tops[i][0], tops[i][1], TILE, TILE, tops[i][0], tops[i][1], TILE, TILE);
   }
   const topTex = PIXI.Texture.from(topCv);
-  if (topTex.baseTexture) topTex.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
+  if (topTex.source) topTex.source.scaleMode = 'nearest';
   const topSprite = new PIXI.Sprite(topTex);
   topSprite.roundPixels = true;
   PR.wallTops.removeChildren();
@@ -811,9 +805,7 @@ function drawPixiProjectiles() {
       pixiSprite(PR.objects, img, pr.x, pr.y, 24, 24, { anchor: [0.5, 0.5], rotation: pr.ang, alpha: Math.min(1, pr.life * 3.5) });
     } else if (pr.style === 'arrow') {
       const g = pixiGraphics(PR.objects);
-      g.beginFill(pcol(pr.color, 0xe8d8a0));
-      g.drawRect(-4, -0.5, 8, 1);
-      g.endFill();
+      g.rect(-4, -0.5, 8, 1).fill(pcol(pr.color, 0xe8d8a0));
       g.position.set(pr.x, pr.y); g.rotation = pr.ang;
     } else if (pr.style === 'fire' && typeof LICH_FIRE !== 'undefined' && LICH_FIRE.length) {
       // bola de fuego del liche: sprite animado rotado hacia el angulo de vuelo
@@ -921,7 +913,7 @@ function pixiLight(L, x, y, radius, tint, alpha) {
   if (!s) {
     s = new PIXI.Sprite(L.lightTex);
     s.anchor.set(0.5);
-    s.blendMode = PIXI.BLEND_MODES.ADD;
+    s.blendMode = 'add';
     L.lightsLayer.addChild(s);
     L.pool.push(s);
   }
