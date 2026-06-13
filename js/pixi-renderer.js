@@ -361,7 +361,20 @@ function drawPixiObjects() {
 }
 
 function drawPixiShadow(x, y, w) {
-  pixiEllipse(PR.objects, x, y + 5, w, w * 0.35, 0x000000, 0.30);
+  // sombra de contacto suave: blob negro con falloff (reusa la textura radial de
+  // luz, tinteada de negro y achatada). Se funde con el piso iluminado en vez de
+  // ser una elipse de borde duro. Fallback a la elipse si la textura no esta lista.
+  const tex = PR.lights && PR.lights.lightTex;
+  if (tex) {
+    pixiSpriteFromTexture(PR.objects, tex, x, y + 5, {
+      anchor: [0.5, 0.5],
+      scale: [(w * 3.4) / tex.width, (w * 1.25) / tex.height],
+      tint: 0x000000,
+      alpha: 0.42,
+    });
+  } else {
+    pixiEllipse(PR.objects, x, y + 5, w, w * 0.35, 0x000000, 0.30);
+  }
 }
 
 function drawPixiPlayer(p) {
