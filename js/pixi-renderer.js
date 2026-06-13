@@ -1101,20 +1101,30 @@ uniform sampler2D uWallMask;
 uniform vec2 uLightWorld;
 uniform vec2 uLevelPx;
 uniform float uWorldRadius;
+uniform float uNearMargin; // no ocluir a menos de esto de la luz (evita auto-sombra de antorchas en su muro)
+uniform float uPen;        // tamano de penumbra en px-mundo (jitter del objetivo)
+const int STEPS = 24;
+const int RAYS = 4;
+// 1.0 si el rayo de 'from' a 'to' llega sin pegar muro; 0.0 si lo bloquea.
+float rayClear(vec2 from, vec2 to) {
+  vec2 sv = (to - from) / float(STEPS);
+  vec2 q = from;
+  for (int i = 0; i < STEPS; i++) {
+    q += sv;
+    if (distance(q, to) < uNearMargin) break;
+    if (texture(uWallMask, q / uLevelPx).r > 0.5) return 0.0;
+  }
+  return 1.0;
+}
 void main(void) {
   vec4 src = texture(uTexture, vTextureCoord);
   // posicion mundo de este pixel (el sprite cubre [centro-R, centro+R] en mundo)
   vec2 pixWorld = uLightWorld + (vTextureCoord - 0.5) * 2.0 * uWorldRadius;
-  vec2 toLight = uLightWorld - pixWorld;
-  const int STEPS = 24;
-  vec2 stepv = toLight / float(STEPS);
-  vec2 p = pixWorld;
-  float occ = 1.0;
-  for (int i = 0; i < STEPS; i++) {
-    p += stepv;
-    if (texture(uWallMask, p / uLevelPx).r > 0.5) { occ = 0.0; break; }
-  }
-  finalColor = src * occ;
+  // penumbra: promediar oclusion hacia 4 puntos alrededor del centro de la luz
+  vec2 offs[4] = vec2[4](vec2(uPen, 0.0), vec2(-uPen, 0.0), vec2(0.0, uPen), vec2(0.0, -uPen));
+  float acc = 0.0;
+  for (int r = 0; r < RAYS; r++) acc += rayClear(pixWorld, uLightWorld + offs[r]);
+  finalColor = src * (acc / float(RAYS));
 }
 `;
 function makeOcclusionFilter() {
@@ -1125,6 +1135,8 @@ function makeOcclusionFilter() {
         uLightWorld: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
         uLevelPx: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
         uWorldRadius: { value: 1, type: 'f32' },
+        uNearMargin: { value: 2, type: 'f32' },
+        uPen: { value: 5, type: 'f32' },
       },
       uWallMask: PIXI.Texture.WHITE.source,
     },
@@ -1175,6 +1187,8 @@ function pixiLight(L, x, y, radius, tint, alpha, occ) {
     u.uLightWorld[0] = occ.wx; u.uLightWorld[1] = occ.wy;
     u.uLevelPx[0] = occ.levelPxW; u.uLevelPx[1] = occ.levelPxH;
     u.uWorldRadius = occ.r;
+    u.uNearMargin = occ.nm != null ? occ.nm : 2;
+    u.uPen = occ.pen != null ? occ.pen : 5;
     s._occ.resources.uWallMask = L.wallMaskSource;
     s.filters = [s._occ];
   } else if (s.filters) {
@@ -1213,7 +1227,11 @@ function drawPixiLighting() {
     const sx = px(tX), sy = py(tY + 6), rad = 50 * ZOOM;
     if (sx < -rad || sx > W + rad || sy < -rad || sy > H + rad) continue;
     const flick = 0.82 + Math.sin(t * 7 + seed) * 0.12 + Math.sin(t * 17 + seed * 1.7) * 0.05;
-    pixiLight(L, sx, sy, rad * (0.95 + Math.sin(t * 5 + seed) * 0.05), 0xff9a3c, 0.55 * flick);
+    const rmul = 0.95 + Math.sin(t * 5 + seed) * 0.05;
+    // oclusion: la antorcha esta montada en un muro -> nm grande (~tile) para que su
+    // propio tile no la auto-tape. wy = tY+6 (la llama, apenas debajo del tope).
+    pixiLight(L, sx, sy, rad * rmul, 0xff9a3c, 0.55 * flick,
+      { wx: tX, wy: tY + 6, r: 50 * rmul, levelPxW: lvlPxW, levelPxH: lvlPxH, nm: 16, pen: 5 });
   }
 
   // luz del jugador: suave, no quema el centro. Con oclusion por muros (raymarch).
