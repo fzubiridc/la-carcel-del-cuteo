@@ -185,10 +185,10 @@ function playerDamage(p) {
 }
 
 // arma desarmada por clase (al quedarte sin equipo): el mago tira una chispa débil
-const UNARMED = { mago: 'chispa', guerrero: 'espada', arquero: 'arco' };
+const UNARMED = { mago: 'chispa' };
 function weaponDef(p) {
   const w = p.equip.arma;
-  return WEAPON_TYPES[w ? w.weaponType : (UNARMED[p.cls] || 'espada')];
+  return WEAPON_TYPES[w ? w.weaponType : (UNARMED[p.cls] || 'chispa')];
 }
 
 function attackCooldown(p) {

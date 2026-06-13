@@ -6,17 +6,8 @@
 const TILE = 16;
 
 // ---------- Clases jugables ----------
+// v2: una sola clase jugable, el Archimago. Guerrero y Arquero fueron retirados.
 const CLASSES = {
-  guerrero: {
-    id: 'guerrero', name: 'Guerrero', sprite: 'guerrero',
-    desc: 'Resistente y letal de cerca. Aguanta lo que sea.',
-    hp: 130, spd: 90, def: 4, crit: 5, dmgMul: 1.0, weapon: 'espada',
-  },
-  arquero: {
-    id: 'arquero', name: 'Arquero', sprite: 'arquero',
-    desc: 'Rápido y certero. Castiga desde lejos con flechas.',
-    hp: 90, spd: 112, def: 1, crit: 15, dmgMul: 1.0, weapon: 'arco',
-  },
   mago: {
     id: 'mago', name: 'Mago', sprite: 'mago',
     desc: 'Frágil pero devastador. Sus proyectiles explotan en área.',
@@ -28,10 +19,6 @@ const CLASSES = {
 // baseRot: corrección para que el icono apunte hacia donde mira el jugador al dibujarlo en mano
 // cls: cada arma solo puede ser usada por su clase
 const WEAPON_TYPES = {
-  espada:   { name: 'Espada',   cls: 'guerrero', dmg: 14, cd: 0.42, style: 'melee', range: 30, icon: 'espada', baseRot: Math.PI / 4 },
-  martillo: { name: 'Martillo', cls: 'guerrero', dmg: 24, cd: 0.85, style: 'smash', range: 30, icon: 'martillo', baseRot: Math.PI / 4 },
-  arco:     { name: 'Arco',     cls: 'arquero',  dmg: 10, cd: 0.50, style: 'arrow', projSpd: 300, icon: 'arco', baseRot: 0 },
-  ballesta: { name: 'Ballesta', cls: 'arquero',  dmg: 15, cd: 0.78, style: 'arrow', projSpd: 350, pierce: 2, icon: 'ballesta', baseRot: 0 },
   baston:   { name: 'Bastón',   cls: 'mago',     dmg: 15, cd: 0.70, style: 'bolt',  projSpd: 190, splash: 18, projSize: 12, projRange: 128, manaCost: 22, icon: 'baston', baseRot: Math.PI / 2 },
   varita:   { name: 'Varita',   cls: 'mago',     dmg: 7,  cd: 0.26, style: 'bolt',  projSpd: 270, splash: 0, projSize: 8, projRange: 105, manaCost: 9, icon: 'varita', baseRot: Math.PI / 4 },
   // ataque desarmado del mago: chispa arcana muy débil, sin maná (al quedarte sin staff)
