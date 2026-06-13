@@ -439,8 +439,10 @@ function pixiContactBlob(x, y, w, opt) {
 
 // Sombra para entidades sin silueta propia (mobs, cofres): circulo de contacto +
 // un blob suave que se estira en direccion contraria a la antorcha (con fade).
-function drawPixiShadow(x, y, w) {
-  const fy = y + 5;
+function drawPixiShadow(x, y, w, footDy) {
+  // footDy = cuanto baja la sombra desde y hasta los "pies". Jugador/mobs tienen
+  // y al centro (pies en y+5); el cofre tiene y ya en su base (footDy ~1).
+  const fy = y + (footDy == null ? 5 : footDy);
   pixiContactBlob(x, fy, w);
   const tex = PR.lights && PR.lights.lightTex;
   if (!tex) return;
@@ -788,7 +790,7 @@ function drawPixiEnemyExtras(e) {
 }
 
 function drawPixiChest(ch, gold) {
-  drawPixiShadow(ch.x, ch.y, 5);
+  drawPixiShadow(ch.x, ch.y, 6, 1); // footDy=1: el y del cofre ya es su base, sombra pegada
   const chestSet = typeof CHEST_IMG !== 'undefined' ? CHEST_IMG[gold ? 'gold' : 'common'] : null;
   if (chestSet) {
     let fi = 0;
