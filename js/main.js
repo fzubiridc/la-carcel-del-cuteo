@@ -14,6 +14,10 @@ const state = {
 
 let canvas, ctx, mini, mctx;
 let ZOOM = 3;
+const DEBUG_MODE = new URLSearchParams(location.search).has('debug');
+const GOLD_CHEST_RANGE = 1.6;
+const RUN_SAVE_KEY = 'carcel_run_v1';
+const STAFF_OVERRIDE_KEY = 'carcel_staff_override';
 let _darkCv = null, _darkCx = null; // capa de oscuridad offscreen (pisos "oscuro")
 const keys = new Set();
 const mouse = { sx: 0, sy: 0, down: false };
@@ -25,9 +29,9 @@ const touch = { enabled: false, stickId: null, baseX: 0, baseY: 0, vx: 0, vy: 0,
 // ---------------- Init ----------------
 
 window.addEventListener('load', () => {
+  if (DEBUG_MODE) document.body.classList.add('debug');
   buildSprites();
   if (typeof buildHero === 'function') buildHero();
-  if (typeof loadHeroPack === 'function') loadHeroPack(); // asset pack final del héroe (reemplaza en caliente)
   if (typeof loadV2Hero === 'function') loadV2Hero(); // mago v2 experimental (PixelLab)
   if (typeof loadMobs === 'function') loadMobs(); // motor unificado de mobs (frames PixelLab + sheets CraftPix)
   loadAssets(); // los CC0 de 32px reemplazan en caliente; hay fallback por código
@@ -38,7 +42,6 @@ window.addEventListener('load', () => {
   if (typeof loadStairsImg === 'function') loadStairsImg(); // escalera de bajada
   if (typeof loadChestImg === 'function') loadChestImg(); // cofre cerrado/abierto
   if (typeof loadTowerTiles === 'function') loadTowerTiles(); // tileset Torre en Ruinas (8+8 variantes)
-  if (typeof loadDungeonTiles === 'function') loadDungeonTiles(); // tileset CraftPix (prueba piso 2)
   if (typeof loadTorchImg === 'function') loadTorchImg(); // antorcha animada (sheet 8 frames)
   if (typeof loadLichFire === 'function') loadLichFire(); // bola de fuego del liche
   canvas = $('game'); ctx = canvas.getContext('2d');
@@ -93,11 +96,25 @@ function bindInput() {
   $('resumebtn').onclick = togglePause;
   // Botón debug: salta directo a la sala de jefe de la zona actual
   $('debugboss').onclick = () => {
+    if (!DEBUG_MODE) return;
     if (!state.run) return;
     state.run.floorInZone = ZONES[state.run.zoneIdx].floors;
     nextFloor();
   };
+  bindStaffSelector();
   bindTouch();
+}
+
+function bindStaffSelector() {
+  const sel = $('staffselect');
+  if (!sel) return;
+  try { sel.value = localStorage.getItem(STAFF_OVERRIDE_KEY) || '-1'; } catch (e) { sel.value = '-1'; }
+  sel.onchange = () => {
+    const v = +sel.value;
+    try { localStorage.setItem(STAFF_OVERRIDE_KEY, String(v)); } catch (e) { }
+    if (state.player) state.player.staffOverride = v;
+    toast(v >= 0 ? 'Mostrando staff ' + (v + 1) + ' (prueba visual)' : 'Staff según equipo', '#ffd84f');
+  };
 }
 
 function bindTouch() {
@@ -218,7 +235,9 @@ function togglePause() {
 // ---------------- Run / pisos ----------------
 
 function startRun(clsId) {
+  clearSavedRun();
   state.player = makePlayer(clsId);
+  applyStaffOverride(state.player);
   state.run = { zoneIdx: 0, floorInZone: 0, depth: 0, kills: 0 };
   state.mode = 'play';
   state.invOpen = false; state.paused = false; state.upgradeOpen = false; state.shopOpen = false;
@@ -229,6 +248,156 @@ function startRun(clsId) {
   $('hint').classList.remove('hidden');
   mini.classList.remove('hidden');
   nextFloor();
+  saveRunToStorage();
+}
+
+function applyStaffOverride(p) {
+  if (!p) return;
+  let v = -1;
+  try { v = +(localStorage.getItem(STAFF_OVERRIDE_KEY) || -1); } catch (e) { }
+  p.staffOverride = Number.isFinite(v) ? v : -1;
+  const sel = $('staffselect');
+  if (sel) sel.value = String(p.staffOverride);
+}
+
+function hasSavedRun() {
+  try { return !!localStorage.getItem(RUN_SAVE_KEY); } catch (e) { return false; }
+}
+
+function clearSavedRun() {
+  try { localStorage.removeItem(RUN_SAVE_KEY); } catch (e) { }
+}
+
+function plainClone(v) {
+  return JSON.parse(JSON.stringify(v));
+}
+
+function serializeEnemy(e) {
+  const out = {};
+  for (const k in e) {
+    if (k === 'def') continue;
+    const v = e[k];
+    if (typeof v !== 'function') out[k] = v;
+  }
+  return out;
+}
+
+function reviveEnemy(e) {
+  e.def = e.isBoss ? BOSSES[e.type] : ENEMIES[e.type];
+  e.ai = e.isBoss ? 'boss' : (e.ai || (e.def && e.def.ai));
+  e.w = e.w || (e.def && e.def.size) || 10;
+  e.h = e.h || (e.def && e.def.size) || 10;
+  e.scale = e.scale || ((e.def && e.def.scale) || 1) * (e.elite ? 1.2 : 1);
+  return e;
+}
+
+function serializeFloor(rec) {
+  return {
+    lvl: plainClone(rec.lvl),
+    enemies: (rec.enemies || []).map(serializeEnemy),
+    pickups: plainClone(rec.pickups || []),
+    explored: plainClone(rec.explored || []),
+    zoneIdx: rec.zoneIdx,
+    floorInZone: rec.floorInZone,
+    hasKey: !!rec.hasKey,
+  };
+}
+
+function reviveFloor(rec) {
+  return {
+    lvl: rec.lvl,
+    enemies: (rec.enemies || []).map(reviveEnemy),
+    pickups: rec.pickups || [],
+    explored: rec.explored || [],
+    zoneIdx: rec.zoneIdx,
+    floorInZone: rec.floorInZone,
+    hasKey: !!rec.hasKey,
+  };
+}
+
+function noteItemId(it) {
+  if (it && typeof _itemSeq !== 'undefined') _itemSeq = Math.max(_itemSeq, it.id || 0);
+}
+
+function noteSavedItemIds() {
+  const p = state.player;
+  if (p) {
+    for (const slot in (p.equip || {})) noteItemId(p.equip[slot]);
+    for (const it of (p.bag || [])) noteItemId(it);
+  }
+  for (const depth in (state.run && state.run.saved || {})) {
+    const rec = state.run.saved[depth];
+    for (const pk of (rec.pickups || [])) noteItemId(pk.item);
+    const stock = rec.lvl && rec.lvl.shopStock;
+    if (stock) for (const it of (stock.items || [])) noteItemId(it);
+  }
+}
+
+function saveRunToStorage() {
+  if (state.mode !== 'play' || !state.player || !state.run || !state.level) return;
+  saveCurrentFloor();
+  const saved = {};
+  for (const depth in (state.run.saved || {})) saved[depth] = serializeFloor(state.run.saved[depth]);
+  const payload = {
+    v: 1,
+    savedAt: Date.now(),
+    player: plainClone(state.player),
+    run: {
+      zoneIdx: state.run.zoneIdx,
+      floorInZone: state.run.floorInZone,
+      depth: state.run.depth,
+      kills: state.run.kills,
+      time: state.run.time || 0,
+      saved,
+    },
+  };
+  try { localStorage.setItem(RUN_SAVE_KEY, JSON.stringify(payload)); }
+  catch (e) { toast('No se pudo guardar la run en este navegador', '#ff6b6b'); }
+}
+
+function loadRunFromStorage() {
+  let raw = null;
+  try { raw = localStorage.getItem(RUN_SAVE_KEY); } catch (e) { }
+  if (!raw) return false;
+  try {
+    const payload = JSON.parse(raw);
+    if (!payload || payload.v !== 1 || !payload.player || !payload.run) throw new Error('save invalido');
+    state.player = payload.player;
+    applyStaffOverride(state.player);
+    state.player.bag = state.player.bag || Array(BALANCE.bagSize).fill(null);
+    state.player.equip = state.player.equip || {};
+    state.player.bonus = state.player.bonus || { hp: 0, spd: 0, crit: 0, atkspd: 0, def: 0, dmgMul: 1 };
+    calcStats(state.player);
+    state.player.hp = Math.min(state.player.hp, state.player.stats.maxhp);
+    state.player.mana = Math.min(state.player.mana || state.player.stats.maxMana, state.player.stats.maxMana);
+    state.run = {
+      zoneIdx: payload.run.zoneIdx,
+      floorInZone: payload.run.floorInZone,
+      depth: payload.run.depth,
+      kills: payload.run.kills || 0,
+      time: payload.run.time || 0,
+      saved: {},
+    };
+    for (const depth in (payload.run.saved || {})) state.run.saved[depth] = reviveFloor(payload.run.saved[depth]);
+    noteSavedItemIds();
+    const rec = state.run.saved[state.run.depth];
+    if (!rec) throw new Error('piso actual faltante');
+    state.mode = 'play';
+    state.invOpen = false; state.paused = false; state.upgradeOpen = false; state.shopOpen = false;
+    $('upgradescreen').classList.add('hidden');
+    $('shop').classList.add('hidden');
+    $('menu').classList.add('hidden');
+    $('hud').classList.remove('hidden');
+    $('hint').classList.remove('hidden');
+    mini.classList.remove('hidden');
+    restoreFloor(rec, state.player.x || rec.lvl.start.x, state.player.y || rec.lvl.start.y);
+    toast('Run continuada', '#ffd84f');
+    return true;
+  } catch (e) {
+    clearSavedRun();
+    toast('La run guardada estaba corrupta y se descartó', '#ff6b6b');
+    return false;
+  }
 }
 
 // Guarda el piso actual tal cual está (mobs muertos, cofres abiertos, loot
@@ -272,6 +441,7 @@ function prevFloor() {
   run.depth--;
   const rec = run.saved[run.depth];
   restoreFloor(rec, (rec.lvl.exit.tx + 0.5) * TILE, (rec.lvl.exit.ty + 0.5) * TILE);
+  saveRunToStorage();
 }
 
 function nextFloor() {
@@ -282,6 +452,7 @@ function nextFloor() {
   if (run.saved && run.saved[run.depth]) {
     const rec = run.saved[run.depth];
     restoreFloor(rec, rec.lvl.start.x, rec.lvl.start.y);
+    saveRunToStorage();
     return;
   }
   const zone = ZONES[run.zoneIdx];
@@ -322,6 +493,7 @@ function nextFloor() {
     if (lvl.evento === 'embrujado') toast('Este piso está embrujado: más peligro, más tesoro', '#c45cff');
   }
   for (const g of lvl.groundItems) spawnPickup('item', g.x, g.y, makeItem(run.depth));
+  saveRunToStorage();
 }
 
 function onBossKilled(boss) {
@@ -343,6 +515,7 @@ function onBossKilled(boss) {
 
 function onPlayerDeath() {
   state.mode = 'dead';
+  clearSavedRun();
   showEnd(false);
 }
 
@@ -420,7 +593,7 @@ function tryInteract() {
     if (!ch.opened && Math.hypot(p.x - ch.x, p.y - ch.y) < TILE * 1.4) { openChest(ch); return; }
   }
   // cofre dorado: necesita la llave
-  if (lvl.lockedChest && !lvl.lockedChest.opened && Math.hypot(p.x - lvl.lockedChest.x, p.y - lvl.lockedChest.y) < TILE * 1.4) {
+  if (lvl.lockedChest && !lvl.lockedChest.opened && Math.hypot(p.x - lvl.lockedChest.x, p.y - lvl.lockedChest.y) < TILE * GOLD_CHEST_RANGE) {
     if (p.hasKey) openLockedChest(lvl.lockedChest);
     else toast('Cerrado — la llave la tiene una criatura de este piso', '#8a8496');
     return;
@@ -500,7 +673,7 @@ function update(dt) {
   // victoria diferida tras matar al jefe final
   if (state.winT > 0) {
     state.winT -= dt;
-    if (state.winT <= 0) { state.mode = 'win'; showEnd(true); return; }
+    if (state.winT <= 0) { state.mode = 'win'; clearSavedRun(); showEnd(true); return; }
   }
 
   // dash: impulso breve, invulnerable, con cooldown
@@ -584,6 +757,14 @@ function update(dt) {
 
   updateHUD();
   updatePrompt();
+  updateAutosave(dt);
+}
+
+function updateAutosave(dt) {
+  updateAutosave.t = (updateAutosave.t || 0) + dt;
+  if (updateAutosave.t < 2) return;
+  updateAutosave.t = 0;
+  saveRunToStorage();
 }
 
 function mouseWorldX() { return mouse.sx / ZOOM + state.cam.x; }
@@ -598,7 +779,7 @@ function updatePrompt() {
     msg = '[E] Sacrificar 25% de vida por un tesoro';
   else if (lvl.chests.some(ch => !ch.opened && Math.hypot(p.x - ch.x, p.y - ch.y) < TILE * 1.4))
     msg = '[E] Abrir cofre';
-  else if (lvl.lockedChest && !lvl.lockedChest.opened && Math.hypot(p.x - lvl.lockedChest.x, p.y - lvl.lockedChest.y) < TILE * 1.6)
+  else if (lvl.lockedChest && !lvl.lockedChest.opened && Math.hypot(p.x - lvl.lockedChest.x, p.y - lvl.lockedChest.y) < TILE * GOLD_CHEST_RANGE)
     msg = p.hasKey ? '[E] Abrir cofre dorado' : 'Cerrado — la llave la tiene una criatura de este piso';
   else if (state.run.depth > 1 && Math.hypot(p.x - lvl.start.x, p.y - lvl.start.y) < TILE * 1.2)
     msg = '[E] Volver al piso anterior';

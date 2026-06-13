@@ -85,6 +85,16 @@ function buildMenu() {
     `<div style="margin-top:10px;text-align:center;color:#ffd84f;font-weight:bold;letter-spacing:1px">▶ ENTRAR A LA CÁRCEL</div>`);
   card.onclick = () => startRun('mago');
   wrap.appendChild(card);
+
+  if (typeof hasSavedRun === 'function' && hasSavedRun()) {
+    const cont = document.createElement('button');
+    cont.className = 'btn';
+    cont.type = 'button';
+    cont.textContent = 'CONTINUAR RUN GUARDADA';
+    cont.style.marginTop = '12px';
+    cont.onclick = e => { e.stopPropagation(); loadRunFromStorage(); };
+    wrap.appendChild(cont);
+  }
 }
 
 // Recorta una barra de capas por porcentaje. La ventana visible del PNG empieza

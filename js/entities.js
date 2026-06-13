@@ -286,87 +286,92 @@ function updateBoss(e, dt, dist, dx, dy) {
   }
   const pat = e.def.patterns[e.pattern];
 
-  if (pat === 'chase') {
-    moveWithCollision(lvl, e, (dx / dist) * e.spd * dt, (dy / dist) * e.spd * dt, false);
-  } else if (pat === 'burst') {
-    moveWithCollision(lvl, e, (dx / dist) * e.spd * 0.3 * dt, (dy / dist) * e.spd * 0.3 * dt, false);
+  const handler = BOSS_PATTERN_HANDLERS[pat];
+  if (handler) handler(e, dt, { lvl, dist, dx, dy });
+}
+
+const BOSS_PATTERN_HANDLERS = {
+  chase(e, dt, ctx) {
+    moveWithCollision(ctx.lvl, e, (ctx.dx / ctx.dist) * e.spd * dt, (ctx.dy / ctx.dist) * e.spd * dt, false);
+  },
+  burst(e, dt, ctx) {
+    moveWithCollision(ctx.lvl, e, (ctx.dx / ctx.dist) * e.spd * 0.3 * dt, (ctx.dy / ctx.dist) * e.spd * 0.3 * dt, false);
     e.subT -= dt;
-    if (e.subT <= 0) {
-      e.subT = 1.1;
-      const n = 12, off = Math.random() * Math.PI;
-      for (let i = 0; i < n; i++)
-        fireProj({ x: e.x, y: e.y, ang: off + (i / n) * Math.PI * 2, spd: e.def.projSpd, dmg: e.dmg, friendly: false, color: '#ff5a8a', range: e.def.projRange || 170 });
-      sfx('eshoot');
-    }
-  } else if (pat === 'spread') {
+    if (e.subT > 0) return;
+    e.subT = 1.1;
+    const n = 12, off = Math.random() * Math.PI;
+    for (let i = 0; i < n; i++)
+      fireProj({ x: e.x, y: e.y, ang: off + (i / n) * Math.PI * 2, spd: e.def.projSpd, dmg: e.dmg, friendly: false, color: '#ff5a8a', range: e.def.projRange || 170 });
+    sfx('eshoot');
+  },
+  spread(e, dt, ctx) {
     e.subT -= dt;
-    if (e.subT <= 0) {
-      e.subT = 0.65;
-      const base = Math.atan2(dy, dx);
-      for (const o of [-0.25, 0, 0.25])
-        fireProj({ x: e.x, y: e.y, ang: base + o, spd: e.def.projSpd * 1.2, dmg: e.dmg, friendly: false, color: '#ffb15a', range: e.def.projRange || 170 });
-      sfx('eshoot');
-    }
-  } else if (pat === 'charge') {
+    if (e.subT > 0) return;
+    e.subT = 0.65;
+    const base = Math.atan2(ctx.dy, ctx.dx);
+    for (const o of [-0.25, 0, 0.25])
+      fireProj({ x: e.x, y: e.y, ang: base + o, spd: e.def.projSpd * 1.2, dmg: e.dmg, friendly: false, color: '#ffb15a', range: e.def.projRange || 170 });
+    sfx('eshoot');
+  },
+  charge(e, dt, ctx) {
     if (!e.charging && e.telegraphT === 0) e.telegraphT = 0.55; // telegrafiar
     if (e.telegraphT > 0) {
       e.telegraphT -= dt;
       if (e.telegraphT <= 0) {
         e.charging = true;
-        e.chargeVX = (dx / dist) * e.spd * 4.5;
-        e.chargeVY = (dy / dist) * e.spd * 4.5;
+        e.chargeVX = (ctx.dx / ctx.dist) * e.spd * 4.5;
+        e.chargeVY = (ctx.dy / ctx.dist) * e.spd * 4.5;
       }
     }
-    if (e.charging) {
-      const ox = e.x, oy = e.y;
-      moveWithCollision(lvl, e, e.chargeVX * dt, e.chargeVY * dt, false);
-      // estela de polvo cada ~70 ms, detrás de la dirección de carga
-      e.dustT = (e.dustT || 0) - dt;
-      if (e.dustT <= 0) {
-        e.dustT = 0.07;
-        const dn = Math.hypot(e.chargeVX, e.chargeVY) || 1;
-        state.fx.push({ type: 'dust', x: e.x - (e.chargeVX / dn) * 6, y: e.y + 6,
-          start: state.time, t: 0.28, t0: 0.28 });
-      }
-      if (Math.abs(e.x - ox) < 0.1 && Math.abs(e.y - oy) < 0.1) { // chocó con pared
-        e.charging = false; shake(5);
-        if (e.enraged && !e.chained) {
-          e.chained = true; e.telegraphT = 0.35; // furioso: encadena una segunda embestida
-        } else {
-          e.chained = false; e.patT = 0;
-        }
+    if (!e.charging) return;
+    const ox = e.x, oy = e.y;
+    moveWithCollision(ctx.lvl, e, e.chargeVX * dt, e.chargeVY * dt, false);
+    // estela de polvo cada ~70 ms, detrás de la dirección de carga
+    e.dustT = (e.dustT || 0) - dt;
+    if (e.dustT <= 0) {
+      e.dustT = 0.07;
+      const dn = Math.hypot(e.chargeVX, e.chargeVY) || 1;
+      state.fx.push({ type: 'dust', x: e.x - (e.chargeVX / dn) * 6, y: e.y + 6,
+        start: state.time, t: 0.28, t0: 0.28 });
+    }
+    if (Math.abs(e.x - ox) < 0.1 && Math.abs(e.y - oy) < 0.1) { // chocó con pared
+      e.charging = false; shake(5);
+      if (e.enraged && !e.chained) {
+        e.chained = true; e.telegraphT = 0.35; // furioso: encadena una segunda embestida
+      } else {
+        e.chained = false; e.patT = 0;
       }
     }
-  } else if (pat === 'kickball') {
+  },
+  kickball(e, dt, ctx) {
     // patea SU pelota hacia el jugador; donde caiga, irá a buscarla
     if (e.subT === 0) {
       e.subT = 0.37; // windup: la pelota sale al inicio del frame 2 (250+120 ms)
       e.kickStart = state.time;
-    } else {
-      e.subT -= dt;
-      if (e.subT <= 0 && e.hasBall) {
-        e.subT = 999; // una sola patada por ciclo
-        fireProj({ x: e.x, y: e.y, ang: Math.atan2(dy, dx), spd: 240,
-          dmg: Math.round(e.dmg * 1.2), friendly: false, style: 'rugbyball', life: 0.6, owner: e });
-        e.hasBall = false;
-        addFloater(e.x, e.y - 24, '¡Patada!', '#ffd84f', false);
-        sfx('kick');
-      }
+      return;
     }
-  } else if (pat === 'summon') {
     e.subT -= dt;
-    if (e.subT <= 0) {
-      e.subT = 2.2;
-      if (state.enemies.length < 8 && e.def.minion) {
-        const ang = Math.random() * Math.PI * 2;
-        const m = spawnEnemy(e.def.minion, e.x + Math.cos(ang) * 30, e.y + Math.sin(ang) * 30, state.run.depth);
-        state.enemies.push(m);
-        burst(m.x, m.y, '#b14fff', 8);
-        sfx('summon');
-      }
+    if (e.subT > 0 || !e.hasBall) return;
+    e.subT = 999; // una sola patada por ciclo
+    fireProj({ x: e.x, y: e.y, ang: Math.atan2(ctx.dy, ctx.dx), spd: 240,
+      dmg: Math.round(e.dmg * 1.2), friendly: false, style: 'rugbyball', life: 0.6, owner: e });
+    e.hasBall = false;
+    addFloater(e.x, e.y - 24, '¡Patada!', '#ffd84f', false);
+    sfx('kick');
+  },
+  summon(e, dt) {
+    e.subT -= dt;
+    if (e.subT > 0) return;
+    e.subT = 2.2;
+    if (state.enemies.length < 8 && e.def.minion) {
+      const ang = Math.random() * Math.PI * 2;
+      const m = spawnEnemy(e.def.minion, e.x + Math.cos(ang) * 30, e.y + Math.sin(ang) * 30, state.run.depth);
+      state.enemies.push(m);
+      burst(m.x, m.y, '#b14fff', 8);
+      sfx('summon');
     }
-  }
-}
+  },
+};
 
 // ---------------- Proyectiles ----------------
 
@@ -574,7 +579,10 @@ function playerAttack(aimAng) {
   } else if (wt.style === 'bolt') {
     // el hechizo sale de la punta del bastón/varita, no del cuerpo
     p.mana = Math.max(0, (p.mana || 0) - (wt.manaCost || 0)); p.noCastT = 0;
-    const mx = p.x + Math.cos(aimAng) * 16, my = p.y - 6 + Math.sin(aimAng) * 16;
+    p._staffCastStart = state.time;
+    const tip = p._v2StaffTip || null;
+    const mx = tip ? tip.x : p.x + Math.cos(aimAng) * 16;
+    const my = tip ? tip.y : p.y - 6 + Math.sin(aimAng) * 16;
     // en desktop el orbe termina donde apuntás (no sigue de largo); tope = alcance del arma
     let boltRange = wt.projRange;
     if (!touch.enabled) {
@@ -584,7 +592,8 @@ function playerAttack(aimAng) {
     }
     fireProj({ x: mx, y: my, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit, size: wt.projSize || 6, range: boltRange });
     // destello de lanzamiento en la punta del bastón
-    const hx = p.x + Math.cos(aimAng) * 9, hy = p.y + Math.sin(aimAng) * 9;
+    const hx = tip ? tip.x : p.x + Math.cos(aimAng) * 9;
+    const hy = tip ? tip.y : p.y + Math.sin(aimAng) * 9;
     for (let i = 0; i < 5; i++) {
       const a = aimAng + (Math.random() - 0.5) * 1.2, s = 30 + Math.random() * 50;
       state.particles.push({ x: hx, y: hy, vx: Math.cos(a) * s, vy: Math.sin(a) * s, t: 0.15 + Math.random() * 0.1, color: Math.random() < 0.5 ? '#9ad8ff' : '#b14fff', glow: true });
@@ -681,12 +690,16 @@ function dropLoot(e) {
 
 // re-tirar mods si subimos la rareza del drop de jefe
 function makeItemRespectRarity(proto, depth) {
-  const it = makeItem(depth + 2, proto.slot);
-  if (RARITIES.findIndex(r => r.id === it.rarity) < 2) {
-    it.rarity = Math.random() < 0.3 ? 'epico' : 'raro';
-    return makeItem(depth + 2, proto.slot); // simplemente re-tirar; suficiente para drops de jefe
+  const minIdx = Math.max(0, RARITIES.findIndex(r => r.id === proto.rarity));
+  let best = proto;
+  for (let i = 0; i < 12; i++) {
+    const it = makeItem(depth + 2, proto.slot);
+    const idx = RARITIES.findIndex(r => r.id === it.rarity);
+    if (idx >= minIdx) return it;
+    if (idx > RARITIES.findIndex(r => r.id === best.rarity)) best = it;
   }
-  return it;
+  best.rarity = RARITIES[minIdx].id;
+  return best;
 }
 
 function spawnPickup(kind, x, y, item) {
