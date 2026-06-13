@@ -324,8 +324,19 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
           g.fillStyle = 'rgba(0,0,0,0.30)';
           g.fillRect(X, Y + TILE - 3, TILE, 3);
         } else {
-          g.fillStyle = floorBelow ? pal.wall : '#05040a';
-          g.fillRect(X, Y, TILE, TILE);
+          if (floorBelow) {
+            g.fillStyle = pal.wall;
+            g.fillRect(X, Y, TILE, TILE);
+          } else {
+            // tile de techo (roca maciza, no transitable): piedra en sombra en vez de
+            // negro plano. base wallDark de la zona + textura tenue del muro + oscurecido
+            // fuerte, con leve variacion por celda -> material y volumen, no un agujero.
+            g.fillStyle = pal.wallDark || '#15131c';
+            g.fillRect(X, Y, TILE, TILE);
+            if (wallImg) { g.globalAlpha = 0.30; g.drawImage(wallImg, X, Y, TILE, TILE); g.globalAlpha = 1; }
+            g.fillStyle = (hash === 0) ? 'rgba(5,4,10,0.70)' : 'rgba(5,4,10,0.64)'; // CEIL_DARK: subir = mas oscuro
+            g.fillRect(X, Y, TILE, TILE);
+          }
           // remate: si JUSTO DEBAJO hay una cara de muro (tile inferior solido con
           // piso un tile mas abajo), coronar este tope negro con una fila de ladrillo
           // en su borde inferior -> el muro "sobresale" y recupera su grosor.
