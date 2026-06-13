@@ -351,7 +351,24 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
   PR.wallTops.removeChildren();
   PR.wallTops.addChild(topSprite);
 
-  PR.tileCache = { lvl, zoneIdx: state.run.zoneIdx, exitOpen: lvl.exitOpen, tex, torches, topTex };
+  // mascara de muros: 1 texel por tile, blanco=muro (solid) / transparente=piso.
+  // La sampleara el shader de oclusion para raymarchear hacia cada luz.
+  const maskCv = document.createElement('canvas');
+  maskCv.width = lvl.W; maskCv.height = lvl.H;
+  const mg = maskCv.getContext('2d');
+  const id = mg.createImageData(lvl.W, lvl.H);
+  for (let ty = 0; ty < lvl.H; ty++) {
+    for (let tx = 0; tx < lvl.W; tx++) {
+      const v = lvl.map[ty][tx] === 0 ? 255 : 0; // 0 = muro -> blanco
+      const i = (ty * lvl.W + tx) * 4;
+      id.data[i] = id.data[i + 1] = id.data[i + 2] = id.data[i + 3] = v;
+    }
+  }
+  mg.putImageData(id, 0, 0);
+  const wallMaskTex = PIXI.Texture.from(maskCv);
+  if (wallMaskTex.source) wallMaskTex.source.scaleMode = 'nearest';
+
+  PR.tileCache = { lvl, zoneIdx: state.run.zoneIdx, exitOpen: lvl.exitOpen, tex, torches, topTex, wallMaskTex };
 }
 
 function drawPixiTiles() {
@@ -364,6 +381,7 @@ function drawPixiTiles() {
     PR.tileCache.exitOpen !== lvl.exitOpen) {
     if (PR.tileCache && PR.tileCache.tex) PR.tileCache.tex.destroy(true);
     if (PR.tileCache && PR.tileCache.topTex) PR.tileCache.topTex.destroy(true);
+    if (PR.tileCache && PR.tileCache.wallMaskTex) PR.tileCache.wallMaskTex.destroy(true);
     buildPixiTileCache(lvl, zoneNow, pal);
   }
 }
