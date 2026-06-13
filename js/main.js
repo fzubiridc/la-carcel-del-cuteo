@@ -900,9 +900,9 @@ function updatePrompt() {
 // ---------------- Render ----------------
 
 function render(dt) {
-  // Pixi es el unico renderer. El minimap (canvas DOM aparte) se dibuja siempre.
+  // Pixi es el unico renderer. El minimap (canvas DOM aparte) solo si hay nivel.
   if (PIXI_MODE && typeof renderPixi === 'function') renderPixi(dt);
-  renderMinimap();
+  if (state.level && state.player) renderMinimap();
 }
 
 function renderMinimap() {

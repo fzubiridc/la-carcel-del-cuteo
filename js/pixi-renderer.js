@@ -1112,7 +1112,9 @@ float rayClear(vec2 from, vec2 to) {
   for (int i = 0; i < STEPS; i++) {
     q += sv;
     if (distance(q, to) < uNearMargin) break;
-    if (texture(uWallMask, q / uLevelPx).r > 0.5) return 0.0;
+    vec2 muv = q / uLevelPx;
+    muv.y = 1.0 - muv.y; // Pixi no usa UNPACK_FLIP_Y: el sampleo crudo viene espejado en Y
+    if (texture(uWallMask, muv).r > 0.5) return 0.0;
   }
   return 1.0;
 }
