@@ -304,6 +304,16 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
         }
         const bigHash = (tx * 11 + ty * 17) % 23;
         if (bigHash === 5) pixiDrawFloorDecal(g, pal, X, Y, tx, ty);
+        // AO de esquinas: el muro proyecta penumbra sobre el piso que lo bordea.
+        // Arriba pega mas fuerte (el muro "se cierne"); costados suaves. Donde se
+        // solapan top+costado nace la esquina oscura sola.
+        const aoT = ty > 0 && lvl.map[ty - 1][tx] === 0;
+        const aoL = tx > 0 && lvl.map[ty][tx - 1] === 0;
+        const aoR = tx < lvl.W - 1 && lvl.map[ty][tx + 1] === 0;
+        const AO = 7; // px de penumbra
+        if (aoT) { const gr = g.createLinearGradient(0, Y, 0, Y + AO); gr.addColorStop(0, 'rgba(0,0,0,0.42)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(X, Y, TILE, AO); }
+        if (aoL) { const gr = g.createLinearGradient(X, 0, X + AO, 0); gr.addColorStop(0, 'rgba(0,0,0,0.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(X, Y, AO, TILE); }
+        if (aoR) { const gr = g.createLinearGradient(X + TILE, 0, X + TILE - AO, 0); gr.addColorStop(0, 'rgba(0,0,0,0.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(X + TILE - AO, Y, AO, TILE); }
       } else {
         const floorBelow = ty + 1 < lvl.H && lvl.map[ty + 1][tx] === 1;
         const wallImg = Array.isArray(wallSet) ? wallSet[pixiTileVariant(tx + 101, ty + 57, wallSet.length)] : wallSet;
@@ -412,14 +422,18 @@ function drawPixiObjects() {
 const SHADOW_LIGHT_R = 78; // alcance de antorcha que proyecta sombra (mas grande = fade mas gradual)
 // Circulo de contacto: elipse negra oscura justo bajo los pies (ancla, y es lo
 // "mas oscuro cerca de los pies"). Va en PR.shadows (blureado).
-function pixiContactBlob(x, y, w) {
+function pixiContactBlob(x, y, w, opt) {
+  opt = opt || {};
+  const a = opt.alpha != null ? opt.alpha : 0.55;
+  const wide = opt.wide || 2.6, tall = opt.tall || 1.0;
   const tex = PR.lights && PR.lights.lightTex;
-  if (!tex) { pixiEllipse(PR.shadows, x, y, w, w * 0.35, 0x000000, 0.40); return; }
+  if (!tex) { pixiEllipse(PR.shadows, x, y, w * wide * 0.5, w * tall * 0.5, 0x000000, a * 0.75); return; }
   pixiSpriteFromTexture(PR.shadows, tex, x, y, {
     anchor: [0.5, 0.5],
-    scale: [(w * 2.6) / tex.width, (w * 1.0) / tex.height],
+    scale: [(w * wide) / tex.width, (w * tall) / tex.height],
+    rotation: opt.rotation || 0,
     tint: 0x000000,
-    alpha: 0.55,
+    alpha: a,
   });
 }
 
@@ -440,7 +454,7 @@ function drawPixiShadow(x, y, w) {
     scale: [len / tex.width, baseH / tex.height],
     rotation: Math.atan2(light.dy, light.dx),
     tint: 0x000000,
-    alpha: 0.5 * light.prox,
+    alpha: 0.5 * light.prox * (light.power || 1),
   });
 }
 
@@ -449,15 +463,19 @@ function drawPixiShadow(x, y, w) {
 function nearestTorchShadow(fx, fy) {
   const tc = PR.tileCache;
   if (!tc || !tc.torches) return null;
-  let blx = 0, bly = 0, bestD2 = Infinity;
+  let blx = 0, bly = 0, bestD2 = Infinity, bestSeed = 0;
   for (let i = 0; i < tc.torches.length; i++) {
     const lx = tc.torches[i][0], ly = tc.torches[i][1] + 6;
     const dx = fx - lx, dy = fy - ly, d2 = dx * dx + dy * dy;
-    if (d2 < bestD2) { bestD2 = d2; blx = lx; bly = ly; }
+    if (d2 < bestD2) { bestD2 = d2; blx = lx; bly = ly; bestSeed = tc.torches[i][2]; }
   }
   if (bestD2 >= SHADOW_LIGHT_R * SHADOW_LIGHT_R) return null;
   const d = Math.sqrt(bestD2) || 0.001;
-  return { dx: (fx - blx) / d, dy: (fy - bly) / d, prox: 1 - d / SHADOW_LIGHT_R };
+  // potencia = mismo flicker que la luz de esa antorcha (drawPixiLighting): la
+  // sombra "respira" con la llama -> mas fuerte la luz, mas fuerte la sombra.
+  const t = state.time;
+  const power = 0.82 + Math.sin(t * 7 + bestSeed) * 0.12 + Math.sin(t * 17 + bestSeed * 1.7) * 0.05;
+  return { dx: (fx - blx) / d, dy: (fy - bly) / d, prox: 1 - d / SHADOW_LIGHT_R, power };
 }
 
 // Silueta del PNG: redibuja la imagen del personaje en negro, anclada en los pies,
@@ -474,14 +492,26 @@ function drawPixiSilhouette(img, footX, footY, S, light) {
     scale: [S * 0.95, S * lenMul],
     rotation: Math.atan2(light.dx, -light.dy), // la cabeza apunta lejos de la luz
     tint: 0x000000,
-    alpha: light.prox * 0.6,             // nace en 0 en el borde del rango -> sin pop
+    alpha: light.prox * 0.6 * (light.power || 1), // nace en 0 en el borde -> sin pop; respira con la llama
   });
 }
 
 function drawPixiPlayer(p) {
   const fy = p.y + 5;
-  pixiContactBlob(p.x, fy, 5);                  // circulo de contacto oscuro a los pies
   const light = nearestTorchShadow(p.x, fy);
+  // sombra de contacto del jugador: mas grande y fuerte que la de mobs. Con una
+  // antorcha cerca, se estira hacia el lado opuesto a la luz para FUNDIRSE con la
+  // silueta proyectada -> una sola sombra coherente, no dos manchas separadas.
+  if (light) {
+    pixiContactBlob(p.x, fy, 6, {
+      alpha: (0.52 + 0.16 * light.prox) * (light.power || 1),
+      wide: 2.7 + 1.5 * light.prox,
+      tall: 1.15,
+      rotation: Math.atan2(light.dy, light.dx),
+    });
+  } else {
+    pixiContactBlob(p.x, fy, 6, { alpha: 0.6, wide: 2.7, tall: 1.2 });
+  }
   const body = (typeof V2H !== 'undefined' && V2H.ready) ? pixiPlayerImage(p) : null;
   if (light && pixiImageReady(body)) drawPixiSilhouette(body, p.x, fy, 0.4, light); // silueta del PNG
   if (drawPixiV2Hero(p)) return;
@@ -886,10 +916,13 @@ function makeRadialTex(stops, size) {
 function makeVignetteTex(w, h) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d');
-  const r = Math.max(w, h) * 0.72;
-  const grd = g.createRadialGradient(w / 2, h / 2, r * 0.42, w / 2, h / 2, r);
+  // la sombra ambiente crece con la distancia al centro (= jugador) pero TOPEA:
+  // burbuja clara cerca -> media mas tenue -> lejos oscuro pero aun legible (0.62).
+  const r = Math.max(w, h) * 0.78;
+  const grd = g.createRadialGradient(w / 2, h / 2, r * 0.34, w / 2, h / 2, r);
   grd.addColorStop(0, 'rgba(0,0,0,0)');
-  grd.addColorStop(1, 'rgba(3,2,6,0.55)');
+  grd.addColorStop(0.62, 'rgba(3,2,6,0.26)');
+  grd.addColorStop(1, 'rgba(3,2,6,0.62)');
   g.fillStyle = grd; g.fillRect(0, 0, w, h);
   return PIXI.Texture.from(c);
 }
