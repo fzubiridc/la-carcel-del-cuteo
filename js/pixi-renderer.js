@@ -940,10 +940,6 @@ function drawPixiProjectiles() {
       if (pr.z) pixiContactBlob(pr.x, pr.y, 3.2 / (1 + pr.z * 0.015), { alpha: 0.34 / (1 + pr.z * 0.02) });
       const img = V2H.fx.power[Math.floor(pr.t * 1000 / 90) % V2H.fx.power.length];
       pixiSprite(PR.objects, img, pr.x, ry, 24, 24, { anchor: [0.5, 0.5], rotation: pr.ang, alpha: Math.min(1, pr.life * 3.5) });
-    } else if (pr.style === 'arrow') {
-      const g = pixiGraphics(PR.objects);
-      g.rect(-4, -0.5, 8, 1).fill(pcol(pr.color, 0xe8d8a0));
-      g.position.set(pr.x, ry); g.rotation = pr.ang;
     } else if (pr.style === 'fire' && typeof LICH_FIRE !== 'undefined' && LICH_FIRE.length) {
       // bola de fuego del liche: sprite animado rotado hacia el angulo de vuelo
       const fr = LICH_FIRE[Math.floor(pr.t * 1000 / 90) % LICH_FIRE.length];
