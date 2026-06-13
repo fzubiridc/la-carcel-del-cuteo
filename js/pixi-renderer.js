@@ -431,12 +431,27 @@ function drawPixiObjects() {
   for (const pk of state.pickups) drawPixiPickup(pk);
   const chestDraws = lvl.chests.map(ch => ({ y: ch.y, _chest: ch, _gold: false }));
   if (lvl.lockedChest) chestDraws.push({ y: lvl.lockedChest.y, _chest: lvl.lockedChest, _gold: true });
-  const drawables = [...state.enemies, p, ...chestDraws].sort((a, b) => a.y - b.y);
+  const extra = [];
+  if (lvl.merchant) extra.push({ y: lvl.merchant.y, _merchant: lvl.merchant });
+  const drawables = [...state.enemies, p, ...chestDraws, ...extra].sort((a, b) => a.y - b.y);
   for (const e of drawables) {
-    if (e._chest) drawPixiChest(e._chest, e._gold);
+    if (e._merchant) drawPixiMerchant(e._merchant);
+    else if (e._chest) drawPixiChest(e._chest, e._gold);
     else if (e === p) drawPixiPlayer(p);
     else drawPixiEnemy(e);
   }
+}
+
+// Mercader: NPC junto a la escalera. Iba perdido en Pixi (solo se dibujaba en canvas).
+function drawPixiMerchant(m) {
+  const bob = Math.sin(state.time * 2.5) * 1.2;
+  drawPixiShadow(m.x, m.y + 1, 5.5, 1);
+  // aura cálida tenue por debajo del sprite (mismo orden que el canvas)
+  const tex = PR.lights && PR.lights.lightTex;
+  if (tex) { const s = pixiSpriteFromTexture(PR.objects, tex, m.x, m.y + bob, { anchor: [0.5, 0.5], scale: [28 / tex.width, 28 / tex.height], tint: 0xffd84f, alpha: 0.12 }); if (s) s.blendMode = 'add'; }
+  const spr = Sprites.mercader;
+  if (pixiImageReady(spr)) { const k = spr.ws || 1; pixiSprite(PR.objects, spr, m.x, m.y + bob - 2, spr.width * k, spr.height * k, { anchor: [0.5, 0.5] }); }
+  else pixiCircle(PR.objects, m.x, m.y + bob - 2, 6, 0xc7b8e8, 1);
 }
 
 // Sombra de contacto suave + DIRECCIONAL: si hay una antorcha cerca, la sombra se
