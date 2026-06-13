@@ -390,10 +390,10 @@ function fireProj(o) {
     splash: o.splash || 0, crit: o.crit || false,
     life, dead: false, t: 0, trailT: 0, owner: o.owner || null,
     pierce: o.pierce || 0, hitSet: null, size: o.size || 6,
-    // wallDY: desfase entre la y VISUAL (sale de la punta del arma, elevada) y la y
-    // de colision contra muros (plano del piso). Evita que un disparo paralelo a un
-    // muro -estando pegado debajo- choque el muro de arriba. 0 = sin elevacion.
-    wallDY: o.wallDY || 0,
+    // MODELO COMPLETO 2.5D: el proyectil VIVE en (x,y) sobre el plano del piso y TODA
+    // su colision (muros y enemigos) usa esa posicion. drawDY es solo el lift del
+    // DIBUJO (sale de la punta del arma, vuela elevado). 0 = sin elevacion.
+    drawDY: o.drawDY || 0,
   });
 }
 
@@ -409,7 +409,7 @@ function updateProjectiles(dt) {
       // al llegar a destino: el orbe con área estalla (animación + splash); el resto chisporrotea
       pr.dead = true;
       if (pr.splash) explode(pr);
-      else burst(pr.x, pr.y, pr.color, 3);
+      else burst(pr.x, pr.y + (pr.drawDY || 0), pr.color, 3);
       continue;
     }
 
@@ -439,10 +439,10 @@ function updateProjectiles(dt) {
         });
       }
     }
-    if (rectHitsWall(lvl, pr.x, pr.y + (pr.wallDY || 0), Math.max(4, pr.size - 4), Math.max(4, pr.size - 4))) {
+    if (rectHitsWall(lvl, pr.x, pr.y, Math.max(4, pr.size - 4), Math.max(4, pr.size - 4))) {
       pr.dead = true;
       if (pr.splash) explode(pr);
-      else burst(pr.x, pr.y, pr.color, 3);
+      else burst(pr.x, pr.y + (pr.drawDY || 0), pr.color, 3);
       continue;
     }
     if (pr.friendly) {
@@ -481,23 +481,26 @@ function updateProjectiles(dt) {
 
 // Explosión con área (bastón de mago)
 function explode(pr) {
+  // vy = altura VISUAL del orbe (piso + lift); el destello sale ahí. El DAÑO en área
+  // (más abajo) usa pr.y = plano del piso, donde están los enemigos.
+  const vy = pr.y + (pr.drawDY || 0);
   // destello de luz: ilumina el área un instante y se desvanece (se nota en pisos oscuros)
-  state.fx.push({ type: 'lightburst', x: pr.x, y: pr.y, t: 0.95, t0: 0.95, r: 74 });
+  state.fx.push({ type: 'lightburst', x: pr.x, y: vy, t: 0.95, t0: 0.95, r: 74 });
   const v2boom = typeof V2H !== 'undefined' && V2H.ready && V2H.fx.boom.length;
   if (v2boom) {
     // explosión sprite del energyblast: trae sus propios anillos horneados —
     // los anillos/flash del motor (el "arco blanco") se omiten para no duplicar
-    state.fx.push({ type: 'v2boom', x: pr.x, y: pr.y, start: state.time, t: 0.5, t0: 0.5 });
+    state.fx.push({ type: 'v2boom', x: pr.x, y: vy, start: state.time, t: 0.5, t0: 0.5 });
   } else {
     // fallback por código: destello + onda expansiva
-    state.fx.push({ type: 'flash', x: pr.x, y: pr.y, t: 0.12, t0: 0.12, r: Math.max(10, pr.splash * 0.8) });
-    state.fx.push({ type: 'ring', x: pr.x, y: pr.y, t: 0.32, t0: 0.32, maxR: pr.splash + 10, color: '#9ad8ff' });
-    state.fx.push({ type: 'ring', x: pr.x, y: pr.y, t: 0.45, t0: 0.45, maxR: pr.splash * 0.6, color: '#b14fff' });
+    state.fx.push({ type: 'flash', x: pr.x, y: vy, t: 0.12, t0: 0.12, r: Math.max(10, pr.splash * 0.8) });
+    state.fx.push({ type: 'ring', x: pr.x, y: vy, t: 0.32, t0: 0.32, maxR: pr.splash + 10, color: '#9ad8ff' });
+    state.fx.push({ type: 'ring', x: pr.x, y: vy, t: 0.45, t0: 0.45, maxR: pr.splash * 0.6, color: '#b14fff' });
   }
   for (let i = 0; i < 18; i++) {
     const a = Math.random() * Math.PI * 2, s = 40 + Math.random() * 110;
     state.particles.push({
-      x: pr.x, y: pr.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      x: pr.x, y: vy, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
       t: 0.25 + Math.random() * 0.35,
       color: ['#7ec8ff', '#b14fff', '#ffffff'][i % 3], glow: true,
     });
@@ -589,19 +592,25 @@ function playerAttack(aimAng) {
     p.mana = Math.max(0, (p.mana || 0) - (wt.manaCost || 0)); p.noCastT = 0;
     p._staffCastStart = state.time;
     const tip = p._v2StaffTip || null;
-    const mx = tip ? tip.x : p.x + Math.cos(aimAng) * 16;
-    const my = tip ? tip.y : p.y - 6 + Math.sin(aimAng) * 16;
+    // muzzle VISUAL: la punta del bastón (elevada). Sirve para el destello y para el
+    // lift del dibujo del proyectil.
+    const visX = tip ? tip.x : p.x + Math.cos(aimAng) * 16;
+    const visY = tip ? tip.y : p.y - 6 + Math.sin(aimAng) * 16;
+    // posición en el PLANO DEL PISO: el orbe vive y colisiona acá (pies del mago,
+    // adelantado en la dirección de tiro). drawDY eleva sólo el dibujo hasta la punta.
+    const groundX = visX;
+    const groundY = p.y + 5 + Math.sin(aimAng) * 6;
+    const drawDY = visY - groundY;
     // en desktop el orbe termina donde apuntás (no sigue de largo); tope = alcance del arma
     let boltRange = wt.projRange;
     if (!touch.enabled) {
-      const cd = Math.hypot(mouseWorldX() - mx, mouseWorldY() - my);
+      const cd = Math.hypot(mouseWorldX() - groundX, mouseWorldY() - groundY);
       // recorre un mínimo aunque apuntes cerca (no estalla pegado al mago); tope = alcance del arma
       boltRange = Math.max(50, Math.min(wt.projRange, cd));
     }
-    fireProj({ x: mx, y: my, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit, size: wt.projSize || 6, range: boltRange, wallDY: (p.y + 5) - my });
-    // destello de lanzamiento en la punta del bastón
-    const hx = tip ? tip.x : p.x + Math.cos(aimAng) * 9;
-    const hy = tip ? tip.y : p.y + Math.sin(aimAng) * 9;
+    fireProj({ x: groundX, y: groundY, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit, size: wt.projSize || 6, range: boltRange, drawDY });
+    // destello de lanzamiento en la punta del bastón (posición visual)
+    const hx = visX, hy = visY;
     for (let i = 0; i < 5; i++) {
       const a = aimAng + (Math.random() - 0.5) * 1.2, s = 30 + Math.random() * 50;
       state.particles.push({ x: hx, y: hy, vx: Math.cos(a) * s, vy: Math.sin(a) * s, t: 0.15 + Math.random() * 0.1, color: Math.random() < 0.5 ? '#9ad8ff' : '#b14fff', glow: true });

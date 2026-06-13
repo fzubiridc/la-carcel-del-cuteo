@@ -878,19 +878,23 @@ function drawPixiPickup(pk) {
 
 function drawPixiProjectiles() {
   for (const pr of state.projs) {
+    // ry = posicion VISUAL (plano del piso + lift cosmetico). La colision usa pr.y.
+    const ry = pr.y + (pr.drawDY || 0);
     if (pr.style === 'bolt' && typeof V2H !== 'undefined' && V2H.ready && V2H.fx.power.length) {
+      // sombra de contacto en el piso para vender la altura del orbe elevado
+      if (pr.drawDY) pixiContactBlob(pr.x, pr.y, 3.2, { alpha: 0.34 });
       const img = V2H.fx.power[Math.floor(pr.t * 1000 / 90) % V2H.fx.power.length];
-      pixiSprite(PR.objects, img, pr.x, pr.y, 24, 24, { anchor: [0.5, 0.5], rotation: pr.ang, alpha: Math.min(1, pr.life * 3.5) });
+      pixiSprite(PR.objects, img, pr.x, ry, 24, 24, { anchor: [0.5, 0.5], rotation: pr.ang, alpha: Math.min(1, pr.life * 3.5) });
     } else if (pr.style === 'arrow') {
       const g = pixiGraphics(PR.objects);
       g.rect(-4, -0.5, 8, 1).fill(pcol(pr.color, 0xe8d8a0));
-      g.position.set(pr.x, pr.y); g.rotation = pr.ang;
+      g.position.set(pr.x, ry); g.rotation = pr.ang;
     } else if (pr.style === 'fire' && typeof LICH_FIRE !== 'undefined' && LICH_FIRE.length) {
       // bola de fuego del liche: sprite animado rotado hacia el angulo de vuelo
       const fr = LICH_FIRE[Math.floor(pr.t * 1000 / 90) % LICH_FIRE.length];
-      if (pixiImageReady(fr)) pixiSprite(PR.objects, fr, pr.x, pr.y, 16, 16, { anchor: [0.5, 0.5], rotation: pr.ang, alpha: Math.min(1, pr.life * 4) });
-      else pixiCircle(PR.objects, pr.x, pr.y, 4, pcol(pr.color, 0xffffff), Math.min(1, pr.life * 4));
-    } else pixiCircle(PR.objects, pr.x, pr.y, pr.style === 'fire' ? 4 : 2.2, pcol(pr.color, 0xffffff), Math.min(1, pr.life * 4));
+      if (pixiImageReady(fr)) pixiSprite(PR.objects, fr, pr.x, ry, 16, 16, { anchor: [0.5, 0.5], rotation: pr.ang, alpha: Math.min(1, pr.life * 4) });
+      else pixiCircle(PR.objects, pr.x, ry, 4, pcol(pr.color, 0xffffff), Math.min(1, pr.life * 4));
+    } else pixiCircle(PR.objects, pr.x, ry, pr.style === 'fire' ? 4 : 2.2, pcol(pr.color, 0xffffff), Math.min(1, pr.life * 4));
   }
 }
 
