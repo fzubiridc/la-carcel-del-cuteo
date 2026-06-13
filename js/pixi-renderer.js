@@ -798,9 +798,45 @@ function drawPixiMob(e) {
   return drawPixiMobFrame(set, anim, face, fi, dx, dy, dw, dh, { alpha, tint });
 }
 
+// Jefe animado por sheets (bucle/golem/liche): elige anim por estado y dibuja el
+// frame anclado por los pies. Equivalente al camino canvas de drawEnemy.
+function drawPixiBoss(e) {
+  e._moved = Math.hypot(e.x - (e._lx !== undefined ? e._lx : e.x), e.y - (e._ly !== undefined ? e._ly : e.y)) > 0.05;
+  e._lx = e.x; e._ly = e.y;
+  let name = 'idle';
+  if (e.kickStart && (state.time - e.kickStart) * 1000 < 670) name = 'kick';
+  else if (e.telegraphT > 0) name = 'tackle_charge';
+  else if (e.charging) name = 'tackle';
+  else if (e._moved) name = 'run';
+  if (e._animName !== name) { e._animName = name; e._animStart = state.time; }
+  const adef = (typeof BOSS_ANIMS !== 'undefined') ? BOSS_ANIMS[name] : null;
+  if (!adef) return false;
+  const fi = (typeof animFrame === 'function') ? animFrame(adef, (state.time - e._animStart) * 1000) : 0;
+  const frames = Sprites['anim_' + e.def.anims + (e.dir < 0 ? '_' + name + '_L' : '_' + name)];
+  const fspr = frames && frames[fi];
+  if (!pixiImageReady(fspr)) return false;
+  const k2 = fspr.ws || 1;
+  const ox2 = (e.telegraphT > 0) ? (Math.random() - 0.5) * 2 : 0;
+  const sq2 = e.flashT > 0 ? 0.12 : 0;
+  const S = e.scale * k2;
+  const tint = e.flashT > 0 ? 0xffffff : (e.enraged ? 0xff3030 : 0xffffff);
+  // pivote bottom-center: los pies tocan el piso en e.y+6 (igual que el canvas)
+  pixiSpriteRaw(PR.objects, fspr, e.x + ox2, e.y + 6, {
+    anchor: [0.5, 1],
+    scale: [S * (1 + sq2), S * (1 - sq2)],
+    tint,
+  });
+  return true;
+}
+
 function drawPixiEnemy(e) {
   if (!e.def.ghost) drawPixiShadow(e.x, e.y, e.w * e.scale * 0.45);
   if ((e.def.skel || e.def.slime) && drawPixiMob(e)) {
+    drawPixiEnemyExtras(e);
+    return;
+  }
+  // jefes con pack de animaciones (sheets): idle/run/tackle/kick segun estado
+  if (e.def.anims && Sprites['anim_' + e.def.anims + '_idle'] && drawPixiBoss(e)) {
     drawPixiEnemyExtras(e);
     return;
   }
@@ -927,6 +963,25 @@ function drawPixiParticles() {
 function drawPixiFx() {
   if (!state.fx) return;
   for (const f of state.fx) {
+    // cadaver del jefe derrotado (sprite normal, en PR.objects) + su pelota
+    if (f.type === 'corpse' && typeof BOSS_ANIMS !== 'undefined' && typeof animFrame === 'function') {
+      const frames = Sprites['anim_' + f.anims + (f.dir < 0 ? '_defeat_L' : '_defeat')];
+      const elapsed = (state.time - f.start) * 1000;
+      const fspr = frames && frames[animFrame(BOSS_ANIMS.defeat, elapsed)];
+      if (pixiImageReady(fspr)) {
+        const kc = fspr.ws || 1;
+        pixiSpriteRaw(PR.objects, fspr, f.x, f.y + 6, { anchor: [0.5, 1], scale: [f.scale * kc, f.scale * kc], alpha: Math.min(1, f.t / 0.8) });
+      }
+      if (elapsed > 280 && Sprites.anim_pelota && pixiImageReady(Sprites.anim_pelota[0]))
+        pixiSprite(PR.objects, Sprites.anim_pelota[0], f.x - f.dir * 14, f.y + 5, 8, 8, { anchor: [0.5, 0.5] });
+      continue;
+    }
+    // polvo del tackle (sprite normal)
+    if (f.type === 'dust' && Sprites.anim_dust) {
+      const fi = Math.min(3, Math.floor((state.time - f.start) * 1000 / 70));
+      if (pixiImageReady(Sprites.anim_dust[fi])) pixiSprite(PR.objects, Sprites.anim_dust[fi], f.x, f.y - 4, 8, 8, { anchor: [0.5, 0.5] });
+      continue;
+    }
     if (f.type === 'v2boom' && typeof V2H !== 'undefined' && V2H.ready && V2H.fx && V2H.fx.boom && V2H.fx.boom.length) {
       const bi = Math.min(V2H.fx.boom.length - 1, Math.floor((state.time - f.start) * 1000 / 60));
       const img = V2H.fx.boom[bi];
