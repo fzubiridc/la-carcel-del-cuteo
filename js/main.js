@@ -732,13 +732,17 @@ function updatePerfStats(rawDt, t) {
   const enemies = state.enemies ? state.enemies.length : 0;
   const projs = state.projs ? state.projs.length : 0;
   const fx = (state.particles ? state.particles.length : 0) + (state.fx ? state.fx.length : 0);
+  const pixiStats = typeof getPixiDebugStats === 'function' ? getPixiDebugStats() : null;
   el.innerHTML =
     '<b class="' + cls + '">' + Math.round(perf.fps) + ' FPS</b><br>' +
     perf.frameMs.toFixed(1) + ' ms/frame<br>' +
     canvas.width + 'x' + canvas.height + '<br>' +
     'Enemigos: ' + enemies + '<br>' +
     'Proy: ' + projs + '<br>' +
-    'FX: ' + fx;
+    'FX: ' + fx +
+    (pixiStats ? '<br>Pixi tiles: ' + pixiStats.tiles +
+      '<br>Pixi obj: ' + pixiStats.objects +
+      '<br>Pixi draw: ' + pixiStats.sprites + 'S/' + pixiStats.graphics + 'G' : '');
 }
 
 function update(dt) {

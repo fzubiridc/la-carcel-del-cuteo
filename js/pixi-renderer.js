@@ -28,6 +28,7 @@ async function initPixiRenderer(view) {
     fx: new PIXI.Container(),
     screen: new PIXI.Container(),
     tex: new WeakMap(),
+    tileCache: null,
     spritePool: [],
     spriteUsed: 0,
     graphicsPool: [],
@@ -41,11 +42,21 @@ function resizePixiRenderer(w, h) {
   if (PR) PR.app.renderer.resize(w, h);
 }
 
+function getPixiDebugStats() {
+  if (!PR) return null;
+  return {
+    tiles: PR.tiles.children.length,
+    objects: PR.objects.children.length,
+    fx: PR.fx.children.length,
+    sprites: PR.spriteUsed,
+    graphics: PR.graphicsUsed,
+  };
+}
+
 function renderPixi() {
   if (!PR) return false;
   PR.spriteUsed = 0;
   PR.graphicsUsed = 0;
-  PR.tiles.removeChildren();
   PR.objects.removeChildren();
   PR.fx.removeChildren();
   PR.screen.removeChildren();
@@ -105,6 +116,33 @@ function pixiSprite(parent, img, x, y, w, h, opt) {
   return s;
 }
 
+function pixiSpriteRaw(parent, img, x, y, opt) {
+  const tex = pixiTexture(img);
+  if (!tex) return null;
+  let s = PR.spritePool[PR.spriteUsed++];
+  if (!s) {
+    s = new PIXI.Sprite(tex);
+    s.roundPixels = true;
+    PR.spritePool.push(s);
+  } else {
+    s.texture = tex;
+    s.visible = true;
+    s.alpha = 1;
+    s.rotation = 0;
+    s.scale.set(1);
+    s.tint = 0xffffff;
+    s.anchor.set(0, 0);
+  }
+  s.position.set(x, y);
+  if (opt && opt.anchor) s.anchor.set(opt.anchor[0], opt.anchor[1]);
+  if (opt && opt.scale) s.scale.set(opt.scale[0], opt.scale[1]);
+  if (opt && opt.rotation) s.rotation = opt.rotation;
+  if (opt && opt.alpha != null) s.alpha = opt.alpha;
+  if (opt && opt.tint) s.tint = opt.tint;
+  parent.addChild(s);
+  return s;
+}
+
 function pixiGraphics(parent) {
   let g = PR.graphicsPool[PR.graphicsUsed++];
   if (!g) {
@@ -149,41 +187,122 @@ function pixiEllipse(parent, x, y, rx, ry, color, alpha) {
   g.endFill();
 }
 
-function drawPixiTiles() {
-  const lvl = state.level;
-  const pal = ZONES[state.run.zoneIdx].palette;
-  const x0 = Math.max(0, Math.floor(state.cam.x / TILE) - 1);
-  const y0 = Math.max(0, Math.floor(state.cam.y / TILE) - 1);
-  const x1 = Math.min(lvl.W - 1, Math.ceil((state.cam.x + canvas.width / ZOOM) / TILE) + 1);
-  const y1 = Math.min(lvl.H - 1, Math.ceil((state.cam.y + canvas.height / ZOOM) / TILE) + 1);
-  const zoneNow = ZONES[state.run.zoneIdx];
+function pixiTileVariant(x, y, n) {
+  let h = (x * 374761393 + y * 668265263) | 0;
+  h = (h ^ (h >>> 13)) * 1274126177 | 0;
+  h = (h ^ (h >>> 16)) >>> 0;
+  return h % n;
+}
+
+function pixiDrawFloorDecal(g, pal, X, Y, tx, ty) {
+  const seed = (tx * 928371 + ty * 1237) | 0;
+  const ox = 3 + (Math.abs(seed) % 9);
+  const oy = 3 + (Math.abs(seed >> 4) % 9);
+  if ((seed & 3) === 0) {
+    g.fillStyle = '#c77b3f';
+    g.fillRect(X + ox, Y + oy, 3, 1);
+    g.fillStyle = '#e8a86a';
+    g.fillRect(X + ox + 1, Y + oy + 1, 1, 1);
+  } else {
+    g.fillStyle = 'rgba(160,107,212,0.45)';
+    g.fillRect(X + ox + 1, Y + oy, 1, 3);
+    g.fillRect(X + ox, Y + oy + 1, 3, 1);
+  }
+}
+
+function pixiDrawStaticStairs(g, lvl, pal) {
+  if (lvl.exitOpen) {
+    const cx = (lvl.exit.tx + 0.5) * TILE, cy = (lvl.exit.ty + 0.5) * TILE, s = 22;
+    if (typeof STAIRS_IMG !== 'undefined' && STAIRS_IMG) g.drawImage(STAIRS_IMG, cx - s / 2, cy - s / 2, s, s);
+    else {
+      const X = lvl.exit.tx * TILE, Y = lvl.exit.ty * TILE;
+      g.fillStyle = '#0b0a0f';
+      g.fillRect(X + 1, Y + 1, TILE - 2, TILE - 2);
+      g.fillStyle = pal.accent;
+      for (let i = 0; i < 4; i++) g.fillRect(X + 2 + i, Y + 3 + i * 3, TILE - 4 - i * 2, 2);
+    }
+  }
+  if (state.run && state.run.depth > 1 && lvl.start) {
+    const X = Math.floor(lvl.start.x / TILE) * TILE, Y = Math.floor(lvl.start.y / TILE) * TILE;
+    g.fillStyle = '#0b0a0f';
+    g.fillRect(X + 1, Y + 1, TILE - 2, TILE - 2);
+    g.globalAlpha = 0.7;
+    g.fillStyle = pal.accent;
+    for (let i = 0; i < 4; i++) g.fillRect(X + 2 + i, Y + 12 - i * 3, TILE - 4 - i * 2, 2);
+    g.globalAlpha = 1;
+  }
+}
+
+function buildPixiTileCache(lvl, zoneNow, pal) {
+  const cv = document.createElement('canvas');
+  cv.width = lvl.W * TILE;
+  cv.height = lvl.H * TILE;
+  const g = cv.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.fillStyle = '#0b0a0f';
+  g.fillRect(0, 0, cv.width, cv.height);
+
   const floorSet = Sprites['floor_' + zoneNow.id];
   const wallSet = Sprites['wall_' + zoneNow.id];
-  const tvar = (x, y, n) => {
-    let h = (x * 374761393 + y * 668265263) | 0;
-    h = (h ^ (h >>> 13)) * 1274126177 | 0;
-    h = (h ^ (h >>> 16)) >>> 0;
-    return h % n;
-  };
-  for (let ty = y0; ty <= y1; ty++) {
-    for (let tx = x0; tx <= x1; tx++) {
+  for (let ty = 0; ty < lvl.H; ty++) {
+    for (let tx = 0; tx < lvl.W; tx++) {
       const solid = lvl.map[ty][tx] === 0;
       const X = tx * TILE, Y = ty * TILE;
       const hash = (tx * 7 + ty * 13) % 5;
       if (!solid) {
-        const floorImg = Array.isArray(floorSet) ? floorSet[tvar(tx, ty, floorSet.length)] : floorSet;
-        if (floorImg) pixiSprite(PR.tiles, floorImg, X, Y, TILE, TILE);
-        else pixiRect(PR.tiles, X, Y, TILE, TILE, hash === 0 ? pal.floorAlt : pal.floor);
-        if (hash === 0) pixiRect(PR.tiles, X, Y, TILE, TILE, 0x000000, 0.10);
+        const floorImg = Array.isArray(floorSet) ? floorSet[pixiTileVariant(tx, ty, floorSet.length)] : floorSet;
+        if (floorImg) g.drawImage(floorImg, X, Y, TILE, TILE);
+        else {
+          g.fillStyle = hash === 0 ? pal.floorAlt : pal.floor;
+          g.fillRect(X, Y, TILE, TILE);
+        }
+        if (hash === 0) {
+          g.fillStyle = 'rgba(0,0,0,0.10)';
+          g.fillRect(X, Y, TILE, TILE);
+        }
+        const bigHash = (tx * 11 + ty * 17) % 23;
+        if (bigHash === 5) pixiDrawFloorDecal(g, pal, X, Y, tx, ty);
       } else {
         const floorBelow = ty + 1 < lvl.H && lvl.map[ty + 1][tx] === 1;
-        const wallImg = Array.isArray(wallSet) ? wallSet[tvar(tx + 101, ty + 57, wallSet.length)] : wallSet;
+        const wallImg = Array.isArray(wallSet) ? wallSet[pixiTileVariant(tx + 101, ty + 57, wallSet.length)] : wallSet;
         if (floorBelow && wallImg) {
-          pixiSprite(PR.tiles, wallImg, X, Y, TILE, TILE);
-          pixiRect(PR.tiles, X, Y + TILE - 3, TILE, 3, 0x000000, 0.30);
-        } else pixiRect(PR.tiles, X, Y, TILE, TILE, floorBelow ? pal.wall : 0x05040a);
+          g.drawImage(wallImg, X, Y, TILE, TILE);
+          g.fillStyle = 'rgba(0,0,0,0.30)';
+          g.fillRect(X, Y + TILE - 3, TILE, 3);
+        } else {
+          g.fillStyle = floorBelow ? pal.wall : '#05040a';
+          g.fillRect(X, Y, TILE, TILE);
+          if (!floorBelow && ty > 0 && lvl.map[ty - 1][tx] === 1 && wallImg) {
+            const capH = 6;
+            g.drawImage(wallImg, 0, 0, wallImg.width, wallImg.width * capH / TILE, X, Y + TILE - capH, TILE, capH);
+            g.fillStyle = 'rgba(0,0,0,0.30)';
+            g.fillRect(X, Y + TILE - capH, TILE, 1);
+          }
+        }
       }
     }
+  }
+  pixiDrawStaticStairs(g, lvl, pal);
+
+  const tex = PIXI.Texture.from(cv);
+  if (tex.baseTexture) tex.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
+  const sprite = new PIXI.Sprite(tex);
+  sprite.roundPixels = true;
+  PR.tiles.removeChildren();
+  PR.tiles.addChild(sprite);
+  PR.tileCache = { lvl, zoneIdx: state.run.zoneIdx, exitOpen: lvl.exitOpen, tex };
+}
+
+function drawPixiTiles() {
+  const lvl = state.level;
+  const pal = ZONES[state.run.zoneIdx].palette;
+  const zoneNow = ZONES[state.run.zoneIdx];
+  if (!PR.tileCache ||
+    PR.tileCache.lvl !== lvl ||
+    PR.tileCache.zoneIdx !== state.run.zoneIdx ||
+    PR.tileCache.exitOpen !== lvl.exitOpen) {
+    if (PR.tileCache && PR.tileCache.tex) PR.tileCache.tex.destroy(true);
+    buildPixiTileCache(lvl, zoneNow, pal);
   }
 }
 
@@ -208,13 +327,17 @@ function drawPixiShadow(x, y, w) {
 
 function drawPixiPlayer(p) {
   drawPixiShadow(p.x, p.y, 5);
+  if (drawPixiV2Hero(p)) return;
   const img = pixiPlayerImage(p);
-  if (img) pixiSprite(PR.objects, img, p.x - 24, p.y + 5 - 36, 48, 48);
+  if (pixiImageReady(img)) pixiSprite(PR.objects, img, p.x - 24, p.y + 5 - 36, 48, 48);
   else pixiCircle(PR.objects, p.x, p.y, 6, 0x7ec8ff, 1);
 }
 
-function pixiPlayerImage(p) {
-  if (typeof V2H === 'undefined' || !V2H.ready) return null;
+function pixiImageReady(img) {
+  return !!(img && img.complete && (img.naturalWidth || img.width));
+}
+
+function pixiV2Face(p) {
   const dx = p.x - (p._pixiPx !== undefined ? p._pixiPx : p.x);
   const dy = p.y - (p._pixiPy !== undefined ? p._pixiPy : p.y);
   p._pixiPx = p.x; p._pixiPy = p.y;
@@ -226,12 +349,140 @@ function pixiPlayerImage(p) {
     const aa = aimAngle();
     p._pixiFace = V2_OCTANTS[(Math.round(aa / (Math.PI / 4)) + 8) % 8];
   }
-  const face = p._pixiFace || 'south';
+  return state.descend ? 'north' : (p._pixiFace || 'south');
+}
+
+function pixiPlayerImage(p) {
+  if (typeof V2H === 'undefined' || !V2H.ready) return null;
+  const face = pixiV2Face(p);
   const anim = (p.hurtT || 0) > 0 ? 'hurt' : (p.moving ? 'walk' : 'idle');
   const def = V2H.anims[anim];
   if (!def) return null;
   const fi = Math.floor(state.time * 1000 / def.ms) % def.n;
   return V2H.imgs[`${anim}_${face}_${fi}`] || null;
+}
+
+function pixiV2FrameIndex(p, anim, ms, n) {
+  if (p._pixiAnim !== anim) { p._pixiAnim = anim; p._pixiT = state.time; }
+  return Math.floor((state.time - (p._pixiT || 0)) * 1000 / ms) % n;
+}
+
+function pixiV2StaffImage(p, idx) {
+  const cfg = V2_STAFF_RIG.staffs[idx];
+  let img = V2H.staffRig.staffs[idx];
+  if (cfg.anim && p._staffCastStart != null) {
+    const elapsedMs = Math.max(0, (state.time - p._staffCastStart) * 1000);
+    const frame = Math.floor(elapsedMs / (cfg.animMs || 60));
+    const anim = V2H.staffRig.staffAnims[cfg.anim];
+    if (anim && frame >= 0 && frame < anim.length) img = anim[frame] || img;
+  }
+  return img;
+}
+
+function pixiDrawV2StaffAtHand(p, idx, hand, ox, oy, S, mirror) {
+  if (idx < 0 || !hand) return null;
+  const cfg = V2_STAFF_RIG.staffs[idx];
+  const img = pixiV2StaffImage(p, idx);
+  if (!pixiImageReady(img)) return null;
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  const x = ox + (mirror ? 120 - hand.x : hand.x) * S;
+  const y = oy + hand.y * S;
+  const drawScale = (cfg.spx || iw) / iw;
+  const rot = (cfg.rot || 0) * Math.PI / 180;
+  pixiSpriteRaw(PR.objects, img, x, y, {
+    anchor: [cfg.grip.x / iw, cfg.grip.y / ih],
+    scale: [mirror ? -S * drawScale : S * drawScale, S * drawScale],
+    rotation: mirror ? -rot : rot,
+  });
+
+  const fx = ((cfg.focus || cfg.grip).x - cfg.grip.x) * S * drawScale;
+  const fy = ((cfg.focus || cfg.grip).y - cfg.grip.y) * S * drawScale;
+  const rx = fx * Math.cos(rot) - fy * Math.sin(rot);
+  const ry = fx * Math.sin(rot) + fy * Math.cos(rot);
+  const focus = { x: x + (mirror ? -rx : rx), y: y + ry };
+  p._v2StaffTip = focus;
+  return focus;
+}
+
+function pixiDrawV2StaffAt(p, idx, face, fi, ox, oy, S, mirror) {
+  const hand = V2_STAFF_RIG.handByDir[face] && V2_STAFF_RIG.handByDir[face][fi];
+  return pixiDrawV2StaffAtHand(p, idx, hand, ox, oy, S, mirror);
+}
+
+function pixiDrawV2HandOverlay(face, fi, ox, oy, S, mirror) {
+  const hcfg = V2_STAFF_RIG.handOverlay[face];
+  const hand = V2_STAFF_RIG.handByDir[face] && V2_STAFF_RIG.handByDir[face][fi];
+  const img = V2H.staffRig.hands[face];
+  if (!hcfg || !hand || !pixiImageReady(img)) return;
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  const sc = hcfg.scale || 1;
+  const x = ox + (mirror ? 120 - hand.x : hand.x) * S;
+  const y = oy + hand.y * S;
+  pixiSpriteRaw(PR.objects, img, x, y, {
+    anchor: [hcfg.ax / iw, hcfg.ay / ih],
+    scale: [mirror ? -sc * S : sc * S, sc * S],
+  });
+}
+
+function pixiDrawV2Body(img, ox, oy, S, mirror) {
+  if (!pixiImageReady(img)) return false;
+  if (mirror) pixiSpriteRaw(PR.objects, img, ox + 120 * S, oy, { scale: [-S, S] });
+  else pixiSpriteRaw(PR.objects, img, ox, oy, { scale: [S, S] });
+  return true;
+}
+
+function drawPixiV2StaffWalk(p, face, staffIdx) {
+  const sourceFace = V2_STAFF_MIRROR_FACE[face] || face;
+  const mirror = sourceFace !== face;
+  if (!V2H.staffRig.ready || !V2_STAFF_RIG.handByDir[sourceFace] || staffIdx < 0) return false;
+  if ((mirror || sourceFace === 'north-east' || sourceFace === 'north') && staffIdx !== 8) return false;
+  const fi = pixiV2FrameIndex(p, 'walk_staff', V2_STAFF_RIG.ms, V2_STAFF_RIG.n);
+  const img = V2H.staffRig.empty[`${sourceFace}_${fi}`];
+  if (!pixiImageReady(img)) return false;
+  const S = 0.4, footY = p.y + 5, ox = p.x - 60 * S, oy = footY - 90 * S;
+  const staffBehind = staffIdx === 8 && (sourceFace === 'north-east' || sourceFace === 'north');
+  if (staffBehind) pixiDrawV2StaffAt(p, staffIdx, sourceFace, fi, ox, oy, S, mirror);
+  pixiDrawV2Body(img, ox, oy, S, mirror);
+  if (!staffBehind) {
+    pixiDrawV2StaffAt(p, staffIdx, sourceFace, fi, ox, oy, S, mirror);
+    pixiDrawV2HandOverlay(sourceFace, fi, ox, oy, S, mirror);
+  }
+  return true;
+}
+
+function drawPixiV2StaffIdle(p, face, staffIdx) {
+  if (!V2H.staffRig.ready || staffIdx !== 8) return false;
+  const img = V2H.staffRig.idle[face];
+  const hand = V2_STAFF_RIG.idleHandByDir[face];
+  if (!pixiImageReady(img) || !hand) return false;
+  const S = 0.4, footY = p.y + 5, ox = p.x - 60 * S, oy = footY - 90 * S;
+  const staffBehind = face === 'north-east' || face === 'north' || face === 'north-west';
+  if (staffBehind) pixiDrawV2StaffAtHand(p, staffIdx, hand, ox, oy, S, false);
+  pixiDrawV2Body(img, ox, oy, S, false);
+  if (!staffBehind) pixiDrawV2StaffAtHand(p, staffIdx, hand, ox, oy, S, false);
+  return true;
+}
+
+function drawPixiV2Hero(p) {
+  if (typeof V2H === 'undefined' || !V2H.ready) return false;
+  const face = pixiV2Face(p);
+  let anim = p.moving ? 'walk' : 'idle';
+  if ((p.hurtT || 0) > 0) anim = 'hurt';
+  const staffIdx = typeof v2EquippedStaffIndex === 'function' ? v2EquippedStaffIndex(p) : -1;
+  p._v2StaffTip = null;
+  if (anim === 'walk' && drawPixiV2StaffWalk(p, face, staffIdx)) return true;
+  if (anim === 'idle' && drawPixiV2StaffIdle(p, face, staffIdx)) return true;
+
+  const def = V2H.anims[anim];
+  if (!def) return false;
+  const fi = pixiV2FrameIndex(p, anim, def.ms, def.n);
+  const img = V2H.imgs[`${anim}_${face}_${fi}`];
+  const S = 0.4, footY = p.y + 5;
+  if (!pixiImageReady(img)) return false;
+  pixiSpriteRaw(PR.objects, img, p.x - 60 * S, footY - 90 * S, { scale: [S, S] });
+  return true;
 }
 
 function drawPixiEnemy(e) {
