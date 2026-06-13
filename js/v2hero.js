@@ -1,21 +1,24 @@
-// =====================================================================
-// v2hero.js — renderer experimental del mago v2 (PixelLab, 8 direcciones).
+﻿// =====================================================================
+// v2hero.js â€” renderer experimental del mago v2 (PixelLab, 8 direcciones).
 // Si los PNGs de assets/v2_test/mage/ cargan, reemplaza el dibujo del
 // jugador; si falta algo, el juego cae al renderer de siempre.
-// Frames de 120×120 con pies en y=89; a escala 0.4 ocupa 24px de mundo.
+// Frames de 120Ã—120 con pies en y=89; a escala 0.4 ocupa 24px de mundo.
 // =====================================================================
 
 const V2H = {
   ready: false,
+  failed: false,
+  loading: { total: 0, loaded: 0, failed: 0, errors: [] },
   imgs: {},
   anims: { idle: { n: 4, ms: 220 }, walk: { n: 6, ms: 110 }, hurt: { n: 4, ms: 65 } },
-  staffRig: { empty: {}, idle: {}, staffs: [], staffAnims: {}, hands: {}, ready: false },
-  // efectos del poder (energyblast): vuelo en loop + explosión one-shot
+  staffRig: { empty: {}, idle: {}, staffs: [], staffAnims: {}, hands: {}, ready: false,
+    failed: false, loading: { total: 0, loaded: 0, failed: 0, errors: [] } },
+  // efectos del poder (energyblast): vuelo en loop + explosiÃ³n one-shot
   fx: { power: [], boom: [] },
 };
-// versión de assets: subir al reemplazar PNGs para invalidar el caché del
-// navegador (los scripts usan ?v=N pero las imágenes no lo tenían — un PNG
-// corrupto cacheado nos dejó clavados en el héroe viejo)
+// versiÃ³n de assets: subir al reemplazar PNGs para invalidar el cachÃ© del
+// navegador (los scripts usan ?v=N pero las imÃ¡genes no lo tenÃ­an â€” un PNG
+// corrupto cacheado nos dejÃ³ clavados en el hÃ©roe viejo)
 const V2_ASSET_V = 3;
 
 const V2_STAFF_RIG = {
@@ -85,19 +88,32 @@ function loadV2Hero() {
   const dirs = ['south', 'south-east', 'east', 'north-east', 'north', 'north-west', 'west', 'south-west'];
   let left = 0;
   for (const d of dirs) for (const a in V2H.anims) left += V2H.anims[a].n;
+  V2H.ready = false;
+  V2H.failed = false;
+  V2H.loading = { total: left, loaded: 0, failed: 0, errors: [] };
+  const doneHero = (ok, src) => {
+    V2H.loading.loaded++;
+    if (!ok) {
+      V2H.loading.failed++;
+      V2H.loading.errors.push(src);
+      V2H.failed = true;
+    }
+    if (--left === 0 && !V2H.failed) V2H.ready = true;
+  };
   for (const d of dirs) {
     for (const a in V2H.anims) {
       for (let f = 0; f < V2H.anims[a].n; f++) {
         const im = new Image();
-        im.onload = () => { if (--left === 0) V2H.ready = true; };
-        im.onerror = () => { left = Infinity; }; // falta un frame → nunca ready, fallback v1
-        im.src = `assets/v2_test/mage/${a}/${d}_${f}.png?v=${V2_ASSET_V}`;
+        const src = `assets/v2_test/mage/${a}/${d}_${f}.png?v=${V2_ASSET_V}`;
+        im.onload = () => doneHero(true, src);
+        im.onerror = () => doneHero(false, src);
+        im.src = src;
         V2H.imgs[`${a}_${d}_${f}`] = im;
       }
     }
   }
   loadV2StaffRig();
-  // los efectos cargan aparte: si faltan, el motor usa el orbe por código
+  // los efectos cargan aparte: si faltan, el motor usa el orbe por codigo
   for (let f = 0; f < 4; f++) {
     const im = new Image();
     im.onload = () => V2H.fx.power.push(im) && V2H.fx.power.sort((a, b) => a._f - b._f);
@@ -111,60 +127,74 @@ function loadV2Hero() {
     im.src = `assets/v2_test/mage/powerboom/south_${f}.png?v=${V2_ASSET_V}`;
   }
 }
-
 function loadV2StaffRig() {
   const rig = V2H.staffRig;
   let left = V2_STAFF_RIG.dirs.length * V2_STAFF_RIG.n + V2_STAFF_RIG.idleDirs.length + V2_STAFF_RIG.staffs.length + Object.keys(V2_STAFF_RIG.handOverlay).length;
   for (const cfg of V2_STAFF_RIG.staffs) left += cfg.animFrames || 0;
-  const done = () => { if (--left === 0) rig.ready = true; };
+  rig.ready = false;
+  rig.failed = false;
+  rig.loading = { total: left, loaded: 0, failed: 0, errors: [] };
+  const done = (ok, src) => {
+    rig.loading.loaded++;
+    if (!ok) {
+      rig.loading.failed++;
+      rig.loading.errors.push(src);
+      rig.failed = true;
+    }
+    if (--left === 0) rig.ready = true;
+  };
   for (const d of V2_STAFF_RIG.dirs) {
     for (let f = 0; f < V2_STAFF_RIG.n; f++) {
       const im = new Image();
-      im.onload = done; im.onerror = done;
-      im.src = `assets/v2_test/mage/walk_empty/${d}_${f}.png?v=${V2_ASSET_V}`;
+      const src = `assets/v2_test/mage/walk_empty/${d}_${f}.png?v=${V2_ASSET_V}`;
+      im.onload = () => done(true, src); im.onerror = () => done(false, src);
+      im.src = src;
       rig.empty[`${d}_${f}`] = im;
     }
     const hcfg = V2_STAFF_RIG.handOverlay[d];
     if (hcfg) {
       const him = new Image();
-      him.onload = done; him.onerror = done;
-      him.src = `${hcfg.src}?v=${V2_ASSET_V}`;
+      const src = `${hcfg.src}?v=${V2_ASSET_V}`;
+      him.onload = () => done(true, src); him.onerror = () => done(false, src);
+      him.src = src;
       rig.hands[d] = him;
     }
   }
   for (const d of V2_STAFF_RIG.idleDirs) {
     const im = new Image();
-    im.onload = done; im.onerror = done;
-    im.src = `assets/v2_test/mage/idle_holdpose_ref/${d}_0.png?v=${V2_ASSET_V}`;
+    const src = `assets/v2_test/mage/idle_holdpose_ref/${d}_0.png?v=${V2_ASSET_V}`;
+    im.onload = () => done(true, src); im.onerror = () => done(false, src);
+    im.src = src;
     rig.idle[d] = im;
   }
   for (let i = 0; i < V2_STAFF_RIG.staffs.length; i++) {
     const im = new Image();
-    im.onload = done; im.onerror = done;
-    im.src = `assets/v2_test/staffs/staff${i + 1}.png?v=${V2_ASSET_V}`;
+    const src = `assets/v2_test/staffs/staff${i + 1}.png?v=${V2_ASSET_V}`;
+    im.onload = () => done(true, src); im.onerror = () => done(false, src);
+    im.src = src;
     rig.staffs[i] = im;
     const cfg = V2_STAFF_RIG.staffs[i];
     if (cfg.anim && cfg.animFrames) {
       rig.staffAnims[cfg.anim] = [];
       for (let f = 0; f < cfg.animFrames; f++) {
         const aim = new Image();
-        aim.onload = done; aim.onerror = done;
-        aim.src = `assets/v2_test/staffs/${cfg.anim}/frame_${String(f).padStart(3, '0')}.png?v=${V2_ASSET_V}`;
+        const animSrc = `assets/v2_test/staffs/${cfg.anim}/frame_${String(f).padStart(3, '0')}.png?v=${V2_ASSET_V}`;
+        aim.onload = () => done(true, animSrc); aim.onerror = () => done(false, animSrc);
+        aim.src = animSrc;
         rig.staffAnims[cfg.anim][f] = aim;
       }
     }
   }
 }
-
-// Proyectil energyblast: el arte vuela "hacia la derecha" → rotar al ángulo real.
-// El tamaño visual acompaña a la hitbox (pr.size): blast más grande, golpe más grande.
+// Proyectil energyblast: el arte vuela "hacia la derecha" â†’ rotar al Ã¡ngulo real.
+// El tamaÃ±o visual acompaÃ±a a la hitbox (pr.size): blast mÃ¡s grande, golpe mÃ¡s grande.
 function drawV2Bolt(pr) {
   const fi = Math.floor(pr.t * 1000 / 90) % V2H.fx.power.length;
-  const S = (pr.size || 12) / 20; // size 12 → 0.6: 40px de arte → 24px de mundo
+  const S = (pr.size || 12) / 20; // size 12 â†’ 0.6: 40px de arte â†’ 24px de mundo
   ctx.save();
   ctx.translate(pr.x, pr.y);
   ctx.rotate(pr.ang);
-  // al agotarse el alcance se difumina (último tercio de vida) y se encoge apenas
+  // al agotarse el alcance se difumina (Ãºltimo tercio de vida) y se encoge apenas
   ctx.globalAlpha = Math.min(1, pr.life * 3.5);
   const shrink = 0.85 + Math.min(1, pr.life * 3.5) * 0.15;
   ctx.drawImage(V2H.fx.power[fi], -20 * S * shrink, -20 * S * shrink, 40 * S * shrink, 40 * S * shrink);
@@ -173,7 +203,7 @@ function drawV2Bolt(pr) {
 }
 
 // El personaje mira hacia donde SE MUEVE (teclado/joystick), no hacia el cursor.
-// Quieto, conserva la última dirección de marcha.
+// Quieto, conserva la Ãºltima direcciÃ³n de marcha.
 const V2_OCTANTS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
 
 function v2EquippedStaffIndex(p) {
@@ -290,7 +320,7 @@ function drawV2Hero(p) {
     p._v2face = V2_OCTANTS[(Math.round(a / (Math.PI / 4)) + 8) % 8];
   }
   // atacando, el cuerpo gira hacia donde apunta (si no, los tiros salen "por la espalda");
-  // al soltar queda mirando hacia donde disparó
+  // al soltar queda mirando hacia donde disparÃ³
   if (mouse.down || touch.attacking) {
     const aa = aimAngle();
     p._v2face = V2_OCTANTS[(Math.round(aa / (Math.PI / 4)) + 8) % 8];
@@ -298,7 +328,7 @@ function drawV2Hero(p) {
   // al descender por la escalera, mira siempre al norte (se mete de espaldas)
   const face = (typeof state !== 'undefined' && state.descend) ? 'north' : (p._v2face || 'south');
   let anim = p.moving ? 'walk' : 'idle';
-  if ((p.hurtT || 0) > 0) anim = 'hurt'; // recibir daño pisa a todo
+  if ((p.hurtT || 0) > 0) anim = 'hurt'; // recibir daÃ±o pisa a todo
   if (anim === 'walk' && drawV2StaffRigHero(p, face)) return;
   if (anim === 'idle' && drawV2StaffIdleHero(p, face)) return;
   if (p._v2anim !== anim) { p._v2anim = anim; p._v2t = state.time; }

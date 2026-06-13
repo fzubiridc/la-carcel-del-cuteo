@@ -55,6 +55,7 @@ function spawnEnemy(typeId, x, y, depth, isBossType, elite) {
 let _flow = null;
 function buildFlow(lvl, px, py) {
   const W = lvl.W, H = lvl.H, sx = Math.floor(px / TILE), sy = Math.floor(py / TILE);
+  if (_flow && _flow.lvl === lvl && _flow.sx === sx && _flow.sy === sy) return;
   if (sx < 0 || sy < 0 || sx >= W || sy >= H || tileSolid(lvl, sx, sy)) { _flow = null; return; }
   const dist = new Int16Array(W * H); dist.fill(-1);
   const q = [sy * W + sx]; dist[sy * W + sx] = 0;
@@ -71,7 +72,7 @@ function buildFlow(lvl, px, py) {
       dist[ni] = cd + 1; q.push(ni);
     }
   }
-  _flow = { dist, W };
+  _flow = { dist, W, lvl, sx, sy };
 }
 // siguiente paso ortogonal hacia el jugador, descendiendo el gradiente del campo
 function flowStep(lvl, e) {

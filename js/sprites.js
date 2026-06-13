@@ -1,5 +1,5 @@
-// =====================================================================
-// sprites.js — pixel art generado por código. Cada sprite es una grilla
+﻿// =====================================================================
+// sprites.js â€” pixel art generado por cÃ³digo. Cada sprite es una grilla
 // de caracteres + paleta. Agregar un sprite = agregar una grilla.
 // =====================================================================
 
@@ -17,7 +17,7 @@ function px(rows, pal) {
   return c;
 }
 
-// Fila más baja con contenido opaco (para apoyar el sprite en su sombra, no flotar)
+// Fila mÃ¡s baja con contenido opaco (para apoyar el sprite en su sombra, no flotar)
 function computeFootY(canvas) {
   try {
     const g = canvas.getContext('2d');
@@ -44,9 +44,9 @@ function flipH(img) {
 const Sprites = {};
 
 // =====================================================================
-// Assets CC0 (Dungeon Crawl Stone Soup, 32x32, dominio público).
-// ws = 0.5: el arte de 32px ocupa 16px de mundo → doble resolución.
-// Si un archivo falta, queda el sprite generado por código como fallback.
+// Assets CC0 (Dungeon Crawl Stone Soup, 32x32, dominio pÃºblico).
+// ws = 0.5: el arte de 32px ocupa 16px de mundo â†’ doble resoluciÃ³n.
+// Si un archivo falta, queda el sprite generado por cÃ³digo como fallback.
 // =====================================================================
 
 const ASSETS = {
@@ -78,7 +78,7 @@ const SHEET_ASSETS = {
 };
 
 // Timings del pack (ms por frame). loopFrom: el intro se reproduce una vez
-// y después se loopean los frames restantes (tackle: windup → carga).
+// y despuÃ©s se loopean los frames restantes (tackle: windup â†’ carga).
 const BOSS_ANIMS = {
   idle:   { times: [650, 650], loop: true },
   run:    { times: [140, 140, 140, 140], loop: true },
@@ -88,7 +88,7 @@ const BOSS_ANIMS = {
   defeat: { times: [280, 280, 280], hold: true },
 };
 
-// Devuelve el índice de frame para un tiempo transcurrido (ms)
+// Devuelve el Ã­ndice de frame para un tiempo transcurrido (ms)
 function animFrame(def, elapsed) {
   const times = def.times;
   const total = times.reduce((a, b) => a + b, 0);
@@ -99,7 +99,7 @@ function animFrame(def, elapsed) {
   } else if (def.loop) {
     t = elapsed % total;
   } else {
-    t = Math.min(elapsed, total - 1); // sin loop: queda en el último frame
+    t = Math.min(elapsed, total - 1); // sin loop: queda en el Ãºltimo frame
   }
   let acc = 0;
   for (let i = 0; i < times.length; i++) {
@@ -158,7 +158,7 @@ function buildSprites() {
   const skin = '#e8b88a', eye = '#1d1d22', bone = '#e6e3d6';
 
   // ----- Clases jugables: cuerpos base (12x14, misma grilla para las 3) -----
-  // filas 0-1: aire para sombreros · 2-6: cabeza · 7-10: torso · 11-13: piernas
+  // filas 0-1: aire para sombreros Â· 2-6: cabeza Â· 7-10: torso Â· 11-13: piernas
   Sprites.guerrero_body = px([
     '............',
     '............',
@@ -344,8 +344,8 @@ function buildSprites() {
   ], { A:'#566070', k:'#ff5050' });
 
   // ----- Jefes -----
-  // Bucle en alta resolución (24x28, ws 0.5): rugbier maldito con casco
-  // scrum, remera azul, trébol verde de tres lóbulos sobre el corazón y
+  // Bucle en alta resoluciÃ³n (24x28, ws 0.5): rugbier maldito con casco
+  // scrum, remera azul, trÃ©bol verde de tres lÃ³bulos sobre el corazÃ³n y
   // la pelota bajo el brazo.
   const buclePal = { h:'#3a3a42', H:'#52525e', s:'#d8a878', S:'#b8895e', k:'#ff4040',
     J:'#27418f', j:'#3a57ad', t:'#3fa84f', T:'#5ac86a', o:'#9a5c28', W:'#e8e3d0',
@@ -388,7 +388,7 @@ function buildSprites() {
     r.replace(/[oW]/g, '.')), buclePal);
   Sprites.bucle_sinpelota.ws = 0.5;
 
-  // La pelota de rugby: óvalo perfectamente simétrico con tiento centrado
+  // La pelota de rugby: Ã³valo perfectamente simÃ©trico con tiento centrado
   Sprites.pelota = px([
     '.....oooo.....',
     '...oooooooo...',
@@ -444,7 +444,7 @@ function buildSprites() {
     '....m..m....',
   ], { m:'#6a5a8a', d:'#241c30', k:'#ffd84f', y:'#ffd84f', p:'#7a5230' });
 
-  // Poción de vida
+  // PociÃ³n de vida
   Sprites.pocion = px([
     '..gg..',
     '.gggg.',
@@ -519,7 +519,7 @@ function buildSprites() {
     '.yyyy.',
   ], { y:'#d8a82f', Y:'#ffe48a' });
 
-  // ----- Iconos de ítems (inventario y loot en el piso) -----
+  // ----- Iconos de Ã­tems (inventario y loot en el piso) -----
   Sprites.icon_espada = px([
     '.......ww.',
     '......www.',
@@ -639,7 +639,7 @@ function buildSprites() {
   }
 }
 
-// Versión tintada de un sprite (flash de daño, jefes furiosos), con caché
+// VersiÃ³n tintada de un sprite (flash de daÃ±o, jefes furiosos), con cachÃ©
 let _tidSeq = 0;
 const _tintCache = new Map();
 function tintedSprite(spr, color, alpha) {
@@ -662,18 +662,18 @@ function tintedSprite(spr, color, alpha) {
   return c;
 }
 
-// Icono según slot/arma de un ítem
+// Icono segÃºn slot/arma de un Ã­tem
 function itemIcon(item) {
   if (item.slot === 'arma') {
-    // usar el campo .icon del tipo (mapea p.ej. chispa→varita); fallback al tipo o a espada
+    // usar el campo .icon del tipo (mapea p.ej. chispaâ†’varita); fallback al tipo o a espada
     const wt = WEAPON_TYPES[item.weaponType];
     return Sprites['icon_' + ((wt && wt.icon) || item.weaponType)] || Sprites.icon_espada;
   }
   return Sprites['icon_' + item.slot] || Sprites.icon_amuleto;
 }
 
-// Íconos PNG de varas arcanas por tier (PixelLab, 128px). Si cargaron, reemplazan
-// el icono pixel del bastón según el material/tier (0-5) del arma.
+// Ãconos PNG de varas arcanas por tier (PixelLab, 128px). Si cargaron, reemplazan
+// el icono pixel del bastÃ³n segÃºn el material/tier (0-5) del arma.
 const STAFF_ICONS = {};
 function loadStaffIcons() {
   for (const n of ['t1', 't2', 't3', 'base']) {
@@ -682,15 +682,15 @@ function loadStaffIcons() {
     im.src = 'assets/items/weapons/staffs/arcane/staff_arcane_' + nn + '.png';
   }
 }
-// Devuelve la Image de vara para el tier del arma (mapea 0-5 → t1/t2/t3), o null
-// si no es un bastón o todavía no cargaron los PNG.
+// Devuelve la Image de vara para el tier del arma (mapea 0-5 â†’ t1/t2/t3), o null
+// si no es un bastÃ³n o todavÃ­a no cargaron los PNG.
 function staffIconImg(item) {
   if (!item || item.weaponType !== 'baston') return null;
   const tierMap = ['t1', 't1', 't2', 't2', 't3', 't3'];
   return STAFF_ICONS[tierMap[weaponTier(item)]] || STAFF_ICONS.base || null;
 }
 
-// Pilas de monedas por valor (exponencial): <10 t1 · <100 t2 · <1000 t3 · +1000 t4
+// Pilas de monedas por valor (exponencial): <10 t1 Â· <100 t2 Â· <1000 t3 Â· +1000 t4
 const COIN_PILES = {};
 function loadCoinPiles() {
   for (const t of [1, 2, 3, 4]) {
@@ -729,11 +729,11 @@ function loadXpFlames() {
 let STAIRS_IMG = null;
 function loadStairsImg() { const im = new Image(); im.onload = () => { STAIRS_IMG = im; }; im.src = 'assets/stairs_down.png'; }
 
-// antorcha animada (sheet 256×128 = 8 frames de 64×64, 4 columnas × 2 filas)
+// antorcha animada (sheet 256Ã—128 = 8 frames de 64Ã—64, 4 columnas Ã— 2 filas)
 let TORCH_IMG = null;
 function loadTorchImg() { const im = new Image(); im.onload = () => { TORCH_IMG = im; }; im.src = 'assets/torch_anim.png?v=1'; }
 
-// bola de fuego del liche (tira de 3 frames 48×48, fila "este" del Fire.png)
+// bola de fuego del liche (tira de 3 frames 48Ã—48, fila "este" del Fire.png)
 let LICH_FIRE = [];
 function loadLichFire() {
   const im = new Image();
@@ -750,7 +750,7 @@ function loadLichFire() {
 
 // Tileset "Torre en Ruinas" (PixelLab tiles-pro, 32px): 8 variantes de piso
 // + 8 de muro. Se cargan como arrays y el render elige una por hash de celda
-// para romper la repetición. Si faltan, la zona cae a su paleta de colores.
+// para romper la repeticiÃ³n. Si faltan, la zona cae a su paleta de colores.
 const TORRE_TILE_V = 4; // subir al reemplazar PNGs de tiles (mismo nombre, distinto contenido)
 function loadTowerTiles() {
   const grab = (prefix, n, key) => {
@@ -773,33 +773,14 @@ function loadTowerTiles() {
   grab('wall', 8, 'wall_torre');
 }
 
-// Tileset CraftPix "dungeon" (prueba en piso 2): recorta celdas 16px del sheet
-// walls_floor.png. Es un set auto-tile; se eligieron las celdas más repetibles:
-// piso de piedra clara (1,5) y ladrillo gris plano (0,21)/(1,21).
-const DUNGEON_TILE_V = 1;
-function loadDungeonTiles() {
-  const img = new Image();
-  img.onload = () => {
-    const F = 16;
-    const cell = (cx, cy) => {
-      const c = document.createElement('canvas'); c.width = F; c.height = F;
-      c.getContext('2d').drawImage(img, cx * F, cy * F, F, F, 0, 0, F, F);
-      c.ws = 1; return c;
-    };
-    Sprites.floor_dungeon = [cell(1, 5)];
-    Sprites.wall_dungeon = [cell(0, 21), cell(1, 21)];
-  };
-  img.src = 'assets/packs/dungeon/PNG/walls_floor.png?v=' + DUNGEON_TILE_V;
-}
-
-// Cofres animados (CC-BY Bonsaiheldin, tira de 4 frames 32×32: cerrado → abierto):
-// 'common' (marrón) y 'gold' (para el cofre con llave). Al abrirse reproduce los
-// 4 frames y queda en el último. Cada frame se ancla por su CONTENIDO (bbox de
+// Cofres animados (CC-BY Bonsaiheldin, tira de 4 frames 32Ã—32: cerrado â†’ abierto):
+// 'common' (marrÃ³n) y 'gold' (para el cofre con llave). Al abrirse reproduce los
+// 4 frames y queda en el Ãºltimo. Cada frame se ancla por su CONTENIDO (bbox de
 // alfa) para que la tapa que sube no encoja ni desalinee la base.
-const CHEST_IMG = {}; // set -> { frames:[canvas×4], boxes:[box×4] }
+const CHEST_IMG = {}; // set -> { frames:[canvasÃ—4], boxes:[boxÃ—4] }
 const CHEST_V = 4;        // cache-bust al reemplazar los PNG del cofre
-const CHEST_K = 0.6;      // px de pantalla por píxel nativo (arte de 32px)
-const CHEST_FRAMES = 4;   // frames de la animación de apertura
+const CHEST_K = 0.6;      // px de pantalla por pÃ­xel nativo (arte de 32px)
+const CHEST_FRAMES = 4;   // frames de la animaciÃ³n de apertura
 const CHEST_FRAME_MS = 80; // ms por frame
 function chestBBox(img) {
   const w = img.width || img.naturalWidth, h = img.height || img.naturalHeight;
@@ -831,7 +812,7 @@ function loadChestImg() {
   load('gold', 'assets/chest_gold.png');
 }
 // Dibuja el cofre. `chest` tiene .opened y .openT (instante de apertura): cerrado =
-// frame 0; al abrirse reproduce 0→3 y queda en 3. Devuelve false si no cargó.
+// frame 0; al abrirse reproduce 0â†’3 y queda en 3. Devuelve false si no cargÃ³.
 function drawChestImg(chest, x, y, bright, gold) {
   const s = CHEST_IMG[gold ? 'gold' : 'common'];
   if (!s) return false;
@@ -845,8 +826,8 @@ function drawChestImg(chest, x, y, bright, gold) {
 }
 
 // =====================================================================
-// Equipo visible sobre el personaje: capas teñidas por rareza.
-// P = color primario de la rareza, S = sombra. Cada capa sabe en qué
+// Equipo visible sobre el personaje: capas teÃ±idas por rareza.
+// P = color primario de la rareza, S = sombra. Cada capa sabe en quÃ©
 // fila (y) del cuerpo se apoya.
 // =====================================================================
 
@@ -925,7 +906,7 @@ function composeBase(clsId, equip) {
   return c;
 }
 
-// Sprite del jugador con caché: se recompone solo si cambia el equipo
+// Sprite del jugador con cachÃ©: se recompone solo si cambia el equipo
 function equipSig(p) {
   return p.cls + '|' + SLOTS.map(s => {
     const it = p.equip[s];

@@ -123,6 +123,15 @@
     letter-spacing:1px; opacity:.7; }
   body.debug #debugboss{ display:block; }
   #debugboss:hover{ opacity:1; border-color:#ffb04f; }
+  #perf{ display:none; position:absolute; top:calc(max(54px, 3vw) + 132px); right:max(54px, 3vw);
+    min-width:118px; padding:6px 8px; z-index:7; pointer-events:none;
+    font-family:Inter,sans-serif; font-size:11px; line-height:1.45; color:#d8d2c8;
+    background:#16131cdd; border:1px solid #3a3346; border-radius:4px;
+    text-shadow:1px 1px 0 #000; }
+  body.debug #perf{ display:block; }
+  .perfok{ color:#8ff0a4; }
+  .perfwarn{ color:#ffd84f; }
+  .perfbad{ color:#ff8a8a; }
   #hint{ position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
     font-size:12px; color:#8a8496; pointer-events:none; text-shadow:1px 1px 0 #000; }
   #prompt{ position:absolute; bottom:60px; left:50%; transform:translateX(-50%);
@@ -191,6 +200,17 @@
     50%{ transform:translateY(-6px); text-shadow:3px 3px 0 #4a2a10, 0 0 34px #ffd84f55; }
   }
   .subtitle{ color:#8a8496; font-size:14px; letter-spacing:2px; }
+  #loading{ z-index:12; }
+  .loadbox{ width:min(520px, 86vw); text-align:center; padding:24px 26px; }
+  .loadtitle{ font-family:Cinzel,serif; font-size:28px; color:#ffd84f;
+    letter-spacing:4px; text-shadow:2px 2px 0 #4a2a10; }
+  #loadmsg{ color:#a8a2b8; font-size:12px; line-height:1.6; min-height:20px; }
+  .loadbar{ height:12px; border:1px solid #4c3f66; background:#08060d;
+    border-radius:999px; overflow:hidden; box-shadow:inset 0 0 8px #000; }
+  #loadfill{ height:100%; width:0%; background:linear-gradient(90deg,#7ec8ff,#ffd84f);
+    transition:width .14s ease-out; }
+  #loading.error .loadbar{ border-color:#8a2e3a; }
+  #loading.error #loadfill{ background:#ff6b6b; }
   #classes{ display:flex; gap:16px; margin-top:10px; }
   .classcard{ width:190px; padding:14px; cursor:pointer; text-align:center;
     transition:transform .1s, border-color .1s; }
@@ -393,6 +413,7 @@
     </div>
 
     <div id="runes"></div>
+    <div id="perf"></div>
 
     <div class="hudbar left" id="hpbar">
       <div class="barwin"><div class="fillclip"><div class="filltex"></div></div></div>
@@ -435,7 +456,15 @@
   <div id="toast"></div>
   <div id="hint" class="hidden">WASD mover · ratón apuntar · clic atacar · Espacio dash · Q poción · E interactuar · I inventario · Esc pausa</div>
 
-  <div id="menu" class="screen">
+  <div id="loading" class="screen">
+    <div class="loadbox panel">
+      <div class="loadtitle">CARGANDO</div>
+      <div id="loadmsg">Preparando al Archimago...</div>
+      <div class="loadbar"><div id="loadfill"></div></div>
+    </div>
+  </div>
+
+  <div id="menu" class="screen hidden">
     <h1 class="title">LA CÁRCEL DEL CUTEO</h1>
     <div class="subtitle">un roguelike de fantasía medieval</div>
     <div class="subtitle hidden" id="recordline" style="color:#ffd84f"></div>
@@ -470,17 +499,17 @@
 </div>
 
 <!-- ?v=N evita que el navegador sirva JS viejo de caché; subir N al editar -->
+<script src="vendor/pixi.min.js?v=7.4.3"></script>
+<script src="vendor/pixi-global.js?v=1"></script>
 <script src="js/data.js?v=158"></script>
-<script src="js/sprites.js?v=158"></script>
-<script src="js/anim-rig.js?v=158"></script>
-<script src="js/hero.js?v=158"></script>
-<script src="js/heropack.js?v=158"></script>
-<script src="js/v2hero.js?v=167"></script>
+<script src="js/sprites.js?v=159"></script>
+<script src="js/v2hero.js?v=168"></script>
 <script src="js/mob.js?v=158"></script>
 <script src="js/dungeon.js?v=158"></script>
 <script src="js/items.js?v=158"></script>
-<script src="js/entities.js?v=160"></script>
+<script src="js/entities.js?v=161"></script>
 <script src="js/ui.js?v=159"></script>
-<script src="js/main.js?v=160"></script>
+<script src="js/pixi-renderer.js?v=2"></script>
+<script src="js/main.js?v=167"></script>
 </body>
 </html>

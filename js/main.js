@@ -3,18 +3,22 @@
 // =====================================================================
 
 const state = {
-  mode: 'menu', // menu | play | dead | win
+  mode: 'loading', // loading | menu | play | dead | win
   invOpen: false, paused: false, upgradeOpen: false, shopOpen: false,
   player: null, run: null, level: null,
   enemies: [], projs: [], pickups: [], chests: [],
   particles: [], floaters: [], fx: [],
   cam: { x: 0, y: 0 }, shake: 0, time: 0, winT: 0,
-  explored: null,
+  explored: null, minimapDirty: true,
 };
 
 let canvas, ctx, mini, mctx;
 let ZOOM = 3;
-const DEBUG_MODE = new URLSearchParams(location.search).has('debug');
+let minimapBg = null, minimapBgCtx = null;
+const QUERY = new URLSearchParams(location.search);
+const DEBUG_MODE = QUERY.has('debug');
+const PIXI_MODE = QUERY.has('pixi') && typeof PIXI !== 'undefined';
+const perf = { acc: 0, frames: 0, fps: 0, frameMs: 0, lastUpdate: 0 };
 const GOLD_CHEST_RANGE = 1.6;
 const RUN_SAVE_KEY = 'carcel_run_v1';
 const STAFF_OVERRIDE_KEY = 'carcel_staff_override';
@@ -31,7 +35,6 @@ const touch = { enabled: false, stickId: null, baseX: 0, baseY: 0, vx: 0, vy: 0,
 window.addEventListener('load', () => {
   if (DEBUG_MODE) document.body.classList.add('debug');
   buildSprites();
-  if (typeof buildHero === 'function') buildHero();
   if (typeof loadV2Hero === 'function') loadV2Hero(); // mago v2 experimental (PixelLab)
   if (typeof loadMobs === 'function') loadMobs(); // motor unificado de mobs (frames PixelLab + sheets CraftPix)
   loadAssets(); // los CC0 de 32px reemplazan en caliente; hay fallback por código
@@ -44,25 +47,85 @@ window.addEventListener('load', () => {
   if (typeof loadTowerTiles === 'function') loadTowerTiles(); // tileset Torre en Ruinas (8+8 variantes)
   if (typeof loadTorchImg === 'function') loadTorchImg(); // antorcha animada (sheet 8 frames)
   if (typeof loadLichFire === 'function') loadLichFire(); // bola de fuego del liche
-  canvas = $('game'); ctx = canvas.getContext('2d');
+  canvas = $('game'); ctx = PIXI_MODE ? null : canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
   resize();
   window.addEventListener('resize', resize);
   // iOS: la barra del navegador aparece/desaparece sin disparar window.resize
   if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
   bindInput();
-  buildMenu();
-  requestAnimationFrame(loop);
+  const start = () => { requestAnimationFrame(loop); waitForBootAssets(); };
+  if (PIXI_MODE && typeof initPixiRenderer === 'function') {
+    initPixiRenderer(canvas).then(start).catch(e => {
+      console.error('[pixi] init failed, falling back to canvas:', e);
+      ctx = canvas.getContext('2d');
+      start();
+    });
+  } else start();
 });
 
+function bootAssetProgress() {
+  if (typeof V2H === 'undefined') return { loaded: 0, total: 1, failed: 1, ready: false };
+  const hero = V2H.loading || { loaded: 0, total: 0, failed: 0 };
+  const rig = (V2H.staffRig && V2H.staffRig.loading) || { loaded: 0, total: 0, failed: 0 };
+  const loaded = hero.loaded + rig.loaded;
+  const total = Math.max(1, hero.total + rig.total);
+  const failed = hero.failed + rig.failed;
+  return {
+    loaded, total, failed,
+    ready: !!(V2H.ready && V2H.staffRig && V2H.staffRig.ready && failed === 0),
+  };
+}
+
+function setLoadingUI(msg, pct, error) {
+  const loading = $('loading');
+  if (!loading) return;
+  loading.classList.toggle('error', !!error);
+  const fill = $('loadfill');
+  if (fill) fill.style.width = Math.max(0, Math.min(100, pct)) + '%';
+  const label = $('loadmsg');
+  if (label) label.textContent = msg;
+}
+
+function waitForBootAssets(start) {
+  start = start || performance.now();
+  const p = bootAssetProgress();
+  const pct = Math.round((p.loaded / p.total) * 100);
+  setLoadingUI('Cargando arte del Archimago... ' + pct + '%', pct, false);
+  if (p.ready) {
+    state.mode = 'menu';
+    $('loading').classList.add('hidden');
+    $('menu').classList.remove('hidden');
+    buildMenu();
+    return;
+  }
+  if (p.failed || performance.now() - start > 12000) {
+    const failed = p.failed ? 'Falto cargar un asset del Archimago.' : 'La carga tardo demasiado.';
+    setLoadingUI(failed + ' Recarga la pagina para evitar el fallback.', pct, true);
+    return;
+  }
+  setTimeout(() => waitForBootAssets(start), 50);
+}
+
 function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  ctx.imageSmoothingEnabled = false;
-  ZOOM = Math.max(2, Math.round(window.innerHeight / 240));
+  const cssW = Math.max(1, window.innerWidth);
+  const cssH = Math.max(1, window.innerHeight);
+  canvas.width = cssW;
+  canvas.height = cssH;
+  if (ctx) ctx.imageSmoothingEnabled = false;
+  ZOOM = Math.max(2, Math.round(cssH / 240));
+  if (PIXI_MODE && typeof resizePixiRenderer === 'function') resizePixiRenderer(canvas.width, canvas.height);
   // escala del HUD v2 (diseñado a 1920 de ancho; no deja que ocupe de más en chico)
-  const huds = Math.min(1.05, Math.max(0.46, window.innerWidth / 1920));
+  const huds = Math.min(1.05, Math.max(0.46, cssW / 1920));
   document.documentElement.style.setProperty('--huds', huds);
+}
+
+function setMouseFromEvent(e) {
+  const r = canvas.getBoundingClientRect();
+  const sx = canvas.width / Math.max(1, r.width);
+  const sy = canvas.height / Math.max(1, r.height);
+  mouse.sx = (e.clientX - r.left) * sx;
+  mouse.sy = (e.clientY - r.top) * sy;
 }
 
 function bindInput() {
@@ -86,8 +149,8 @@ function bindInput() {
   });
   window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
   window.addEventListener('blur', () => { keys.clear(); mouse.down = false; });
-  canvas.addEventListener('mousemove', e => { mouse.sx = e.clientX; mouse.sy = e.clientY; });
-  canvas.addEventListener('mousedown', e => { initAudio(); if (e.button === 0) mouse.down = true; });
+  canvas.addEventListener('mousemove', setMouseFromEvent);
+  canvas.addEventListener('mousedown', e => { initAudio(); setMouseFromEvent(e); if (e.button === 0) mouse.down = true; });
   window.addEventListener('mouseup', () => mouse.down = false);
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   // REINTENTAR: arranca una run nueva directo con la misma clase. MENÚ: vuelve al menú.
@@ -420,6 +483,7 @@ function restoreFloor(rec, px, py) {
   state.level = rec.lvl;
   state.enemies = rec.enemies; state.pickups = rec.pickups; state.explored = rec.explored;
   state.projs = []; state.particles = []; state.floaters = []; state.fx = [];
+  state.minimapDirty = true;
   state.motes = Array.from({ length: 16 }, () => ({
     x: Math.random() * rec.lvl.W * TILE, y: Math.random() * rec.lvl.H * TILE,
     vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 4,
@@ -469,6 +533,7 @@ function nextFloor() {
     ph: Math.random() * Math.PI * 2,
   }));
   state.explored = Array.from({ length: lvl.H }, () => new Array(lvl.W).fill(false));
+  state.minimapDirty = true;
 
   const p = state.player;
   p.x = lvl.start.x; p.y = lvl.start.y;
@@ -500,6 +565,7 @@ function onBossKilled(boss) {
   const run = state.run;
   const lvl = state.level;
   lvl.exitOpen = true;
+  state.minimapDirty = true;
   if (run.zoneIdx >= ZONES.length - 1) {
     state.winT = 1.6; // pequeña pausa dramática antes de la victoria
   } else {
@@ -632,8 +698,10 @@ function backToMenu() {
 
 let lastT = 0;
 function loop(t) {
-  const dt = Math.min((t - lastT) / 1000, 0.05);
+  const rawDt = lastT ? (t - lastT) / 1000 : 0;
+  const dt = Math.min(rawDt || 0, 0.05);
   lastT = t;
+  updatePerfStats(rawDt, t);
   // blindado: una excepción en un frame ya no detiene el loop (antes congelaba el juego);
   // se registra para diagnóstico y el loop sigue
   try {
@@ -644,6 +712,33 @@ function loop(t) {
     if (loop._errN++ < 20) console.error('[loop] frame error:', e && e.stack ? e.stack : e);
   }
   requestAnimationFrame(loop);
+}
+
+function updatePerfStats(rawDt, t) {
+  if (!DEBUG_MODE || rawDt <= 0) return;
+  perf.acc += rawDt;
+  perf.frames++;
+  if (t - perf.lastUpdate < 500) return;
+
+  perf.fps = perf.acc > 0 ? perf.frames / perf.acc : 0;
+  perf.frameMs = perf.fps > 0 ? 1000 / perf.fps : 0;
+  perf.acc = 0;
+  perf.frames = 0;
+  perf.lastUpdate = t;
+
+  const el = $('perf');
+  if (!el) return;
+  const cls = perf.fps >= 55 ? 'perfok' : perf.fps >= 40 ? 'perfwarn' : 'perfbad';
+  const enemies = state.enemies ? state.enemies.length : 0;
+  const projs = state.projs ? state.projs.length : 0;
+  const fx = (state.particles ? state.particles.length : 0) + (state.fx ? state.fx.length : 0);
+  el.innerHTML =
+    '<b class="' + cls + '">' + Math.round(perf.fps) + ' FPS</b><br>' +
+    perf.frameMs.toFixed(1) + ' ms/frame<br>' +
+    canvas.width + 'x' + canvas.height + '<br>' +
+    'Enemigos: ' + enemies + '<br>' +
+    'Proy: ' + projs + '<br>' +
+    'FX: ' + fx;
 }
 
 function update(dt) {
@@ -747,7 +842,10 @@ function update(dt) {
   const ptx = Math.floor(p.x / TILE), pty = Math.floor(p.y / TILE);
   for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) {
     const tx = ptx + dx, ty = pty + dy;
-    if (tx >= 0 && ty >= 0 && tx < lvl.W && ty < lvl.H) state.explored[ty][tx] = true;
+    if (tx >= 0 && ty >= 0 && tx < lvl.W && ty < lvl.H && !state.explored[ty][tx]) {
+      state.explored[ty][tx] = true;
+      state.minimapDirty = true;
+    }
   }
 
   // cámara
@@ -794,6 +892,7 @@ function updatePrompt() {
 // ---------------- Render ----------------
 
 function render(dt) {
+  if (PIXI_MODE && typeof renderPixi === 'function' && renderPixi(dt)) return;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#0b0a0f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -817,8 +916,7 @@ function render(dt) {
   // (torre en ruinas); en ese caso se elige una por hash determinista de celda.
   const floorSet = Sprites['floor_' + zoneNow.id];
   const wallSet = Sprites['wall_' + zoneNow.id];
-  // (el tileset CraftPix "dungeon" quedó descartado; loadDungeonTiles sigue
-  //  disponible en sprites.js por si se retoma)
+  // El tileset CraftPix "dungeon" quedo descartado y se movio a review/.
   // hash pseudo-aleatorio por celda: rompe el patrón en grilla/bandas que daba
   // la fórmula lineal (tx*3+ty*7) al elegir variante de tile
   const tvar = (x, y, n) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; h = (h ^ (h >>> 16)) >>> 0; return h % n; };
@@ -1356,139 +1454,16 @@ function drawSpriteC(spr, x, y, scale, alpha) {
 
 let hpTmp = null;
 
-// Render del asset pack final (cuerpo + equipo + brazo + arma)
-function drawHeroPack(p) {
-  let name = 'idle';
-  if ((p.hurtT || 0) > 0) name = 'hurt';
-  else if ((p.attackT || 0) > 0) name = 'attack';
-  else if (p.moving) name = 'run';
-  if (p._hpAnim !== name) { p._hpAnim = name; p._hpStart = state.time; }
-  const fi = hpFrame(name, (state.time - p._hpStart) * 1000); // 0-10
-  const flip = p.dir < 0 ? -1 : 1, ws = 0.5, footY = p.y + 5;
-  const hasWeapon = !!p.equip.arma;
-  const hurtIdx = name === 'hurt' ? fi - HP.anims.hurt.start : -1;
-  const flash = hurtIdx >= 0 ? (HP.hurtFlash[hurtIdx] || 0) : 0;
-
-  // componer cuerpo + equipo en un canvas 48×48 (flip y flash se aplican una vez)
-  if (!hpTmp) { hpTmp = document.createElement('canvas'); hpTmp.width = hpTmp.height = 48; }
-  const tg = hpTmp.getContext('2d');
-  tg.clearRect(0, 0, 48, 48);
-  tg.drawImage((hasWeapon ? HP.bodyHold : HP.body)[fi], 0, 0);
-  const cls = HP_CLASS[p.cls] || 'warrior';   // set de equipo según la clase
-  for (const slot of HP.layerOrder) {
-    const ourSlot = Object.keys(HP_SLOT).find(k => HP_SLOT[k] === slot);
-    if (!ourSlot) continue;                 // gloves/cloak/belt: sin slot en el juego aún
-    const it = p.equip[ourSlot];
-    if (!it) continue;
-    const set = HP.equip[cls] || HP.equip.warrior;
-    const arr = set[slot] && set[slot][hpTier(it)];
-    if (arr && arr[fi]) tg.drawImage(arr[fi], 0, 0);
-  }
-  if (flash > 0) {
-    tg.globalCompositeOperation = 'source-atop'; tg.globalAlpha = flash;
-    tg.fillStyle = '#e84848'; tg.fillRect(0, 0, 48, 48);
-    tg.globalAlpha = 1; tg.globalCompositeOperation = 'source-over';
-  }
-  // lunge: durante el golpe melee el cuerpo da un paso al frente (el slash va adelante)
-  let lungeX = 0, lungeY = 0;
-  if (p.swingT > 0) {
-    const mag = Math.sin((1 - p.swingT / 0.16) * Math.PI) * 5, a = aimAngle();
-    lungeX = Math.cos(a) * mag; lungeY = Math.sin(a) * mag;
-  }
-  p._lungeX = lungeX; p._lungeY = lungeY;
-
-  ctx.save();
-  ctx.translate(p.x + lungeX, footY + lungeY); ctx.scale(ws * flip, ws);
-  ctx.drawImage(hpTmp, -24, -48);
-  ctx.restore();
-
-  if (hasWeapon) drawHeroWeaponArm(p, fi, flip, footY, ws);
-}
-
-function drawHeroWeaponArm(p, fi, flip, footY, ws) {
-  const arma = p.equip.arma;
-  const wtype = HP_WEAP[arma.weaponType];
-  const wframes = HP.weap[wtype];
-  if (!wframes) return;
-  const wspr = wframes[hpTier(arma)], grip = HP.grip[wtype];
-  const rawAim = aimAngle();
-  // arma relajada en reposo: el arma baja al costado mientras no estás atacando.
-  // Considera todas las armas (melee usa swingT/attackT, ranged/magic usan atkCd) y
-  // sigue apuntando mientras el jugador mantiene el clic, aunque atkCd llegue a 0.
-  const aiming = mouse.down || touch.attacking;
-  const resting = !aiming && p.atkCd <= 0 && p.swingT <= 0 && (p.attackT || 0) <= 0;
-  const restDir = p.dir > 0 ? 1.15 : (Math.PI - 1.15); // apunta hacia abajo-adelante
-  const target = resting ? restDir : rawAim;
-  if (p._armAim === undefined) p._armAim = target;
-  let d = target - p._armAim; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
-  p._armAim += d * (resting ? 0.18 : 0.5); // suave al bajar, ágil al apuntar
-  while (p._armAim > Math.PI) p._armAim -= 2 * Math.PI;
-  while (p._armAim < -Math.PI) p._armAim += 2 * Math.PI;
-  const aim = p._armAim;
-  // slash: el brazo+arma barren un arco real durante el golpe melee
-  let swing = 0;
-  if (p.swingT > 0) {
-    const k = 1 - p.swingT / 0.16, e = k * k * (3 - 2 * k);
-    swing = (e * 2.6 - 1.3) * (p.swingDir || 1);
-  }
-  const armAng = aim + Math.PI / 2 + swing;
-
-  // hombro del frame (subido 2px para que no se lea desde el pecho), mirror-aware,
-  // + lunge hacia adelante durante el golpe (el slash va adelante del cuerpo)
-  const lx = p._lungeX || 0, ly = p._lungeY || 0;
-  const sx = HP.shoulder[fi][0], sy = HP.shoulder[fi][1] - 2;
-  const shWX = p.x + (flip > 0 ? (sx - 24) : (24 - sx)) * ws + lx;
-  const shWY = footY + (sy - 48) * ws + ly;
-  // mano = hombro + rotar(offset mano) por el ángulo del brazo
-  const hlx = HP.armHand[0] - HP.armShoulder[0], hly = HP.armHand[1] - HP.armShoulder[1];
-  const ca = Math.cos(armAng), sa = Math.sin(armAng);
-  const hWX = shWX + (hlx * ca - hly * sa) * ws, hWY = shWY + (hlx * sa + hly * ca) * ws;
-
-  // magia: glow arcano en la punta del bastón/varita (no corta, irradia)
-  const isMagic = WEAPON_TYPES[arma.weaponType].style === 'bolt';
-  if (isMagic) {
-    const cast = p.atkCd > attackCooldown(p) * 0.55 ? 1.8 : 1; // brilla más al lanzar
-    const tx = hWX + Math.cos(aim) * 14, ty = hWY + Math.sin(aim) * 14;
-    const pulse = (0.7 + Math.sin(state.time * 6) * 0.3) * cast;
-    ctx.globalCompositeOperation = 'lighter';
-    const g = ctx.createRadialGradient(tx, ty, 0, tx, ty, 7 * pulse);
-    g.addColorStop(0, '#bfe6ffdd'); g.addColorStop(0.4, '#7ec8ff88'); g.addColorStop(1, '#7ec8ff00');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(tx, ty, 7 * pulse, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(tx, ty, 1.4 * cast, 0, Math.PI * 2); ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-  }
-
-  // glow de rareza en la punta (las raras+ irradian su color)
-  const rank = RARITIES.findIndex(r => r.id === arma.rarity);
-  if (rank >= 2) {
-    const rar = rarityOf(arma), pulse = 0.6 + Math.sin(state.time * 5) * 0.25;
-    const tx = hWX + Math.cos(aim) * 14, ty = hWY + Math.sin(aim) * 14;
-    ctx.globalCompositeOperation = 'lighter';
-    const g = ctx.createRadialGradient(tx, ty, 0, tx, ty, (6 + rank * 2) * pulse);
-    g.addColorStop(0, rar.color + 'cc'); g.addColorStop(1, rar.color + '00');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(tx, ty, (6 + rank * 2) * pulse, 0, Math.PI * 2); ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-    if (rank >= 3 && Math.random() < 0.4)
-      state.particles.push({ x: tx + (Math.random() - 0.5) * 6, y: ty, vx: (Math.random() - 0.5) * 20, vy: -12, t: 0.4, color: rar.color, glow: true });
-  }
-
-  // arma (detrás), luego brazo (encima, lo empuña) — orden del manifest
-  ctx.save(); ctx.translate(hWX, hWY); ctx.rotate(armAng); ctx.scale(ws, ws);
-  ctx.drawImage(wspr, -grip[0], -grip[1]); ctx.restore();
-  ctx.save(); ctx.translate(shWX, shWY); ctx.rotate(armAng); ctx.scale(ws, ws);
-  ctx.drawImage(HP.arm, -HP.armShoulder[0], -HP.armShoulder[1]); ctx.restore();
-}
-
+// Render del jugador: mago v2 si cargo; fallback procedural si falta algun asset.
 function drawPlayer(p) {
   drawShadow(p.x, p.y, 5);
   // tackleado: tirado en el piso con estrellitas dando vueltas
   if (p.stunT > 0) {
-    const spr = HP.ready ? HP.body[0] : playerSprite(p);
+    const spr = playerSprite(p);
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.dir >= 0 ? Math.PI / 2 : -Math.PI / 2);
-    const k = HP.ready ? 0.5 : 1;
-    ctx.drawImage(spr, -spr.width * k / 2, -spr.height * k / 2, spr.width * k, spr.height * k);
+    ctx.drawImage(spr, -spr.width / 2, -spr.height / 2, spr.width, spr.height);
     ctx.restore();
     ctx.fillStyle = '#ffd84f';
     for (let i = 0; i < 3; i++) {
@@ -1504,37 +1479,16 @@ function drawPlayer(p) {
     drawV2Hero(p);
     return;
   }
-  if (HP.ready) {
-    drawHeroPack(p);
-  } else if (Sprites.hero_idle) {
-    // héroe animado 48px (rig de Claude Design): hurt > attack > run > idle
-    let name = 'idle';
-    if ((p.hurtT || 0) > 0) name = 'hurt';
-    else if ((p.attackT || 0) > 0) name = 'attack';
-    else if (p.moving) name = 'run';
-    if (p._heroAnim !== name) { p._heroAnim = name; p._heroStart = state.time; }
-    const frames = Sprites['hero_' + name + (p.dir < 0 ? '_L' : '')];
-    const fi = animFrame(HERO_ANIMS[name], (state.time - p._heroStart) * 1000);
-    const spr = frames[fi];
-    const ws = spr.ws || 1, w = spr.width * ws, h = spr.height * ws;
-    p._heroFrame = fi; // para anclar el arma a la mano del frame actual
-    // el bastón/arco/etc. va detrás del cuerpo si apunto hacia arriba
-    const aimUp = Math.sin(aimAngle()) < -0.3;
-    if (aimUp) drawHeldWeapon(p);
-    ctx.drawImage(spr, p.x - w / 2, p.y + 5 - h, w, h);
-    if (!aimUp) drawHeldWeapon(p);
-  } else {
-    // fallback al sprite por código
-    const spr = playerSprite(p);
-    const bob = p.moving ? -Math.abs(Math.sin(state.time * 10)) * 1.5 : Math.sin(state.time * 2.2) * 0.5;
-    const tilt = p.moving ? Math.sin(state.time * 10) * 0.07 : 0;
-    ctx.save();
-    ctx.translate(p.x, p.y - 3 + bob);
-    ctx.rotate(tilt);
-    ctx.drawImage(spr, -spr.width / 2, -spr.height / 2);
-    ctx.restore();
-    drawHeldWeapon(p);
-  }
+  // fallback al sprite por codigo
+  const spr = playerSprite(p);
+  const bob = p.moving ? -Math.abs(Math.sin(state.time * 10)) * 1.5 : Math.sin(state.time * 2.2) * 0.5;
+  const tilt = p.moving ? Math.sin(state.time * 10) * 0.07 : 0;
+  ctx.save();
+  ctx.translate(p.x, p.y - 3 + bob);
+  ctx.rotate(tilt);
+  ctx.drawImage(spr, -spr.width / 2, -spr.height / 2);
+  ctx.restore();
+  drawHeldWeapon(p);
 
   // tajo: arco amplio proyectado ADELANTE del cuerpo (no solo al alcance del brazo),
   // así se lee como un ataque al frente aunque el bicho esté encima
@@ -1577,8 +1531,7 @@ function drawRugbyPosts(x, y) {
   ctx.fillRect(x + w / 2 - 2, y, 4, 1);
 }
 
-// El arma equipada se ve en la mano, apuntando hacia el ratón.
-// Usa el sprite del rig (6 tiers por material) anclado por su grip pivot.
+// Fallback procedural del arma equipada, apuntando hacia el mouse.
 function drawHeldWeapon(p) {
   const arma = p.equip.arma;
   if (!arma) return;
@@ -1591,50 +1544,6 @@ function drawHeldWeapon(p) {
     swing = (eased * 2.6 - 1.3) * (p.swingDir || 1);
   }
 
-  // sprite del rig si está disponible (arma "vertical, punta arriba" + grip)
-  const rigType = WEAPON_RIG[arma.weaponType];
-  const rigArr = Sprites.weap && Sprites.weap[rigType];
-  if (rigArr) {
-    const spr = rigArr[weaponTier(arma)];
-    const ws = spr.ws || 1;
-    // agarre anclado a la MANO real del frame de animación actual (no flotando)
-    let hx, hy;
-    if (typeof ARIG !== 'undefined') {
-      const ha = ARIG.handAnchor(p._heroAnim || 'idle', p._heroFrame || 0);
-      let ax = ha.x; if (p.dir < 0) ax = 48 - ax; // espejar con el cuerpo
-      hx = p.x - 12 + ax * 0.5;        // sprite 48px (ws .5, ancho 24) → mundo
-      hy = (p.y + 5 - 24) + ha.y * 0.5;
-    } else { hx = p.x + Math.cos(aim) * 5; hy = p.y - 6 + Math.sin(aim) * 5; }
-
-    // glow de rareza: las armas raras+ irradian su color (se nota que son especiales)
-    const rar = rarityOf(arma);
-    const rank = RARITIES.findIndex(r => r.id === arma.rarity);
-    if (rank >= 2) { // raro, épico (y futuras legendary/mythic)
-      const tipL = 13 * (spr.gy / 24);
-      const tx = hx + Math.cos(aim) * 16, ty = hy + Math.sin(aim) * 16;
-      const pulse = 0.6 + Math.sin(state.time * 5) * 0.25;
-      ctx.globalCompositeOperation = 'lighter';
-      const g = ctx.createRadialGradient(tx, ty, 0, tx, ty, (6 + rank * 2) * pulse);
-      g.addColorStop(0, rar.color + 'cc');
-      g.addColorStop(1, rar.color + '00');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(tx, ty, (6 + rank * 2) * pulse, 0, Math.PI * 2); ctx.fill();
-      ctx.globalCompositeOperation = 'source-over';
-      // chispas para épico+
-      if (rank >= 3 && Math.random() < 0.4)
-        state.particles.push({ x: tx + (Math.random() - 0.5) * 6, y: ty + (Math.random() - 0.5) * 6,
-          vx: (Math.random() - 0.5) * 20, vy: -10 - Math.random() * 15, t: 0.4, color: rar.color, glow: true });
-    }
-
-    ctx.save();
-    ctx.translate(hx, hy);
-    ctx.rotate(aim + Math.PI / 2 + swing); // punta-arriba (-y) → dirección de apuntado
-    ctx.scale(ws, ws);
-    ctx.drawImage(spr, -spr.gx, -spr.gy);
-    ctx.restore();
-    return;
-  }
-  // fallback: icono viejo
   const wt = WEAPON_TYPES[arma.weaponType];
   const icon = Sprites['icon_' + arma.weaponType];
   ctx.save();
@@ -1737,19 +1646,33 @@ function drawEnemyExtras(e) {
 function renderMinimap() {
   const lvl = state.level;
   const s = Math.min(mini.width / lvl.W, mini.height / lvl.H);
-  mctx.clearRect(0, 0, mini.width, mini.height);
-  const pal = ZONES[state.run.zoneIdx].palette;
-  for (let ty = 0; ty < lvl.H; ty++) {
-    for (let tx = 0; tx < lvl.W; tx++) {
-      if (!state.explored[ty][tx] || lvl.map[ty][tx] === 0) continue;
-      mctx.fillStyle = pal.wall;
-      mctx.fillRect(tx * s, ty * s, s, s);
+  if (!minimapBg) {
+    minimapBg = document.createElement('canvas');
+    minimapBgCtx = minimapBg.getContext('2d');
+  }
+  if (minimapBg.width !== mini.width || minimapBg.height !== mini.height) {
+    minimapBg.width = mini.width;
+    minimapBg.height = mini.height;
+    state.minimapDirty = true;
+  }
+  if (state.minimapDirty) {
+    minimapBgCtx.clearRect(0, 0, minimapBg.width, minimapBg.height);
+    const pal = ZONES[state.run.zoneIdx].palette;
+    for (let ty = 0; ty < lvl.H; ty++) {
+      for (let tx = 0; tx < lvl.W; tx++) {
+        if (!state.explored[ty][tx] || lvl.map[ty][tx] === 0) continue;
+        minimapBgCtx.fillStyle = pal.wall;
+        minimapBgCtx.fillRect(tx * s, ty * s, s, s);
+      }
     }
+    if (lvl.exitOpen && state.explored[lvl.exit.ty][lvl.exit.tx]) {
+      minimapBgCtx.fillStyle = '#ffd84f';
+      minimapBgCtx.fillRect(lvl.exit.tx * s - 1, lvl.exit.ty * s - 1, s + 2, s + 2);
+    }
+    state.minimapDirty = false;
   }
-  if (lvl.exitOpen && state.explored[lvl.exit.ty][lvl.exit.tx]) {
-    mctx.fillStyle = '#ffd84f';
-    mctx.fillRect(lvl.exit.tx * s - 1, lvl.exit.ty * s - 1, s + 2, s + 2);
-  }
+  mctx.clearRect(0, 0, mini.width, mini.height);
+  mctx.drawImage(minimapBg, 0, 0);
   const p = state.player;
   mctx.fillStyle = '#fff';
   mctx.fillRect(p.x / TILE * s - 1.5, p.y / TILE * s - 1.5, 3, 3);

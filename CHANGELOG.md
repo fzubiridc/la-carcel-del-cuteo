@@ -1,5 +1,39 @@
 # Changelog
 
+## [Sin publicar] - 2026-06-13
+
+### Mantenimiento
+- Se movio la documentacion larga a `docs/` para dejar la raiz mas limpia.
+- README reescrito como guia rapida de PC, estructura y codigo vivo.
+  En Windows se documenta `py -m http.server 8417`, que es el comando probado.
+- Nuevo `docs/ARCHITECTURE.md` con el mapa actual del proyecto.
+- `docs/ANALYSIS.md` queda marcado como referencia historica.
+- Se retiro del runtime el pipeline viejo de jugador (`anim-rig`, `hero`,
+  `heropack`) y se movio a `review/legacy-code/`.
+- Se limpio de `main.js` la rama dormida del heropack/rig viejo; queda v2 con
+  fallback procedural.
+- Se retiro del fallback el dibujo de armas del rig viejo; conserva iconos
+  procedurales si falta algun asset v2.
+- Los packs fuente y assets viejos se movieron a `review/legacy-assets/`.
+- Las herramientas viejas `rigtool.html` y `stafftest.html` se movieron a
+  `review/legacy-tools/`.
+
+### Rendimiento
+- `entities.js`: el flow-field de pathfinding se cachea por piso y tile del
+  jugador; evita recalcular BFS cada frame si el jugador no cambio de celda.
+- `main.js`: el minimapa cachea el fondo explorado y solo lo reconstruye cuando
+  cambia la exploracion, el piso, la salida o el tamano del canvas.
+- `?debug`: nuevo overlay de rendimiento con FPS, ms/frame y conteo de
+  enemigos, proyectiles y FX para medir como corre en PC.
+- `?pixi`: primer renderer WebGL experimental con PixiJS 7 vendorizado localmente.
+- Cache-bust actualizado para `entities.js` y `main.js`.
+
+### Carga
+- Se agrego pantalla de carga antes del menu para esperar el mago v2 y su staff rig.
+- `v2hero.js` ahora reporta progreso y errores de carga de assets criticos.
+- Si falta un asset critico, el juego no entra mostrando el fallback: deja mensaje
+  de recarga.
+
 Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/es/). Las fechas son del desarrollo.
 
@@ -11,7 +45,7 @@ Registro de cambios de **La Cárcel del Cuteo**. Formato basado en
   dos *sources* — `frames` (PixelLab por-frame: skeleton/rata) y `sheet` (CraftPix
   64px: slime/lich/ghost/zombie/orc) — compartiendo facing por EMA, idle/walk/attack,
   tinte, anclaje y fallback. De 2 motores a 1; se borraron los dos archivos viejos.
-  (P2 del ANALYSIS.md.)
+  (P2 de `docs/ANALYSIS.md`.)
 
 ### Arte / Mundo
 - **Mobs nuevos (CraftPix)**: Slime, Liche, Fantasma, Zombi y **Orco**. El renderer
