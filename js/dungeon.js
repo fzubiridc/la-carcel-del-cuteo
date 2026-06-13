@@ -181,9 +181,10 @@ function rectHitsChest(level, x, y, w, h) {
     const baseY = cy + 1;      // apoyo del cofre en el piso
     return Math.abs(x - cx) < hw && fy > baseY - 9 && fy < baseY + 4;
   };
-  for (const ch of level.chests) if (!ch.opened && hit(ch.x, ch.y)) return true;
+  // bloquea abierto o cerrado: el cofre sigue siendo un objeto solido (contacto identico)
+  for (const ch of level.chests) if (hit(ch.x, ch.y)) return true;
   const lc = level.lockedChest;
-  return !!(lc && !lc.opened && hit(lc.x, lc.y));
+  return !!(lc && hit(lc.x, lc.y));
 }
 
 // Mover entidad eje por eje (permite deslizarse por paredes). Los cofres cerrados
