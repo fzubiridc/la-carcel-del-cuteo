@@ -390,6 +390,10 @@ function fireProj(o) {
     splash: o.splash || 0, crit: o.crit || false,
     life, dead: false, t: 0, trailT: 0, owner: o.owner || null,
     pierce: o.pierce || 0, hitSet: null, size: o.size || 6,
+    // wallDY: desfase entre la y VISUAL (sale de la punta del arma, elevada) y la y
+    // de colision contra muros (plano del piso). Evita que un disparo paralelo a un
+    // muro -estando pegado debajo- choque el muro de arriba. 0 = sin elevacion.
+    wallDY: o.wallDY || 0,
   });
 }
 
@@ -435,7 +439,7 @@ function updateProjectiles(dt) {
         });
       }
     }
-    if (rectHitsWall(lvl, pr.x, pr.y, Math.max(4, pr.size - 4), Math.max(4, pr.size - 4))) {
+    if (rectHitsWall(lvl, pr.x, pr.y + (pr.wallDY || 0), Math.max(4, pr.size - 4), Math.max(4, pr.size - 4))) {
       pr.dead = true;
       if (pr.splash) explode(pr);
       else burst(pr.x, pr.y, pr.color, 3);
@@ -570,7 +574,7 @@ function playerAttack(aimAng) {
   } else if (wt.style === 'arrow') {
     // sale de la punta del arma, no del cuerpo
     const mx = p.x + Math.cos(aimAng) * 16, my = p.y - 6 + Math.sin(aimAng) * 16;
-    fireProj({ x: mx, y: my, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#e8d8a0', style: 'arrow', crit, pierce: wt.pierce || 0 });
+    fireProj({ x: mx, y: my, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#e8d8a0', style: 'arrow', crit, pierce: wt.pierce || 0, wallDY: (p.y + 5) - my });
     // chasquido de la cuerda: destello corto en la boca del arco
     const hx = p.x + Math.cos(aimAng) * 9, hy = p.y + Math.sin(aimAng) * 9;
     for (let i = 0; i < 4; i++) {
@@ -594,7 +598,7 @@ function playerAttack(aimAng) {
       // recorre un mínimo aunque apuntes cerca (no estalla pegado al mago); tope = alcance del arma
       boltRange = Math.max(50, Math.min(wt.projRange, cd));
     }
-    fireProj({ x: mx, y: my, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit, size: wt.projSize || 6, range: boltRange });
+    fireProj({ x: mx, y: my, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit, size: wt.projSize || 6, range: boltRange, wallDY: (p.y + 5) - my });
     // destello de lanzamiento en la punta del bastón
     const hx = tip ? tip.x : p.x + Math.cos(aimAng) * 9;
     const hy = tip ? tip.y : p.y + Math.sin(aimAng) * 9;
