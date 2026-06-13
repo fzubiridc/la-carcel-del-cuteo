@@ -24,6 +24,8 @@ async function initPixiRenderer(view) {
     app,
     world: new PIXI.Container(),
     tiles: new PIXI.Container(),
+    torches: new PIXI.Container(),
+    entities: new PIXI.Container(), // objetos + fx, ENCIMA de la luz (brillo normal)
     objects: new PIXI.Container(),
     fx: new PIXI.Container(),
     screen: new PIXI.Container(),
@@ -34,9 +36,13 @@ async function initPixiRenderer(view) {
     spriteUsed: 0,
     graphicsPool: [],
     graphicsUsed: 0,
+    lights: null, // capa de luz/oscuridad (ver buildLighting)
   };
-  PR.world.addChild(PR.tiles, PR.objects, PR.fx);
-  app.stage.addChild(PR.world, PR.screen);
+  PR.world.addChild(PR.tiles, PR.torches);
+  PR.entities.addChild(PR.objects, PR.fx);
+  PR.lights = buildLighting();
+  // orden: piso (recibe la luz) -> capa de luz -> entidades (brillo normal, encima) -> screen
+  app.stage.addChild(PR.world, PR.lights.lighting, PR.entities, PR.screen);
 }
 
 function resizePixiRenderer(w, h) {
@@ -63,6 +69,7 @@ function renderPixi() {
   PR.spriteUsed = 0;
   PR.graphicsUsed = 0;
   PR.objects.removeChildren();
+  PR.torches.removeChildren();
   PR.fx.removeChildren();
   PR.screen.removeChildren();
   if (!state.level || !state.player) {
@@ -72,12 +79,15 @@ function renderPixi() {
 
   PR.world.scale.set(ZOOM);
   PR.world.position.set(-state.cam.x * ZOOM, -state.cam.y * ZOOM);
+  PR.entities.scale.set(ZOOM);
+  PR.entities.position.set(-state.cam.x * ZOOM, -state.cam.y * ZOOM);
 
   drawPixiTiles();
+  drawPixiTorches();
   drawPixiObjects();
   drawPixiProjectiles();
   drawPixiParticles();
-  drawPixiScreenFx();
+  drawPixiLighting();
   PR.app.renderer.render(PR.app.stage);
   return true;
 }
@@ -187,7 +197,7 @@ function pixiGraphics(parent) {
 }
 
 function pcol(c, fallback) {
-  if (!c) return fallback || 0xffffff;
+  if (c == null) return fallback || 0xffffff; // ojo: 0x000000 === 0 es falsy; con !c el negro saldria blanco
   if (typeof c === 'number') return c;
   if (c[0] === '#') return parseInt(c.slice(1, 7), 16);
   return fallback || 0xffffff;
@@ -271,6 +281,7 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
 
   const floorSet = Sprites['floor_' + zoneNow.id];
   const wallSet = Sprites['wall_' + zoneNow.id];
+  const torches = []; // [worldX, worldY, seed] de las antorchas (luz + llama animada)
   for (let ty = 0; ty < lvl.H; ty++) {
     for (let tx = 0; tx < lvl.W; tx++) {
       const solid = lvl.map[ty][tx] === 0;
@@ -292,6 +303,7 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
       } else {
         const floorBelow = ty + 1 < lvl.H && lvl.map[ty + 1][tx] === 1;
         const wallImg = Array.isArray(wallSet) ? wallSet[pixiTileVariant(tx + 101, ty + 57, wallSet.length)] : wallSet;
+        if (floorBelow && (tx * 73 + ty * 37) % 23 === 0) torches.push([X + TILE / 2, Y, tx * 31 + ty]);
         if (floorBelow && wallImg) {
           g.drawImage(wallImg, X, Y, TILE, TILE);
           g.fillStyle = 'rgba(0,0,0,0.30)';
@@ -317,7 +329,7 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
   sprite.roundPixels = true;
   PR.tiles.removeChildren();
   PR.tiles.addChild(sprite);
-  PR.tileCache = { lvl, zoneIdx: state.run.zoneIdx, exitOpen: lvl.exitOpen, tex };
+  PR.tileCache = { lvl, zoneIdx: state.run.zoneIdx, exitOpen: lvl.exitOpen, tex, torches };
 }
 
 function drawPixiTiles() {
@@ -361,7 +373,10 @@ function drawPixiPlayer(p) {
 }
 
 function pixiImageReady(img) {
-  return !!(img && img.complete && (img.naturalWidth || img.width));
+  if (!img) return false;
+  // los frames de cofre/fuego del liche son <canvas> (sin .complete ni naturalWidth)
+  if (img.tagName === 'CANVAS') return !!(img.width && img.height);
+  return !!(img.complete && (img.naturalWidth || img.width));
 }
 
 function pixiV2Face(p) {
@@ -698,6 +713,11 @@ function drawPixiProjectiles() {
       g.drawRect(-4, -0.5, 8, 1);
       g.endFill();
       g.position.set(pr.x, pr.y); g.rotation = pr.ang;
+    } else if (pr.style === 'fire' && typeof LICH_FIRE !== 'undefined' && LICH_FIRE.length) {
+      // bola de fuego del liche: sprite animado rotado hacia el angulo de vuelo
+      const fr = LICH_FIRE[Math.floor(pr.t * 1000 / 90) % LICH_FIRE.length];
+      if (pixiImageReady(fr)) pixiSprite(PR.objects, fr, pr.x, pr.y, 16, 16, { anchor: [0.5, 0.5], rotation: pr.ang, alpha: Math.min(1, pr.life * 4) });
+      else pixiCircle(PR.objects, pr.x, pr.y, 4, pcol(pr.color, 0xffffff), Math.min(1, pr.life * 4));
     } else pixiCircle(PR.objects, pr.x, pr.y, pr.style === 'fire' ? 4 : 2.2, pcol(pr.color, 0xffffff), Math.min(1, pr.life * 4));
   }
 }
@@ -706,8 +726,130 @@ function drawPixiParticles() {
   for (const pa of state.particles) pixiRect(PR.fx, pa.x - 1, pa.y - 1, 2, 2, pcol(pa.color), Math.min(1, pa.t * 3));
 }
 
-function drawPixiScreenFx() {
-  const p = state.player;
-  const sx = (p.x - state.cam.x) * ZOOM, sy = (p.y - state.cam.y) * ZOOM;
-  pixiCircle(PR.screen, sx, sy, 38 * ZOOM, 0xffbe6e, 0.035);
+// ---------------------------------------------------------------------
+// Iluminacion Pixi-nativa. No copia los gradientes del canvas pixel a
+// pixel: busca un dungeon oscuro pero legible. Arquitectura por capas:
+//   mundo (PR.world)  ->  PR.lights.lighting = [darkness, lights(ADD), vignette]
+// Una sola textura radial reusable, tinteada/escalada por luz. El flicker
+// es por alpha/scale (no se regeneran texturas por frame). El HUD es DOM,
+// queda fuera de este sistema.
+// ---------------------------------------------------------------------
+
+// Llama animada de las antorchas en el mundo (arte sobre la pared).
+function drawPixiTorches() {
+  const tc = PR.tileCache;
+  if (!tc || !tc.torches) return;
+  const cam = state.cam, vw = PR.app.renderer.width / ZOOM, vh = PR.app.renderer.height / ZOOM, t = state.time;
+  for (const [tX, tY, seed] of tc.torches) {
+    if (tX < cam.x - 24 || tX > cam.x + vw + 24 || tY < cam.y - 24 || tY > cam.y + vh + 24) continue;
+    if (typeof TORCH_IMG !== 'undefined' && TORCH_IMG && TORCH_IMG.width) {
+      const fr = Math.floor(t * 10 + seed) % 8;
+      const tex = pixiFrameTexture(TORCH_IMG, (fr % 4) * 64, (fr < 4 ? 0 : 1) * 64, 64, 64);
+      pixiSpriteFromTexture(PR.torches, tex, tX - 9, tY - 2, { scale: [18 / 64, 18 / 64] });
+    } else {
+      pixiRect(PR.torches, tX - 1, tY + 7, 2, 4, 0x6b4a2b, 1);
+      const fl = Math.floor(t * 9 + seed) % 3;
+      pixiRect(PR.torches, tX - 1, tY + 4 + (fl === 1 ? 1 : 0), 2, 3, fl === 0 ? 0xffb13f : fl === 1 ? 0xff7b2f : 0xffd84f, 1);
+    }
+  }
+}
+
+function makeRadialTex(stops, size) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  for (const [o, col] of stops) grd.addColorStop(o, col);
+  g.fillStyle = grd; g.fillRect(0, 0, size, size);
+  return PIXI.Texture.from(c);
+}
+
+function makeVignetteTex(w, h) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  const r = Math.max(w, h) * 0.72;
+  const grd = g.createRadialGradient(w / 2, h / 2, r * 0.42, w / 2, h / 2, r);
+  grd.addColorStop(0, 'rgba(0,0,0,0)');
+  grd.addColorStop(1, 'rgba(3,2,6,0.55)');
+  g.fillStyle = grd; g.fillRect(0, 0, w, h);
+  return PIXI.Texture.from(c);
+}
+
+// Construye la capa de luz. El orden en el stage (init) la deja ENTRE el piso y
+// las entidades: la luz cae sobre el piso y los personajes van encima a brillo
+// normal ("caminan sobre la luz", sin aura pintada sobre el sprite).
+function buildLighting() {
+  const lightTex = makeRadialTex([
+    [0, 'rgba(255,255,255,0.95)'],
+    [0.25, 'rgba(255,255,255,0.55)'],
+    [0.55, 'rgba(255,255,255,0.22)'],
+    [0.8, 'rgba(255,255,255,0.06)'],
+    [1, 'rgba(255,255,255,0)'],
+  ], 128);
+  const lighting = new PIXI.Container();
+  const darkness = new PIXI.Sprite(PIXI.Texture.WHITE);
+  darkness.tint = 0x07060d;
+  const lightsLayer = new PIXI.Container();
+  const vignette = new PIXI.Sprite(PIXI.Texture.EMPTY);
+  lighting.addChild(darkness, lightsLayer, vignette);
+  return { lightTex, lighting, darkness, lightsLayer, vignette, pool: [], poolUsed: 0, vigW: 0, vigH: 0 };
+}
+
+function pixiLight(L, x, y, radius, tint, alpha) {
+  let s = L.pool[L.poolUsed++];
+  if (!s) {
+    s = new PIXI.Sprite(L.lightTex);
+    s.anchor.set(0.5);
+    s.blendMode = PIXI.BLEND_MODES.ADD;
+    L.lightsLayer.addChild(s);
+    L.pool.push(s);
+  }
+  s.visible = true;
+  s.position.set(x, y);
+  s.scale.set((radius * 2) / L.lightTex.width);
+  s.tint = tint;
+  s.alpha = alpha;
+}
+
+function drawPixiLighting() {
+  const L = PR.lights;
+  if (!L) return;
+  const W = PR.app.renderer.width, H = PR.app.renderer.height;
+  const p = state.player, lvl = state.level, cam = state.cam, t = state.time;
+  const oscuro = lvl.evento === 'oscuro';
+
+  // oscuridad ambiente: dungeon oscuro pero legible (mas en pisos 'oscuro')
+  L.darkness.width = W; L.darkness.height = H;
+  L.darkness.alpha = oscuro ? 0.84 : 0.52;
+
+  // vinneta: se regenera solo si cambio el tamanno (no por frame)
+  if (L.vigW !== W || L.vigH !== H) {
+    if (L.vignette.texture && L.vignette.texture !== PIXI.Texture.EMPTY) L.vignette.texture.destroy(true);
+    L.vignette.texture = makeVignetteTex(W, H);
+    L.vigW = W; L.vigH = H;
+  }
+  L.vignette.alpha = 1;
+
+  L.poolUsed = 0;
+  const px = (wx) => (wx - cam.x) * ZOOM, py = (wy) => (wy - cam.y) * ZOOM;
+
+  // antorchas: luz calida con flicker sutil (alpha + scale, sin regenerar)
+  const tc = PR.tileCache;
+  if (tc && tc.torches) for (const [tX, tY, seed] of tc.torches) {
+    const sx = px(tX), sy = py(tY + 6), rad = 50 * ZOOM;
+    if (sx < -rad || sx > W + rad || sy < -rad || sy > H + rad) continue;
+    const flick = 0.82 + Math.sin(t * 7 + seed) * 0.12 + Math.sin(t * 17 + seed * 1.7) * 0.05;
+    pixiLight(L, sx, sy, rad * (0.95 + Math.sin(t * 5 + seed) * 0.05), 0xff9a3c, 0.55 * flick);
+  }
+
+  // luz del jugador: suave, no quema el centro
+  pixiLight(L, px(p.x), py(p.y), 72 * ZOOM, 0xffd6a0, 0.34);
+
+  // auras magicas (orbes del jugador)
+  for (const pr of state.projs) {
+    if (pr.dead || pr.style !== 'bolt') continue;
+    pixiLight(L, px(pr.x), py(pr.y), 46 * ZOOM, 0x88b4ff, 0.42);
+  }
+
+  // ocultar sprites de luz sobrantes del pool
+  for (let i = L.poolUsed; i < L.pool.length; i++) L.pool[i].visible = false;
 }

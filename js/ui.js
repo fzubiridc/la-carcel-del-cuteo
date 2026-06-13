@@ -712,8 +712,8 @@ function showTooltip(item, ev) {
   // renglones de stats (derecha del marco). Si sobran renglones del arte, quedan vacíos.
   let stats = `<div style="color:${r.color}">${r.name} · ${SLOT_LABELS[item.slot]}</div>`;
   if (item.material) {
-    const mi = MATERIALS.findIndex(m => m.id === item.material);
-    stats += `<div>${item.matName} (${mi + 1}/${MATERIALS.length})</div>`;
+    const t = (typeof weaponTier === 'function' ? weaponTier(item) : 0) + 1;
+    stats += `<div>T${t} <span style="opacity:.55">/ T${MATERIALS.length}</span></div>`;
   }
   if (item.slot === 'arma') {
     const wcls = WEAPON_TYPES[item.weaponType].cls;

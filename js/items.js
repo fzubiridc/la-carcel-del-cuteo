@@ -5,6 +5,22 @@
 
 let _itemSeq = 0;
 
+// Nombres de fantasia para varas/bastones/cetros, agrupados por tier (t1..t6).
+// El metal ya no nombra el arma; el tier es solo una etiqueta (T1-T6) y el
+// nombre da el sabor: arcano/elegante en tiers bajos -> legendario en t6.
+const STAFF_NAMES = [
+  ['Vara de Aelyr', 'Bastón de Vaelith', 'Vara de Luneth', 'Cetro de Aethiel', 'Vara de Sylvar'],
+  ['Bastón de Caeryn', 'Vara de Thaelir', 'Cetro de Eryndor', 'Vara de Eldorai', 'Bastón de Myrieth'],
+  ['Vara de Auralith', 'Bastón de Nythral', 'Cetro de Vaelkris', 'Vara de Skaelor', 'Bastón de Oruneth'],
+  ['Vara de Nharok', 'Bastón de Vharzul', 'Cetro de Mordryn', 'Vara del Karnoth', 'Cetro de Drakmor'],
+  ['Vara del Mournyx', 'Cetro de Umbryss', 'Vara del Abyssion', 'Bastón del Vorneth', 'Cetro del Noctharion'],
+  ['Vara de Auralith, la Primera Luz', 'Cetro de Solkarion, el Último Amanecer', 'Bastón de Eldrunar, la Runa Madre', 'Vara de Abyssion, la Boca del Abismo', 'Cetro de Noctharion, la Corona Vacía'],
+];
+function staffName(tier) {
+  const pool = STAFF_NAMES[Math.max(0, Math.min(STAFF_NAMES.length - 1, tier | 0))];
+  return pick(pool);
+}
+
 function rollRarity(depth) {
   // A más profundidad, más peso a las rarezas altas
   const boost = depth * 2.2;
@@ -63,7 +79,13 @@ function makeItem(depth, slot) {
     if (!suffix) suffix = m.suffix;
   }
 
-  item.name = item.baseName + ' de ' + mat.name + (suffix ? ' ' + suffix : '');
+  // nombre: armas de mago (vara/baston/cetro) -> nombre de fantasia por tier;
+  // el resto, sin metal. Los nombres legendarios (t6) ya traen epiteto con coma,
+  // asi que no les sumamos sufijo.
+  const tier = MATERIALS.findIndex(m => m.id === mat.id);
+  const isStaff = WEAPON_TYPES[item.weaponType] && WEAPON_TYPES[item.weaponType].cls === 'mago';
+  const base = isStaff ? staffName(tier) : item.baseName;
+  item.name = base + (suffix && base.indexOf(',') < 0 ? ' ' + suffix : '');
   return item;
 }
 
@@ -75,7 +97,7 @@ function makeStarterWeapon(weaponType) {
     id: ++_itemSeq, slot: 'arma', rarity: 'comun', material: mat.id, matName: mat.name,
     mods: {}, def: 0,
     weaponType, dmg: Math.round(wt.dmg * mat.mult), baseName: wt.name,
-    name: wt.name + ' de ' + mat.name,
+    name: wt.cls === 'mago' ? 'Vara del Aprendiz' : wt.name,
   };
 }
 
@@ -115,6 +137,14 @@ function itemScore(it) {
 }
 
 function rarityOf(item) { return RARITIES.find(r => r.id === item.rarity); }
+
+// Tier del arma según su material (0-5: madera..adamantio). Usado para el
+// ícono de vara por tier y para elegir el sprite de bastón equipado.
+function weaponTier(item) {
+  if (!item) return 0;
+  const i = MATERIALS.findIndex(m => m.id === item.material);
+  return i < 0 ? 0 : i;
+}
 
 // Stats totales del jugador = base de clase + mejoras de nivel + suma de equipo
 function calcStats(p) {

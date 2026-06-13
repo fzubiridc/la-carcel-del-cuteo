@@ -2,6 +2,10 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<!-- rigtool quedo en review/legacy-tools/ pero sus rutas son relativas a la raiz
+     del repo (assets/v2_test/...). Con base href resuelve bien servido desde la raiz:
+     py -m http.server 8417  ->  http://localhost:8417/review/legacy-tools/rigtool.html -->
+<base href="/">
 <title>Mago tool â€” rig + extractor</title>
 <style>
   :root{ --bg:#14121a; --pan:#1b1822; --bd:#3a3346; --tx:#d8d2c8; --ac:#ffd84f; --k:#9ad8ff; --skin:#ff7ad8; }

@@ -1,45 +1,64 @@
 # Pixi migration checklist
 
-Estado: `?pixi` ya usa WebGL para mapa, entidades basicas, mobs animados, proyectiles, particulas simples, Archimago V2 y staff rig.
+Estado: `?pixi` usa WebGL para mapa, entidades, mobs animados, proyectiles,
+particulas, Archimago V2, staff rig, **cofres animados, fuego del liche y una
+capa de iluminacion Pixi-nativa**. Canvas sigue como fallback.
 
-## Bugs primero
+## Resuelto (verificado en runtime)
 
-- Revisar "rata pega a rango": `ENEMIES.rata` sigue siendo `ai: 'chaser'`, asi que no deberia disparar. Confirmar si es hitbox/contacto, animacion Pixi desalineada o feedback visual.
-- Comparar Canvas vs Pixi en el primer piso: no deben aparecer cambios de textura despues de entrar a jugar.
-- Probar cambio de piso en Pixi: la cache de tiles debe reconstruirse sin flicker ni textura vieja.
+- **`weaponTier` indefinido** → crasheaba `staffIconImg` cada frame con un baston
+  en pantalla (piso o inventario), en Pixi **y** canvas. Definido en
+  `items.js` (indice de material 0-5). Tambien arreglaba el bug silencioso de
+  v2hero (vara equipada siempre en tier 0).
+- **Sombras se veian como luz** → `pcol(0x000000)` devolvia blanco porque
+  `if (!c)` trata el negro (`0`) como falsy. Cambiado a `if (c == null)`.
+- **Cofres nuevos no aparecian** → `pixiImageReady` chequeaba `.complete`, que
+  no existe en `<canvas>` (los frames del cofre son canvases). Ahora acepta
+  `<canvas>` por `width/height`.
+- **Fuego del liche sintetizado** → el render de proyectiles no usaba
+  `LICH_FIRE`; el estilo `fire` caia a un circulo. Agregada la rama con el
+  sprite animado.
+- **Iluminacion** → capa Pixi-nativa (no copia los gradientes del canvas pixel
+  a pixel): una textura radial reusable + sprites de luz con blend `ADD`,
+  flicker por alpha/scale (sin regenerar texturas por frame), oscuridad
+  ambiente + vinneta. Antorchas calidas, luz suave del jugador, auras de orbes.
+  Objetivo: dungeon oscuro pero legible. La capa de luz se compone ENTRE el piso
+  y las entidades (orden en stage: `world(piso) -> lighting -> entities ->
+  screen`), asi la luz cae sobre el suelo y los personajes van encima a brillo
+  normal ("caminan sobre la luz", sin aura sobre el sprite). `lighting =
+  [darkness, lights(ADD), vignette]`. El HUD es DOM, queda fuera.
 
-## Carga y assets
+## Tiers y nombres
 
-- La loading screen debe esperar Archimago, staff rig y texturas criticas de mundo.
-- Agregar indicador de error con lista corta de assets faltantes si una textura no carga.
-- Evitar que assets opcionales bloqueen el inicio, pero que los criticos no permitan fallback silencioso.
+- El sistema de 6 niveles (interno: `material`, sube con la profundidad) se
+  muestra como **T1-T6** en la UI, sin nombres metalicos.
+- Armas de mago (vara/baston/cetro) reciben **nombres de fantasia por tier**
+  (`STAFF_NAMES` en `items.js`): arcano/elegante en tiers bajos → legendario en
+  t6. Resto de items: nombre sin metal.
 
-## Render Pixi pendiente
+## Pendiente
 
-- Migrar antorchas animadas y luces con una capa dedicada.
-- Migrar oscuridad/vignette de pisos `oscuro`.
-- Revisar paridad visual de pickups complejos: items con icono real, llamas XP, monedas y brillos ya tienen ruta Pixi.
-- Revisar paridad visual de cofres animados con frames correctos.
+- **Bug gameplay**: "rata pega a rango" — `ENEMIES.rata` es `ai: 'chaser'`, no
+  deberia disparar. Confirmar si es hitbox/contacto o feedback visual.
+- Migrar piso `oscuro` con vision limitada real (hoy la capa de oscuridad sube
+  el alpha ambiente, pero no perfora agujeros de vision como el canvas).
 - Migrar mercader, altar y decoracion especial.
 - Migrar FX complejos: polvo, rings, explosion de poder y textos flotantes.
-- Migrar minimapa o dejarlo explicitamente en Canvas si no afecta performance.
-
-## Enemigos
-
-- Revisar paridad visual de los sprites animados de `mob.js` en Pixi vs Canvas.
-- Alinear pies/sombra/hitbox por tipo de enemigo si alguno se ve flotando o pegando raro.
-- Verificar animaciones de ataque para chaser, erratic y shooter.
-- Separar visualmente proyectiles enemigos de golpes de contacto.
+- Migrar minimapa o dejarlo explicitamente en Canvas.
+- Enemigos: alinear pies/sombra/hitbox por tipo; verificar animaciones de
+  ataque (chaser/erratic/shooter); separar proyectiles de golpes de contacto.
+- Nombres de fantasia para armaduras / armas no-mago (hoy quedan con baseName).
 
 ## Performance
 
-- Mantener `Pixi tiles: 1` en debug.
-- Reducir `Graphics` por frame para sombras, barras y particulas.
+- Las luces usan un pool de sprites (sin alocar por frame) y no regeneran
+  texturas; la vinneta solo se regenera al cambiar el tamanno.
 - Medir FPS con muchos enemigos/proyectiles en PC.
-- Agregar una prueba manual repetible: piso 1, boss debug, cambio de piso, combate con 20+ mobs.
+- Prueba manual repetible: piso 1, boss debug, cambio de piso, combate con 20+
+  mobs, piso `oscuro`.
 
 ## Paridad Canvas
 
-- Comparar screenshots Canvas vs Pixi del mismo estado.
-- Mantener Canvas como fallback hasta que Pixi cubra luces, FX y mobs animados.
+- Mantener Canvas como fallback hasta cubrir piso oscuro, FX complejos y
+  decoracion especial.
 - Cuando Pixi este estable, decidir si `?pixi` pasa a default.
