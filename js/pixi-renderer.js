@@ -878,11 +878,11 @@ function drawPixiPickup(pk) {
 
 function drawPixiProjectiles() {
   for (const pr of state.projs) {
-    // ry = posicion VISUAL (plano del piso + lift cosmetico). La colision usa pr.y.
-    const ry = pr.y + (pr.drawDY || 0);
+    // ry = posicion VISUAL = piso (pr.y) menos altura z. La colision usa pr.y (piso).
+    const ry = pr.y - (pr.z || 0);
     if (pr.style === 'bolt' && typeof V2H !== 'undefined' && V2H.ready && V2H.fx.power.length) {
-      // sombra de contacto en el piso para vender la altura del orbe elevado
-      if (pr.drawDY) pixiContactBlob(pr.x, pr.y, 3.2, { alpha: 0.34 });
+      // sombra de contacto en el piso: mas chica y tenue cuanto mas alto va el orbe
+      if (pr.z) pixiContactBlob(pr.x, pr.y, 3.2 / (1 + pr.z * 0.015), { alpha: 0.34 / (1 + pr.z * 0.02) });
       const img = V2H.fx.power[Math.floor(pr.t * 1000 / 90) % V2H.fx.power.length];
       pixiSprite(PR.objects, img, pr.x, ry, 24, 24, { anchor: [0.5, 0.5], rotation: pr.ang, alpha: Math.min(1, pr.life * 3.5) });
     } else if (pr.style === 'arrow') {

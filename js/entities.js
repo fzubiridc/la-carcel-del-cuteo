@@ -390,10 +390,11 @@ function fireProj(o) {
     splash: o.splash || 0, crit: o.crit || false,
     life, dead: false, t: 0, trailT: 0, owner: o.owner || null,
     pierce: o.pierce || 0, hitSet: null, size: o.size || 6,
-    // MODELO COMPLETO 2.5D: el proyectil VIVE en (x,y) sobre el plano del piso y TODA
-    // su colision (muros y enemigos) usa esa posicion. drawDY es solo el lift del
-    // DIBUJO (sale de la punta del arma, vuela elevado). 0 = sin elevacion.
-    drawDY: o.drawDY || 0,
+    // MODELO 2.5D con eje Z falso: el proyectil VIVE en (x,y) sobre el plano del piso
+    // (ahi colisiona, muros y enemigos) y z = altura sobre el piso. Se DIBUJA en y - z
+    // y la sombra queda en el piso (x,y). vz/gravity dan arcos (flechas, magia que cae);
+    // con ambos en 0 vuela plano a altura z constante (el orbe del mago).
+    z: o.z || 0, vz: o.vz || 0, gravity: o.gravity || 0,
   });
 }
 
@@ -403,13 +404,24 @@ function updateProjectiles(dt) {
     if (pr.dead) continue;
     pr.px = pr.x; pr.py = pr.y;
     pr.x += pr.vx * dt; pr.y += pr.vy * dt;
+    // eje Z: sólo si el proyectil tiene movimiento vertical (arcos). El orbe recto
+    // (vz=0, gravity=0) mantiene su z constante y saltea esto.
+    if (pr.vz || pr.gravity) {
+      pr.z += pr.vz * dt;
+      pr.vz -= pr.gravity * dt;
+      if (pr.z <= 0) { // tocó el piso: estalla donde cayó
+        pr.z = 0; pr.dead = true;
+        if (pr.splash) explode(pr); else burst(pr.x, pr.y, pr.color, 3);
+        continue;
+      }
+    }
     pr.life -= dt;
     pr.t += dt;
     if (pr.life <= 0) {
       // al llegar a destino: el orbe con área estalla (animación + splash); el resto chisporrotea
       pr.dead = true;
       if (pr.splash) explode(pr);
-      else burst(pr.x, pr.y + (pr.drawDY || 0), pr.color, 3);
+      else burst(pr.x, pr.y - pr.z, pr.color, 3);
       continue;
     }
 
@@ -442,7 +454,7 @@ function updateProjectiles(dt) {
     if (rectHitsWall(lvl, pr.x, pr.y, Math.max(4, pr.size - 4), Math.max(4, pr.size - 4))) {
       pr.dead = true;
       if (pr.splash) explode(pr);
-      else burst(pr.x, pr.y + (pr.drawDY || 0), pr.color, 3);
+      else burst(pr.x, pr.y - pr.z, pr.color, 3);
       continue;
     }
     if (pr.friendly) {
@@ -450,7 +462,9 @@ function updateProjectiles(dt) {
         if (e.hp <= 0) continue;
         if (pr.hitSet && pr.hitSet.has(e)) continue; // la ballesta no pega dos veces al mismo
         const r = (e.w * e.scale + pr.size) / 2;
-        if (Math.abs(pr.x - e.x) < r && Math.abs(pr.y - e.y) < r) {
+        // golpe horizontal (x/y del piso) + vertical (z dentro de la altura del bicho;
+        // sin e.height definido golpea a toda altura -> idéntico a antes)
+        if (Math.abs(pr.x - e.x) < r && Math.abs(pr.y - e.y) < r && pr.z <= (e.height || 1e9)) {
           if (pr.splash) { pr.dead = true; explode(pr); break; }
           damageEnemy(e, pr.dmg, pr.crit, pr.vx * 0.4, pr.vy * 0.4);
           if (pr.pierce > 0) {
@@ -483,7 +497,7 @@ function updateProjectiles(dt) {
 function explode(pr) {
   // vy = altura VISUAL del orbe (piso + lift); el destello sale ahí. El DAÑO en área
   // (más abajo) usa pr.y = plano del piso, donde están los enemigos.
-  const vy = pr.y + (pr.drawDY || 0);
+  const vy = pr.y - pr.z;
   // destello de luz: ilumina el área un instante y se desvanece (se nota en pisos oscuros)
   state.fx.push({ type: 'lightburst', x: pr.x, y: vy, t: 0.95, t0: 0.95, r: 74 });
   const v2boom = typeof V2H !== 'undefined' && V2H.ready && V2H.fx.boom.length;
@@ -600,7 +614,7 @@ function playerAttack(aimAng) {
     // adelantado en la dirección de tiro). drawDY eleva sólo el dibujo hasta la punta.
     const groundX = visX;
     const groundY = p.y + 5 + Math.sin(aimAng) * 6;
-    const drawDY = visY - groundY;
+    const z = groundY - visY; // altura del orbe: cuánto está la punta del bastón sobre el piso
     // en desktop el orbe termina donde apuntás (no sigue de largo); tope = alcance del arma
     let boltRange = wt.projRange;
     if (!touch.enabled) {
@@ -608,7 +622,7 @@ function playerAttack(aimAng) {
       // recorre un mínimo aunque apuntes cerca (no estalla pegado al mago); tope = alcance del arma
       boltRange = Math.max(50, Math.min(wt.projRange, cd));
     }
-    fireProj({ x: groundX, y: groundY, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit, size: wt.projSize || 6, range: boltRange, drawDY });
+    fireProj({ x: groundX, y: groundY, ang: aimAng, spd: wt.projSpd, dmg, friendly: true, color: '#7ec8ff', style: 'bolt', splash: wt.splash, crit, size: wt.projSize || 6, range: boltRange, z });
     // destello de lanzamiento en la punta del bastón (posición visual)
     const hx = visX, hy = visY;
     for (let i = 0; i < 5; i++) {
