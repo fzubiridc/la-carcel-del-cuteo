@@ -16,13 +16,13 @@ function genDungeon(zone, depth, isBoss) {
   if (evRoll < 0.15) evento = 'oscuro';
   else if (evRoll < 0.30) evento = 'embrujado';
 
-  const W = 46, H = 46;
+  const W = 64, H = 64;
   const map = Array.from({ length: H }, () => new Array(W).fill(0));
   const rooms = [];
 
-  // Colocar salas sin solaparse
-  for (let i = 0; i < 80 && rooms.length < 9; i++) {
-    const w = randInt(5, 9), h = randInt(5, 8);
+  // Colocar salas sin solaparse (mapa mas grande: mas salas y mas amplias)
+  for (let i = 0; i < 160 && rooms.length < 14; i++) {
+    const w = randInt(6, 11), h = randInt(6, 10);
     const x = randInt(2, W - w - 3), y = randInt(2, H - h - 3);
     const r = { x, y, w, h, cx: x + (w >> 1), cy: y + (h >> 1) };
     if (rooms.some(o => x < o.x + o.w + 2 && x + w + 2 > o.x && y < o.y + o.h + 2 && y + h + 2 > o.y)) continue;
