@@ -26,6 +26,8 @@ async function initPixiRenderer(view) {
     tiles: new PIXI.Container(),
     torches: new PIXI.Container(),
     entities: new PIXI.Container(), // objetos + fx, ENCIMA de la luz (brillo normal)
+    wallTops: new PIXI.Container(),  // tiles-tope negros, re-pintados sobre la luz (sin bleed)
+    shadows: new PIXI.Container(),  // blob + silueta, con blur, debajo de las entidades
     objects: new PIXI.Container(),
     fx: new PIXI.Container(),
     screen: new PIXI.Container(),
@@ -39,7 +41,12 @@ async function initPixiRenderer(view) {
     lights: null, // capa de luz/oscuridad (ver buildLighting)
   };
   PR.world.addChild(PR.tiles, PR.torches);
-  PR.entities.addChild(PR.objects, PR.fx);
+  // capa de sombras con blur: difumina los bordes del blob de contacto y de la
+  // silueta proyectada de una sola pasada. Va debajo de los sprites de entidad.
+  const shadowBlur = new PIXI.BlurFilter(2.5, 2);
+  shadowBlur.padding = 12;
+  PR.shadows.filters = [shadowBlur];
+  PR.entities.addChild(PR.wallTops, PR.shadows, PR.objects, PR.fx);
   PR.lights = buildLighting();
   // orden: piso (recibe la luz) -> capa de luz -> entidades (brillo normal, encima) -> screen
   app.stage.addChild(PR.world, PR.lights.lighting, PR.entities, PR.screen);
@@ -68,7 +75,9 @@ function renderPixi() {
   if (!PR) return false;
   PR.spriteUsed = 0;
   PR.graphicsUsed = 0;
+  PR.silUsed = 0;
   PR.objects.removeChildren();
+  PR.shadows.removeChildren();
   PR.torches.removeChildren();
   PR.fx.removeChildren();
   PR.screen.removeChildren();
@@ -282,6 +291,7 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
   const floorSet = Sprites['floor_' + zoneNow.id];
   const wallSet = Sprites['wall_' + zoneNow.id];
   const torches = []; // [worldX, worldY, seed] de las antorchas (luz + llama animada)
+  const tops = [];    // [X,Y] de los tiles-tope negros (solid sin piso debajo)
   for (let ty = 0; ty < lvl.H; ty++) {
     for (let tx = 0; tx < lvl.W; tx++) {
       const solid = lvl.map[ty][tx] === 0;
@@ -304,6 +314,7 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
         const floorBelow = ty + 1 < lvl.H && lvl.map[ty + 1][tx] === 1;
         const wallImg = Array.isArray(wallSet) ? wallSet[pixiTileVariant(tx + 101, ty + 57, wallSet.length)] : wallSet;
         if (floorBelow && (tx * 73 + ty * 37) % 23 === 0) torches.push([X + TILE / 2, Y, tx * 31 + ty]);
+        if (!floorBelow) tops.push([X, Y]); // tope negro: la luz no debe treparse aca
         if (floorBelow && wallImg) {
           g.drawImage(wallImg, X, Y, TILE, TILE);
           g.fillStyle = 'rgba(0,0,0,0.30)';
@@ -329,7 +340,24 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
   sprite.roundPixels = true;
   PR.tiles.removeChildren();
   PR.tiles.addChild(sprite);
-  PR.tileCache = { lvl, zoneIdx: state.run.zoneIdx, exitOpen: lvl.exitOpen, tex, torches };
+
+  // capa de tiles-tope: copia EXACTA (sin luz) de los topes negros, para re-pintarlos
+  // sobre la iluminacion y que la luz propia no se trepe a la pared de arriba.
+  const topCv = document.createElement('canvas');
+  topCv.width = cv.width; topCv.height = cv.height;
+  const tg = topCv.getContext('2d');
+  tg.imageSmoothingEnabled = false;
+  for (let i = 0; i < tops.length; i++) {
+    tg.drawImage(cv, tops[i][0], tops[i][1], TILE, TILE, tops[i][0], tops[i][1], TILE, TILE);
+  }
+  const topTex = PIXI.Texture.from(topCv);
+  if (topTex.baseTexture) topTex.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
+  const topSprite = new PIXI.Sprite(topTex);
+  topSprite.roundPixels = true;
+  PR.wallTops.removeChildren();
+  PR.wallTops.addChild(topSprite);
+
+  PR.tileCache = { lvl, zoneIdx: state.run.zoneIdx, exitOpen: lvl.exitOpen, tex, torches, topTex };
 }
 
 function drawPixiTiles() {
@@ -341,6 +369,7 @@ function drawPixiTiles() {
     PR.tileCache.zoneIdx !== state.run.zoneIdx ||
     PR.tileCache.exitOpen !== lvl.exitOpen) {
     if (PR.tileCache && PR.tileCache.tex) PR.tileCache.tex.destroy(true);
+    if (PR.tileCache && PR.tileCache.topTex) PR.tileCache.topTex.destroy(true);
     buildPixiTileCache(lvl, zoneNow, pal);
   }
 }
@@ -364,49 +393,81 @@ function drawPixiObjects() {
 // proyecta en direccion contraria a la luz, estirandose y marcandose cuanto mas
 // cerca estes (al pasar al lado de una antorcha, "barre" hacia el lado opuesto).
 // Sin antorcha cerca, queda el blob suave centrado bajo los pies.
-const SHADOW_LIGHT_R = 58; // alcance de antorcha que proyecta sombra (unidades mundo)
-function drawPixiShadow(x, y, w) {
+const SHADOW_LIGHT_R = 78; // alcance de antorcha que proyecta sombra (mas grande = fade mas gradual)
+// Circulo de contacto: elipse negra oscura justo bajo los pies (ancla, y es lo
+// "mas oscuro cerca de los pies"). Va en PR.shadows (blureado).
+function pixiContactBlob(x, y, w) {
   const tex = PR.lights && PR.lights.lightTex;
-  if (!tex) { pixiEllipse(PR.objects, x, y + 5, w, w * 0.35, 0x000000, 0.30); return; }
-  const fx = x, fy = y + 5;            // punto de contacto (pies)
-  const baseW = w * 3.4, baseH = w * 1.25;
+  if (!tex) { pixiEllipse(PR.shadows, x, y, w, w * 0.35, 0x000000, 0.40); return; }
+  pixiSpriteFromTexture(PR.shadows, tex, x, y, {
+    anchor: [0.5, 0.5],
+    scale: [(w * 2.6) / tex.width, (w * 1.0) / tex.height],
+    tint: 0x000000,
+    alpha: 0.55,
+  });
+}
 
-  // antorcha mas cercana
-  let blx = 0, bly = 0, bestD2 = Infinity;
+// Sombra para entidades sin silueta propia (mobs, cofres): circulo de contacto +
+// un blob suave que se estira en direccion contraria a la antorcha (con fade).
+function drawPixiShadow(x, y, w) {
+  const fy = y + 5;
+  pixiContactBlob(x, fy, w);
+  const tex = PR.lights && PR.lights.lightTex;
+  if (!tex) return;
+  const light = nearestTorchShadow(x, fy);
+  if (!light) return;
+  const baseW = w * 3.0, baseH = w * 1.1;
+  const len = baseW * (1 + light.prox * 1.6);
+  const off = (len - baseW) * 0.5 + w * 0.5 * light.prox;
+  pixiSpriteFromTexture(PR.shadows, tex, x + light.dx * off, fy + light.dy * off, {
+    anchor: [0.5, 0.5],
+    scale: [len / tex.width, baseH / tex.height],
+    rotation: Math.atan2(light.dy, light.dx),
+    tint: 0x000000,
+    alpha: 0.5 * light.prox,
+  });
+}
+
+// Antorcha mas cercana al punto (fx,fy) que proyecta sombra. Devuelve direccion
+// luz->entidad normalizada y proximidad (0 lejos -> 1 pegado), o null si no hay.
+function nearestTorchShadow(fx, fy) {
   const tc = PR.tileCache;
-  if (tc && tc.torches) {
-    for (let i = 0; i < tc.torches.length; i++) {
-      const lx = tc.torches[i][0], ly = tc.torches[i][1] + 6;
-      const dx = fx - lx, dy = fy - ly, d2 = dx * dx + dy * dy;
-      if (d2 < bestD2) { bestD2 = d2; blx = lx; bly = ly; }
-    }
+  if (!tc || !tc.torches) return null;
+  let blx = 0, bly = 0, bestD2 = Infinity;
+  for (let i = 0; i < tc.torches.length; i++) {
+    const lx = tc.torches[i][0], ly = tc.torches[i][1] + 6;
+    const dx = fx - lx, dy = fy - ly, d2 = dx * dx + dy * dy;
+    if (d2 < bestD2) { bestD2 = d2; blx = lx; bly = ly; }
   }
+  if (bestD2 >= SHADOW_LIGHT_R * SHADOW_LIGHT_R) return null;
+  const d = Math.sqrt(bestD2) || 0.001;
+  return { dx: (fx - blx) / d, dy: (fy - bly) / d, prox: 1 - d / SHADOW_LIGHT_R };
+}
 
-  if (bestD2 < SHADOW_LIGHT_R * SHADOW_LIGHT_R) {
-    const d = Math.sqrt(bestD2) || 0.001;
-    const prox = 1 - d / SHADOW_LIGHT_R;       // 0 lejos -> 1 pegado
-    const dx = (fx - blx) / d, dy = (fy - bly) / d; // dir luz -> entidad
-    const len = baseW * (1 + prox * 1.6);      // se estira hasta ~2.6x
-    const off = (len - baseW) * 0.5 + w * 0.5 * prox; // nace en los pies, se aleja
-    pixiSpriteFromTexture(PR.objects, tex, fx + dx * off, fy + dy * off, {
-      anchor: [0.5, 0.5],
-      scale: [len / tex.width, baseH / tex.height],
-      rotation: Math.atan2(dy, dx),
-      tint: 0x000000,
-      alpha: 0.42 + prox * 0.12,
-    });
-  } else {
-    pixiSpriteFromTexture(PR.objects, tex, fx, fy, {
-      anchor: [0.5, 0.5],
-      scale: [baseW / tex.width, baseH / tex.height],
-      tint: 0x000000,
-      alpha: 0.42,
-    });
-  }
+// Silueta del PNG: redibuja la imagen del personaje en negro, anclada en los pies,
+// rotada para "acostarse" en direccion contraria a la luz y estirada a lo largo.
+// MANTIENE la forma reconocible del personaje (sin deformar). El fade (alpha por
+// proximidad) y el circulo de contacto completan el efecto.
+function drawPixiSilhouette(img, footX, footY, S, light) {
+  const tex = pixiTexture(img);
+  if (!tex) return;
+  const w = img.naturalWidth || 120, h = img.naturalHeight || 120;
+  const lenMul = 0.9 + light.prox * 1.2; // se estira a lo largo al acercarse a la luz
+  pixiSpriteFromTexture(PR.shadows, tex, footX, footY, {
+    anchor: [60 / w, 90 / h],            // pie del rig V2 = (60,90)
+    scale: [S * 0.95, S * lenMul],
+    rotation: Math.atan2(light.dx, -light.dy), // la cabeza apunta lejos de la luz
+    tint: 0x000000,
+    alpha: light.prox * 0.6,             // nace en 0 en el borde del rango -> sin pop
+  });
 }
 
 function drawPixiPlayer(p) {
-  drawPixiShadow(p.x, p.y, 5);
+  const fy = p.y + 5;
+  pixiContactBlob(p.x, fy, 5);                  // circulo de contacto oscuro a los pies
+  const light = nearestTorchShadow(p.x, fy);
+  const body = (typeof V2H !== 'undefined' && V2H.ready) ? pixiPlayerImage(p) : null;
+  if (light && pixiImageReady(body)) drawPixiSilhouette(body, p.x, fy, 0.4, light); // silueta del PNG
   if (drawPixiV2Hero(p)) return;
   const img = pixiPlayerImage(p);
   if (pixiImageReady(img)) pixiSprite(PR.objects, img, p.x - 24, p.y + 5 - 36, 48, 48);
@@ -815,6 +876,25 @@ function makeVignetteTex(w, h) {
   return PIXI.Texture.from(c);
 }
 
+// Textura de cono para la sombra proyectada: negra OPACA en la base (los pies) y
+// transparente + ancha en la punta. Da el efecto "mas oscura cerca de los pies" y
+// la forma conica que se ensancha al alejarse.
+function makeShadowConeTex(size) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, size, 0, 0); // base abajo -> punta arriba
+  grad.addColorStop(0, 'rgba(0,0,0,1)');
+  grad.addColorStop(0.55, 'rgba(0,0,0,0.5)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  const cx = size / 2, baseHalf = size * 0.10, tipHalf = size * 0.46;
+  g.beginPath();
+  g.moveTo(cx - baseHalf, size); g.lineTo(cx + baseHalf, size);
+  g.lineTo(cx + tipHalf, 0); g.lineTo(cx - tipHalf, 0);
+  g.closePath(); g.fill();
+  return PIXI.Texture.from(c);
+}
+
 // Construye la capa de luz. El orden en el stage (init) la deja ENTRE el piso y
 // las entidades: la luz cae sobre el piso y los personajes van encima a brillo
 // normal ("caminan sobre la luz", sin aura pintada sobre el sprite).
@@ -826,13 +906,14 @@ function buildLighting() {
     [0.8, 'rgba(255,255,255,0.06)'],
     [1, 'rgba(255,255,255,0)'],
   ], 128);
+  const shadowCone = makeShadowConeTex(128);
   const lighting = new PIXI.Container();
   const darkness = new PIXI.Sprite(PIXI.Texture.WHITE);
   darkness.tint = 0x07060d;
   const lightsLayer = new PIXI.Container();
   const vignette = new PIXI.Sprite(PIXI.Texture.EMPTY);
   lighting.addChild(darkness, lightsLayer, vignette);
-  return { lightTex, lighting, darkness, lightsLayer, vignette, pool: [], poolUsed: 0, vigW: 0, vigH: 0 };
+  return { lightTex, shadowCone, lighting, darkness, lightsLayer, vignette, pool: [], poolUsed: 0, vigW: 0, vigH: 0 };
 }
 
 function pixiLight(L, x, y, radius, tint, alpha) {
