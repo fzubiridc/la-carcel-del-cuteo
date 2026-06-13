@@ -170,9 +170,17 @@ function rectHitsWall(level, x, y, w, h) {
 }
 
 // ¿El rectángulo choca con un cofre cerrado? (solo bloquea al jugador)
+// El cofre es un objeto BAJO: su footprint es una banda corta a ras de su base
+// (cy+1), no una caja alta centrada. Chequeamos los PIES del jugador (y+h/2), no su
+// centro -> podes pasar por debajo/al lado sin que la "cabeza" choque, y al venir de
+// frente (sur) te pegás a la base.
 function rectHitsChest(level, x, y, w, h) {
-  const hw = w / 2 + 6, hh = h / 2 + 6; // 6 = medio-tamaño de colisión del cofre (~tile/2): bloquea de verdad, no se pasa por arriba
-  const hit = (cx, cy) => Math.abs(x - cx) < hw && Math.abs(y - cy) < hh;
+  const fy = y + h / 2;        // pies del jugador
+  const hw = w / 2 + 8;        // ancho: medio jugador + medio cofre
+  const hit = (cx, cy) => {
+    const baseY = cy + 1;      // apoyo del cofre en el piso
+    return Math.abs(x - cx) < hw && fy > baseY - 9 && fy < baseY + 4;
+  };
   for (const ch of level.chests) if (!ch.opened && hit(ch.x, ch.y)) return true;
   const lc = level.lockedChest;
   return !!(lc && !lc.opened && hit(lc.x, lc.y));
