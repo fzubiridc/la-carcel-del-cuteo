@@ -1076,6 +1076,7 @@ function makeShadowConeTex(size) {
 const OCCLUSION_VERT = `#version 300 es
 in vec2 aPosition;
 out vec2 vTextureCoord;
+out vec2 vSpriteUV; // 0..1 sobre el sprite de luz (robusto al redondeo de textura del filtro)
 uniform vec4 uInputSize;
 uniform vec4 uOutputFrame;
 uniform vec4 uOutputTexture;
@@ -1091,10 +1092,12 @@ vec2 filterTextureCoord( void ) {
 void main(void) {
   gl_Position = filterVertexPosition();
   vTextureCoord = filterTextureCoord();
+  vSpriteUV = aPosition;
 }
 `;
 const OCCLUSION_FRAG = `#version 300 es
 in vec2 vTextureCoord;
+in vec2 vSpriteUV;
 out vec4 finalColor;
 uniform sampler2D uTexture;
 uniform sampler2D uWallMask;
@@ -1112,16 +1115,15 @@ float rayClear(vec2 from, vec2 to) {
   for (int i = 0; i < STEPS; i++) {
     q += sv;
     if (distance(q, to) < uNearMargin) break;
-    vec2 muv = q / uLevelPx;
-    muv.y = 1.0 - muv.y; // Pixi no usa UNPACK_FLIP_Y: el sampleo crudo viene espejado en Y
-    if (texture(uWallMask, muv).r > 0.5) return 0.0;
+    if (texture(uWallMask, q / uLevelPx).r > 0.5) return 0.0;
   }
   return 1.0;
 }
 void main(void) {
   vec4 src = texture(uTexture, vTextureCoord);
-  // posicion mundo de este pixel (el sprite cubre [centro-R, centro+R] en mundo)
-  vec2 pixWorld = uLightWorld + (vTextureCoord - 0.5) * 2.0 * uWorldRadius;
+  // posicion mundo de este pixel: el sprite cubre [centro-R, centro+R] en mundo.
+  // vSpriteUV (0..1 sobre el sprite) evita el offset por redondeo de textura del filtro.
+  vec2 pixWorld = uLightWorld + (vSpriteUV - 0.5) * 2.0 * uWorldRadius;
   // penumbra: promediar oclusion hacia 4 puntos alrededor del centro de la luz
   vec2 offs[4] = vec2[4](vec2(uPen, 0.0), vec2(-uPen, 0.0), vec2(0.0, uPen), vec2(0.0, -uPen));
   float acc = 0.0;
