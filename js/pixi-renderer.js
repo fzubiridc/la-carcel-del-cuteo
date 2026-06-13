@@ -141,7 +141,7 @@ function pixiSpriteFromTexture(parent, tex, x, y, opt) {
   if (opt && opt.scale) s.scale.set(opt.scale[0], opt.scale[1]);
   if (opt && opt.rotation) s.rotation = opt.rotation;
   if (opt && opt.alpha != null) s.alpha = opt.alpha;
-  if (opt && opt.tint) s.tint = opt.tint;
+  if (opt && opt.tint != null) s.tint = opt.tint; // != null: 0x000000 (negro) es falsy, no usar truthy
   parent.addChild(s);
   return s;
 }
@@ -169,7 +169,7 @@ function pixiSprite(parent, img, x, y, w, h, opt) {
   else s.anchor.set(0, 0);
   if (opt && opt.alpha != null) s.alpha = opt.alpha;
   if (opt && opt.rotation) s.rotation = opt.rotation;
-  if (opt && opt.tint) s.tint = opt.tint;
+  if (opt && opt.tint != null) s.tint = opt.tint; // != null: 0x000000 (negro) es falsy, no usar truthy
   parent.addChild(s);
   return s;
 }
@@ -360,20 +360,48 @@ function drawPixiObjects() {
   }
 }
 
+// Sombra de contacto suave + DIRECCIONAL: si hay una antorcha cerca, la sombra se
+// proyecta en direccion contraria a la luz, estirandose y marcandose cuanto mas
+// cerca estes (al pasar al lado de una antorcha, "barre" hacia el lado opuesto).
+// Sin antorcha cerca, queda el blob suave centrado bajo los pies.
+const SHADOW_LIGHT_R = 58; // alcance de antorcha que proyecta sombra (unidades mundo)
 function drawPixiShadow(x, y, w) {
-  // sombra de contacto suave: blob negro con falloff (reusa la textura radial de
-  // luz, tinteada de negro y achatada). Se funde con el piso iluminado en vez de
-  // ser una elipse de borde duro. Fallback a la elipse si la textura no esta lista.
   const tex = PR.lights && PR.lights.lightTex;
-  if (tex) {
-    pixiSpriteFromTexture(PR.objects, tex, x, y + 5, {
+  if (!tex) { pixiEllipse(PR.objects, x, y + 5, w, w * 0.35, 0x000000, 0.30); return; }
+  const fx = x, fy = y + 5;            // punto de contacto (pies)
+  const baseW = w * 3.4, baseH = w * 1.25;
+
+  // antorcha mas cercana
+  let blx = 0, bly = 0, bestD2 = Infinity;
+  const tc = PR.tileCache;
+  if (tc && tc.torches) {
+    for (let i = 0; i < tc.torches.length; i++) {
+      const lx = tc.torches[i][0], ly = tc.torches[i][1] + 6;
+      const dx = fx - lx, dy = fy - ly, d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) { bestD2 = d2; blx = lx; bly = ly; }
+    }
+  }
+
+  if (bestD2 < SHADOW_LIGHT_R * SHADOW_LIGHT_R) {
+    const d = Math.sqrt(bestD2) || 0.001;
+    const prox = 1 - d / SHADOW_LIGHT_R;       // 0 lejos -> 1 pegado
+    const dx = (fx - blx) / d, dy = (fy - bly) / d; // dir luz -> entidad
+    const len = baseW * (1 + prox * 1.6);      // se estira hasta ~2.6x
+    const off = (len - baseW) * 0.5 + w * 0.5 * prox; // nace en los pies, se aleja
+    pixiSpriteFromTexture(PR.objects, tex, fx + dx * off, fy + dy * off, {
       anchor: [0.5, 0.5],
-      scale: [(w * 3.4) / tex.width, (w * 1.25) / tex.height],
+      scale: [len / tex.width, baseH / tex.height],
+      rotation: Math.atan2(dy, dx),
+      tint: 0x000000,
+      alpha: 0.42 + prox * 0.12,
+    });
+  } else {
+    pixiSpriteFromTexture(PR.objects, tex, fx, fy, {
+      anchor: [0.5, 0.5],
+      scale: [baseW / tex.width, baseH / tex.height],
       tint: 0x000000,
       alpha: 0.42,
     });
-  } else {
-    pixiEllipse(PR.objects, x, y + 5, w, w * 0.35, 0x000000, 0.30);
   }
 }
 
