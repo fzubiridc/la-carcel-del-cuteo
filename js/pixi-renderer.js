@@ -16,6 +16,7 @@ async function initPixiRenderer(view) {
     antialias: false,
     autoDensity: false,
     resolution: 1,
+    preference: 'webgl', // GLSL only: el filtro de oclusion usa shaders WebGL (no WGSL)
   });
   app.ticker.stop();
   view.style.imageRendering = 'pixelated';
@@ -1064,6 +1065,74 @@ function makeShadowConeTex(size) {
   return PIXI.Texture.from(c);
 }
 
+// ---------------------------------------------------------------------
+// Oclusion de luz por raymarch (fase 2). Filtro custom WebGL aplicado a cada sprite
+// de luz: por cada pixel marcha un rayo hacia el centro de la luz a traves de la
+// mascara de muros (1 texel por tile, blanco=muro). Si choca pared antes de llegar,
+// el pixel queda a oscuras -> la luz no cruza paredes ni esquinas.
+// El sprite de luz cubre en pantalla [centro - R, centro + R], que en mundo es
+// [Lw - Rw, Lw + Rw]; por eso pixWorld = Lw + (uv - 0.5) * 2 * Rw.
+// ---------------------------------------------------------------------
+const OCCLUSION_VERT = `#version 300 es
+in vec2 aPosition;
+out vec2 vTextureCoord;
+uniform vec4 uInputSize;
+uniform vec4 uOutputFrame;
+uniform vec4 uOutputTexture;
+vec4 filterVertexPosition( void ) {
+  vec2 position = aPosition * uOutputFrame.zw + uOutputFrame.xy;
+  position.x = position.x * (2.0 / uOutputTexture.x) - 1.0;
+  position.y = position.y * (2.0 * uOutputTexture.z / uOutputTexture.y) - uOutputTexture.z;
+  return vec4(position, 0.0, 1.0);
+}
+vec2 filterTextureCoord( void ) {
+  return aPosition * (uOutputFrame.zw * uInputSize.zw);
+}
+void main(void) {
+  gl_Position = filterVertexPosition();
+  vTextureCoord = filterTextureCoord();
+}
+`;
+const OCCLUSION_FRAG = `#version 300 es
+in vec2 vTextureCoord;
+out vec4 finalColor;
+uniform sampler2D uTexture;
+uniform sampler2D uWallMask;
+uniform vec2 uLightWorld;
+uniform vec2 uLevelPx;
+uniform float uWorldRadius;
+void main(void) {
+  vec4 src = texture(uTexture, vTextureCoord);
+  // posicion mundo de este pixel (el sprite cubre [centro-R, centro+R] en mundo)
+  vec2 pixWorld = uLightWorld + (vTextureCoord - 0.5) * 2.0 * uWorldRadius;
+  vec2 toLight = uLightWorld - pixWorld;
+  const int STEPS = 24;
+  vec2 stepv = toLight / float(STEPS);
+  vec2 p = pixWorld;
+  float occ = 1.0;
+  for (int i = 0; i < STEPS; i++) {
+    p += stepv;
+    if (texture(uWallMask, p / uLevelPx).r > 0.5) { occ = 0.0; break; }
+  }
+  finalColor = src * occ;
+}
+`;
+function makeOcclusionFilter() {
+  const f = new PIXI.Filter({
+    glProgram: PIXI.GlProgram.from({ vertex: OCCLUSION_VERT, fragment: OCCLUSION_FRAG, name: 'light-occlusion' }),
+    resources: {
+      occlusionUniforms: {
+        uLightWorld: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
+        uLevelPx: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
+        uWorldRadius: { value: 1, type: 'f32' },
+      },
+      uWallMask: PIXI.Texture.WHITE.source,
+    },
+  });
+  f.padding = 0;
+  return f;
+}
+
 // Construye la capa de luz. El orden en el stage (init) la deja ENTRE el piso y
 // las entidades: la luz cae sobre el piso y los personajes van encima a brillo
 // normal ("caminan sobre la luz", sin aura pintada sobre el sprite).
@@ -1085,7 +1154,7 @@ function buildLighting() {
   return { lightTex, shadowCone, lighting, darkness, lightsLayer, vignette, pool: [], poolUsed: 0, vigW: 0, vigH: 0 };
 }
 
-function pixiLight(L, x, y, radius, tint, alpha) {
+function pixiLight(L, x, y, radius, tint, alpha, occ) {
   let s = L.pool[L.poolUsed++];
   if (!s) {
     s = new PIXI.Sprite(L.lightTex);
@@ -1099,6 +1168,18 @@ function pixiLight(L, x, y, radius, tint, alpha) {
   s.scale.set((radius * 2) / L.lightTex.width);
   s.tint = tint;
   s.alpha = alpha;
+  // oclusion por muros (opcional): occ = { wx, wy, r (radio mundo), levelPxW, levelPxH }
+  if (occ && L.wallMaskSource) {
+    if (!s._occ) s._occ = makeOcclusionFilter();
+    const u = s._occ.resources.occlusionUniforms.uniforms;
+    u.uLightWorld[0] = occ.wx; u.uLightWorld[1] = occ.wy;
+    u.uLevelPx[0] = occ.levelPxW; u.uLevelPx[1] = occ.levelPxH;
+    u.uWorldRadius = occ.r;
+    s._occ.resources.uWallMask = L.wallMaskSource;
+    s.filters = [s._occ];
+  } else if (s.filters) {
+    s.filters = null;
+  }
 }
 
 function drawPixiLighting() {
@@ -1107,6 +1188,9 @@ function drawPixiLighting() {
   const W = PR.app.renderer.width, H = PR.app.renderer.height;
   const p = state.player, lvl = state.level, cam = state.cam, t = state.time;
   const oscuro = lvl.evento === 'oscuro';
+  // fuente de la mascara de muros para el filtro de oclusion (cambia por nivel)
+  L.wallMaskSource = (PR.tileCache && PR.tileCache.wallMaskTex) ? PR.tileCache.wallMaskTex.source : null;
+  const lvlPxW = lvl.W * TILE, lvlPxH = lvl.H * TILE;
 
   // oscuridad ambiente: dungeon oscuro pero legible (mas en pisos 'oscuro')
   L.darkness.width = W; L.darkness.height = H;
@@ -1132,8 +1216,8 @@ function drawPixiLighting() {
     pixiLight(L, sx, sy, rad * (0.95 + Math.sin(t * 5 + seed) * 0.05), 0xff9a3c, 0.55 * flick);
   }
 
-  // luz del jugador: suave, no quema el centro
-  pixiLight(L, px(p.x), py(p.y), 72 * ZOOM, 0xffd6a0, 0.34);
+  // luz del jugador: suave, no quema el centro. Con oclusion por muros (raymarch).
+  pixiLight(L, px(p.x), py(p.y), 72 * ZOOM, 0xffd6a0, 0.34, { wx: p.x, wy: p.y, r: 72, levelPxW: lvlPxW, levelPxH: lvlPxH });
 
   // auras magicas (orbes del jugador): a la altura VISUAL del orbe (pr.y - z)
   for (const pr of state.projs) {
