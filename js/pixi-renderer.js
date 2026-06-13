@@ -318,7 +318,13 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
         const floorBelow = ty + 1 < lvl.H && lvl.map[ty + 1][tx] === 1;
         const wallImg = Array.isArray(wallSet) ? wallSet[pixiTileVariant(tx + 101, ty + 57, wallSet.length)] : wallSet;
         if (floorBelow && (tx * 73 + ty * 37) % 23 === 0) torches.push([X + TILE / 2, Y, tx * 31 + ty]);
-        if (!floorBelow) tops.push([X, Y]); // tope negro: la luz no debe treparse aca
+        // tope: la luz no debe treparse al techo. hasCap = este tope corona una cara
+        // de muro (lleva remate de ladrillo abajo) -> ese remate NO se re-pinta, asi
+        // se ilumina junto a la cara y no queda mas brillante que ella.
+        if (!floorBelow) {
+          const hasCap = ty + 2 < lvl.H && lvl.map[ty + 1][tx] === 0 && lvl.map[ty + 2][tx] === 1;
+          tops.push([X, Y, hasCap]);
+        }
         if (floorBelow && wallImg) {
           g.drawImage(wallImg, X, Y, TILE, TILE);
           g.fillStyle = 'rgba(0,0,0,0.30)';
@@ -367,7 +373,10 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
   const tg = topCv.getContext('2d');
   tg.imageSmoothingEnabled = false;
   for (let i = 0; i < tops.length; i++) {
-    tg.drawImage(cv, tops[i][0], tops[i][1], TILE, TILE, tops[i][0], tops[i][1], TILE, TILE);
+    // si el tope lleva remate, copiar solo la parte superior (TILE - 6) y dejar el
+    // remate fuera de la re-pintura -> se ilumina con la cara del muro (consistente).
+    const h = tops[i][2] ? TILE - 6 : TILE;
+    tg.drawImage(cv, tops[i][0], tops[i][1], TILE, h, tops[i][0], tops[i][1], TILE, h);
   }
   const topTex = PIXI.Texture.from(topCv);
   if (topTex.source) topTex.source.scaleMode = 'nearest';
