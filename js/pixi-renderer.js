@@ -189,7 +189,6 @@ function renderPixi() {
   PR.graphicsUsed = 0;
   PR.shadeUsed = 0;
   PR.bodyShadeFilter = null;
-  PR.silUsed = 0;
   PR.objects.removeChildren();
   PR.shadows.removeChildren();
   PR.torches.removeChildren();
@@ -1560,7 +1559,15 @@ function gatherFrameLights() {
     const rmul = 0.95 + Math.sin(t * 5 + seed) * 0.05;
     push(tX, tY + 6, 0xff9a3c, K.torchRad * rmul, K.torchHt, K.torchInt * flick, 1, 16); // nm grande: montada en muro
   }
-  if (lights.length > MAXLIGHTS) { console.warn('[luz] +' + (lights.length - MAXLIGHTS) + ' luces descartadas (cap ' + MAXLIGHTS + ')'); lights.length = MAXLIGHTS; }
+  if (lights.length > MAXLIGHTS) {
+    // throttle: en una pelea cargada esto se cumple cada frame; no spamear la consola
+    // (console.warn es lento). Avisar como mucho 1 vez/seg.
+    if (PR._lightCapWarnT == null || t - PR._lightCapWarnT > 1) {
+      console.warn('[luz] +' + (lights.length - MAXLIGHTS) + ' luces descartadas (cap ' + MAXLIGHTS + ')');
+      PR._lightCapWarnT = t;
+    }
+    lights.length = MAXLIGHTS;
+  }
   PR.frameLights = lights;
   const amb = K.ambient;
   PR.frameAmbient = (lvl.evento === 'oscuro') ? [0.235 * amb, 0.217 * amb, 0.265 * amb] : [0.420 * amb, 0.392 * amb, 0.450 * amb];
