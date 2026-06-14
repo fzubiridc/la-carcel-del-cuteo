@@ -146,6 +146,7 @@ function bindInput() {
     }
     if (k === 'e') tryInteract();
     if (k === ' ') { e.preventDefault(); tryDash(); }
+    if (k === 'r') tryNova();
     if (k === 'q') drinkPotion();
     if (k === 'f') drinkManaPotion();
     if (k === 'm') toggleMusic();
@@ -155,7 +156,7 @@ function bindInput() {
   window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
   window.addEventListener('blur', () => { keys.clear(); mouse.down = false; });
   canvas.addEventListener('mousemove', setMouseFromEvent);
-  canvas.addEventListener('mousedown', e => { initAudio(); setMouseFromEvent(e); if (e.button === 0) mouse.down = true; });
+  canvas.addEventListener('mousedown', e => { initAudio(); setMouseFromEvent(e); if (e.button === 0) mouse.down = true; else if (e.button === 2) tryNova(); });
   window.addEventListener('mouseup', () => mouse.down = false);
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   // REINTENTAR: arranca una run nueva directo con la misma clase. MENÚ: vuelve al menú.
@@ -614,6 +615,46 @@ function tryDash() {
   sfx('dash');
 }
 
+// Nova arcana: poder secundario (tecla R / click derecho). Explosión de energía alrededor
+// del mago que daña y EMPUJA a los enemigos cercanos. Cuesta maná y tiene cooldown propio.
+const NOVA = { radius: 56, cd: 4.5, mana: 40, dmgMul: 1.9, knock: 3.6 };
+function tryNova() {
+  const p = state.player;
+  if (!p || state.mode !== 'play' || state.invOpen || state.paused || state.upgradeOpen || state.shopOpen) return;
+  if (p.cls !== 'mago') return;                 // por ahora, poder del mago
+  if (p.stunT > 0 || p.dashT > 0 || (p.novaCd || 0) > 0) return;
+  if ((p.mana || 0) < NOVA.mana) return; // sin maná suficiente: no castea ni gasta cooldown
+  p.mana = Math.max(0, (p.mana || 0) - NOVA.mana);
+  p.novaCd = NOVA.cd;
+  const cx = p.x, cy = p.y + 2;                  // centro a los pies del mago (plano del piso)
+  const crit = Math.random() * 100 < p.stats.crit;
+  const dmg = Math.round(playerDamage(p) * NOVA.dmgMul * (crit ? 2 : 1));
+  // daño + empuje radial a los enemigos dentro del radio (falloff suave hacia el borde)
+  for (const e of state.enemies) {
+    if (e.hp <= 0) continue;
+    const d = Math.hypot(e.x - cx, e.y - cy);
+    if (d < NOVA.radius + e.w) {
+      const fall = d < NOVA.radius * 0.5 ? 1 : 0.65;
+      damageEnemy(e, Math.round(dmg * fall), crit, (e.x - cx) * NOVA.knock, (e.y - cy) * NOVA.knock);
+    }
+  }
+  // fx arcano: explosión sprite (v2boom, escalada a la nova) + flash de luz (motor diferido)
+  // + onda + runa de anillos + chispas en anillo.
+  state.fx.push({ type: 'lightburst', x: cx, y: cy, t: 0.8, t0: 0.8, r: NOVA.radius + 36 });
+  if (typeof V2H !== 'undefined' && V2H.ready && V2H.fx && V2H.fx.boom && V2H.fx.boom.length)
+    state.fx.push({ type: 'v2boom', x: cx, y: cy - 4, start: state.time, t: 0.5, t0: 0.5, scale: 1.5 });
+  state.fx.push({ type: 'flash', x: cx, y: cy, t: 0.16, t0: 0.16, r: NOVA.radius * 0.7 });
+  state.fx.push({ type: 'ring', x: cx, y: cy, t: 0.42, t0: 0.42, maxR: NOVA.radius + 8, color: '#b14fff' });
+  state.fx.push({ type: 'ring', x: cx, y: cy, t: 0.34, t0: 0.34, maxR: NOVA.radius, color: '#9ad8ff' });
+  state.fx.push({ type: 'ring', x: cx, y: cy, t: 0.55, t0: 0.55, maxR: NOVA.radius * 0.5, color: '#ffffff' });
+  for (let i = 0; i < 28; i++) {
+    const a = (i / 28) * Math.PI * 2 + (Math.random() - 0.5) * 0.25, s = 130 + Math.random() * 90;
+    state.particles.push({ x: cx, y: cy, vx: Math.cos(a) * s, vy: Math.sin(a) * s, t: 0.3 + Math.random() * 0.25, color: i % 2 ? '#b14fff' : '#9ad8ff', glow: true });
+  }
+  shake(3);
+  sfx('boom');
+}
+
 // cofre común: tapa que cruje, loot y se vuelve transitable (deja de bloquear)
 function openChest(ch) {
   ch.opened = true; ch.openT = state.time; // openT: arranca la animación de apertura
@@ -782,6 +823,7 @@ function update(dt) {
 
   // dash: impulso breve, invulnerable, con cooldown
   p.dashCd = Math.max(0, p.dashCd - dt);
+  p.novaCd = Math.max(0, (p.novaCd || 0) - dt); // cooldown de la nova arcana
   if (p.dashT > 0) {
     p.dashT -= dt;
     moveWithCollision(lvl, p, p.dashVX * dt, p.dashVY * dt, false);

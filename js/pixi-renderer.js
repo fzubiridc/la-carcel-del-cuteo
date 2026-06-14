@@ -1186,7 +1186,7 @@ function drawPixiFx() {
     if (f.type === 'v2boom' && typeof V2H !== 'undefined' && V2H.ready && V2H.fx && V2H.fx.boom && V2H.fx.boom.length) {
       const bi = Math.min(V2H.fx.boom.length - 1, Math.floor((state.time - f.start) * 1000 / 60));
       const img = V2H.fx.boom[bi];
-      if (pixiImageReady(img)) { const S = 0.6; const s = pixiSprite(PR.fx, img, f.x, f.y, 40 * S, 40 * S, { anchor: [0.5, 0.5] }); if (s) s.blendMode = 'add'; }
+      if (pixiImageReady(img)) { const S = f.scale || 0.6; const s = pixiSprite(PR.fx, img, f.x, f.y, 40 * S, 40 * S, { anchor: [0.5, 0.5] }); if (s) s.blendMode = 'add'; }
     } else if (f.type === 'ring') {
       const k = 1 - f.t / f.t0, ease = 1 - (1 - k) * (1 - k);
       const g = pixiGraphics(PR.fx);
