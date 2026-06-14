@@ -1534,14 +1534,19 @@ function gatherFrameLights() {
   for (const pr of state.projs) {                                    // orbes magicos
     if (pr.dead || pr.style !== 'bolt') continue;
     push(pr.x, pr.y - (pr.z || 0), 0x88b4ff, 46, 24, 0.42, 0, 2);     // orbe a su altura visual
-    push(pr.x, pr.y, 0x88b4ff, 42, 14, 0.55, 0, 2);                   // pool en el PISO bajo el bolt
+    push(pr.x, pr.y, 0x88b4ff, 50, 14, 0.95, 0, 2);                   // pool en el PISO bajo el bolt (mas fuerte)
   }
-  // destello de impacto: un mob recien golpeado (flashT) irradia luz al area (mob + piso),
-  // asi el golpe ilumina el entorno, no solo flashea al bicho.
+  // destello de impacto con VIDA PROPIA (mas largo + fade lento, no atado al flashT corto):
+  // se refresca al golpear (flashT) y despues decae ~0.75s. Ilumina mob + piso.
   if (state.enemies) for (const e of state.enemies) {
-    const ft = e.flashT || 0;
-    if (ft <= 0) continue;
-    push(e.x, e.y, 0xbfe0ff, 58, 22, Math.min(1.1, ft * 6), 0, 2);
+    if ((e.flashT || 0) > 0) e._impL = 1.0;
+    let v = e._impL || 0;
+    if (v <= 0) continue;
+    const dt = (e._impLt != null) ? Math.min(0.1, Math.max(0, t - e._impLt)) : 0;
+    e._impLt = t;
+    v = Math.max(0, v - dt / 0.75);
+    e._impL = v;
+    push(e.x, e.y, 0xbfe0ff, 62, 24, v, 0, 2);
   }
   if (state.fx) for (const f of state.fx) {                          // destellos de explosion
     if (f.type !== 'lightburst') continue;
