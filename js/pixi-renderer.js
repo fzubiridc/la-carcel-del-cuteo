@@ -26,11 +26,13 @@ async function initPixiRenderer(view) {
     world: new PIXI.Container(),
     tiles: new PIXI.Container(),
     torches: new PIXI.Container(),
-    entities: new PIXI.Container(), // objetos + fx, ENCIMA de la luz (brillo normal)
+    entitiesGround: new PIXI.Container(), // wallTops + sombras: SUELO, se multiplican por la luz
+    entitiesActors: new PIXI.Container(), // objetos + fx: ENCIMA del multiply, luz por-pie (Fase 3)
     wallTops: new PIXI.Container(),  // tiles-tope negros, re-pintados sobre la luz (sin bleed)
     shadows: new PIXI.Container(),  // blob + silueta, con blur, debajo de las entidades
     objects: new PIXI.Container(),
     fx: new PIXI.Container(),
+    normalWorld: new PIXI.Container(), // sprite de normales del entorno (se rinde al normalRT, no al stage)
     screen: new PIXI.Container(),
     tex: new WeakMap(),
     frameTex: new WeakMap(),
@@ -47,10 +49,14 @@ async function initPixiRenderer(view) {
   const shadowBlur = new PIXI.BlurFilter({ strength: 2.5, quality: 2 });
   shadowBlur.padding = 12;
   PR.shadows.filters = [shadowBlur];
-  PR.entities.addChild(PR.wallTops, PR.shadows, PR.objects, PR.fx);
+  PR.entitiesGround.addChild(PR.wallTops, PR.shadows);
+  PR.entitiesActors.addChild(PR.objects, PR.fx);
   PR.lights = buildLighting();
-  // orden: piso (recibe la luz) -> capa de luz -> entidades (brillo normal, encima) -> screen
-  app.stage.addChild(PR.world, PR.lights.lighting, PR.entities, PR.screen);
+  // pipeline diferido. SUELO (piso + muros-tope + sombras) se dibuja, el 'multiply' con el
+  // buffer de luz lo modula, y RECIEN DESPUES van los actores (personajes) iluminados por
+  // la luz en sus pies (Fase 3) -> no se los trata como suelo (evita el efecto "transparente").
+  // La UI va arriba, sin multiplicar.
+  app.stage.addChild(PR.world, PR.entitiesGround, PR.lights.composite, PR.entitiesActors, PR.screen);
 }
 
 function resizePixiRenderer(w, h) {
@@ -89,11 +95,13 @@ function renderPixi() {
 
   PR.world.scale.set(ZOOM);
   PR.world.position.set(-state.cam.x * ZOOM, -state.cam.y * ZOOM);
-  PR.entities.scale.set(ZOOM);
-  PR.entities.position.set(-state.cam.x * ZOOM, -state.cam.y * ZOOM);
+  const camX = -state.cam.x * ZOOM, camY = -state.cam.y * ZOOM;
+  PR.entitiesGround.scale.set(ZOOM); PR.entitiesGround.position.set(camX, camY);
+  PR.entitiesActors.scale.set(ZOOM); PR.entitiesActors.position.set(camX, camY);
 
   drawPixiTiles();
   drawPixiTorches();
+  gatherFrameLights();   // junta las luces del frame ANTES de dibujar actores (para la luz por-pie)
   drawPixiObjects();
   drawPixiProjectiles();
   drawPixiParticles();
@@ -154,6 +162,7 @@ function pixiSpriteFromTexture(parent, tex, x, y, opt) {
   if (opt && opt.rotation) s.rotation = opt.rotation;
   if (opt && opt.alpha != null) s.alpha = opt.alpha;
   if (opt && opt.tint != null) s.tint = opt.tint; // != null: 0x000000 (negro) es falsy, no usar truthy
+  else if (parent === PR.objects && PR.actorTint != null) s.tint = PR.actorTint; // luz por-pie (Fase 3)
   parent.addChild(s);
   return s;
 }
@@ -183,6 +192,7 @@ function pixiSprite(parent, img, x, y, w, h, opt) {
   if (opt && opt.alpha != null) s.alpha = opt.alpha;
   if (opt && opt.rotation) s.rotation = opt.rotation;
   if (opt && opt.tint != null) s.tint = opt.tint; // != null: 0x000000 (negro) es falsy, no usar truthy
+  else if (parent === PR.objects && PR.actorTint != null) s.tint = PR.actorTint; // luz por-pie (Fase 3)
   parent.addChild(s);
   return s;
 }
@@ -371,6 +381,13 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
   PR.tiles.removeChildren();
   PR.tiles.addChild(sprite);
 
+  // normal map del entorno (Sobel del albedo de tiles) -> relieve de muros/piso (Fase 2B).
+  const normalTex = makeNormalTex(cv, NORMAL_STRENGTH);
+  const normalSprite = new PIXI.Sprite(normalTex);
+  normalSprite.roundPixels = true;
+  PR.normalWorld.removeChildren();
+  PR.normalWorld.addChild(normalSprite);
+
   // capa de tiles-tope: copia EXACTA (sin luz) de los topes negros, para re-pintarlos
   // sobre la iluminacion y que la luz propia no se trepe a la pared de arriba.
   const topCv = document.createElement('canvas');
@@ -407,7 +424,7 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
   const wallMaskTex = PIXI.Texture.from(maskCv);
   if (wallMaskTex.source) wallMaskTex.source.scaleMode = 'nearest';
 
-  PR.tileCache = { lvl, zoneIdx: state.run.zoneIdx, exitOpen: lvl.exitOpen, tex, torches, topTex, wallMaskTex };
+  PR.tileCache = { lvl, zoneIdx: state.run.zoneIdx, exitOpen: lvl.exitOpen, tex, torches, topTex, wallMaskTex, normalTex };
 }
 
 function drawPixiTiles() {
@@ -420,7 +437,16 @@ function drawPixiTiles() {
     PR.tileCache.exitOpen !== lvl.exitOpen) {
     if (PR.tileCache && PR.tileCache.tex) PR.tileCache.tex.destroy(true);
     if (PR.tileCache && PR.tileCache.topTex) PR.tileCache.topTex.destroy(true);
-    if (PR.tileCache && PR.tileCache.wallMaskTex) PR.tileCache.wallMaskTex.destroy(true);
+    if (PR.tileCache && PR.tileCache.normalTex) PR.tileCache.normalTex.destroy(true);
+    if (PR.tileCache && PR.tileCache.wallMaskTex) {
+      // soltar la referencia de los filtros de luz al source viejo ANTES de destruirlo,
+      // si no, al cambiar de piso el filtro pooled apunta a textura muerta -> crash.
+      if (PR.lights) for (const s of PR.lights.pool) {
+        if (s._occ) s._occ.resources.uWallMask = PIXI.Texture.WHITE.source;
+        s.filters = null;
+      }
+      PR.tileCache.wallMaskTex.destroy(true);
+    }
     buildPixiTileCache(lvl, zoneNow, pal);
   }
 }
@@ -428,6 +454,7 @@ function drawPixiTiles() {
 function drawPixiObjects() {
   const lvl = state.level;
   const p = state.player;
+  PR.actorTint = 0xffffff;
   if (lvl.exitOpen) pixiRect(PR.objects, lvl.exit.tx * TILE + 3, lvl.exit.ty * TILE + 3, TILE - 6, TILE - 6, 0xffd84f, 0.35);
   for (const pk of state.pickups) drawPixiPickup(pk);
   const chestDraws = lvl.chests.map(ch => ({ y: ch.y, _chest: ch, _gold: false }));
@@ -436,11 +463,15 @@ function drawPixiObjects() {
   if (lvl.merchant) extra.push({ y: lvl.merchant.y, _merchant: lvl.merchant });
   const drawables = [...state.enemies, p, ...chestDraws, ...extra].sort((a, b) => a.y - b.y);
   for (const e of drawables) {
+    // Fase 3: tint = luz en el pie del actor -> se ilumina como objeto parado ahi, no como
+    // suelo (evita el efecto "transparente"/dos-tonos al tapar la union muro/piso).
+    PR.actorTint = lightAtFoot(e.x, e.y);
     if (e._merchant) drawPixiMerchant(e._merchant);
     else if (e._chest) drawPixiChest(e._chest, e._gold);
     else if (e === p) drawPixiPlayer(p);
     else drawPixiEnemy(e);
   }
+  PR.actorTint = 0xffffff;
 }
 
 // Mercader: NPC junto a la escalera. Iba perdido en Pixi (solo se dibujaba en canvas).
@@ -996,12 +1027,14 @@ function drawPixiFx() {
 }
 
 // ---------------------------------------------------------------------
-// Iluminacion Pixi-nativa. No copia los gradientes del canvas pixel a
-// pixel: busca un dungeon oscuro pero legible. Arquitectura por capas:
-//   mundo (PR.world)  ->  PR.lights.lighting = [darkness, lights(ADD), vignette]
-// Una sola textura radial reusable, tinteada/escalada por luz. El flicker
-// es por alpha/scale (no se regeneran texturas por frame). El HUD es DOM,
-// queda fuera de este sistema.
+// Iluminacion diferida (Fase 1). En vez de pintar glows aditivos sobre la
+// escena, se construye un BUFFER DE LUZ y se compone multiplicando:
+//   1) escena = PR.world (piso) + PR.entities (personajes) a brillo pleno
+//   2) lightRT = [ambiente opaco + luces(ADD) con oclusion] -> RenderTexture
+//   3) stage: escena, luego sprite 'composite' (= lightRT, blend MULTIPLY) que
+//      modula toda la escena, luego UI sin multiplicar.
+// Asi la luz REVELA la superficie real (piso/muros/personajes) en vez de
+// pintar un disco encima. Las normales (Fase 2+) entran en el buffer de luz.
 // ---------------------------------------------------------------------
 
 // Llama animada de las antorchas en el mundo (arte sobre la pared).
@@ -1031,6 +1064,38 @@ function makeRadialTex(stops, size) {
   g.fillStyle = grd; g.fillRect(0, 0, size, size);
   return PIXI.Texture.from(c);
 }
+
+// Genera un NORMAL MAP desde un canvas de albedo via Sobel: la luminancia (pesada por
+// alpha) se trata como altura, y el gradiente da el relieve. Ladrillos/grietas del muro
+// agarran la luz de costado. strength controla cuanto relieve. Se hornea 1 vez por piso.
+function makeNormalTex(srcCanvas, strength) {
+  const w = srcCanvas.width, h = srcCanvas.height;
+  const sd = srcCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+  const out = document.createElement('canvas'); out.width = w; out.height = h;
+  const octx = out.getContext('2d');
+  const od = octx.createImageData(w, h);
+  const hAt = (x, y) => {
+    x = x < 0 ? 0 : x >= w ? w - 1 : x; y = y < 0 ? 0 : y >= h ? h - 1 : y;
+    const i = (y * w + x) * 4, a = sd[i + 3] / 255;
+    return a * (0.299 * sd[i] + 0.587 * sd[i + 1] + 0.114 * sd[i + 2]) / 255;
+  };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const dx = (hAt(x + 1, y) - hAt(x - 1, y)) * strength;
+    const dy = (hAt(x, y + 1) - hAt(x, y - 1)) * strength;
+    let nx = -dx, ny = -dy, nz = 1;
+    const inv = 1 / Math.sqrt(nx * nx + ny * ny + nz * nz);
+    const i = (y * w + x) * 4;
+    od.data[i] = (nx * inv * 0.5 + 0.5) * 255;
+    od.data[i + 1] = (ny * inv * 0.5 + 0.5) * 255;
+    od.data[i + 2] = (nz * inv * 0.5 + 0.5) * 255;
+    od.data[i + 3] = 255;
+  }
+  octx.putImageData(od, 0, 0);
+  const tex = PIXI.Texture.from(out);
+  if (tex.source) tex.source.scaleMode = 'nearest';
+  return tex;
+}
+const NORMAL_STRENGTH = 4.5; // relieve del entorno (subir = mas marcado)
 
 function makeVignetteTex(w, h) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -1077,6 +1142,7 @@ const OCCLUSION_VERT = `#version 300 es
 in vec2 aPosition;
 out vec2 vTextureCoord;
 out vec2 vSpriteUV; // 0..1 sobre el sprite de luz (robusto al redondeo de textura del filtro)
+out vec2 vTexScale; // escala uv->textura del filtro, para remuestrear deformado en el frag
 uniform vec4 uInputSize;
 uniform vec4 uOutputFrame;
 uniform vec4 uOutputTexture;
@@ -1093,11 +1159,13 @@ void main(void) {
   gl_Position = filterVertexPosition();
   vTextureCoord = filterTextureCoord();
   vSpriteUV = aPosition;
+  vTexScale = uOutputFrame.zw * uInputSize.zw;
 }
 `;
 const OCCLUSION_FRAG = `#version 300 es
 in vec2 vTextureCoord;
 in vec2 vSpriteUV;
+in vec2 vTexScale;
 out vec4 finalColor;
 uniform sampler2D uTexture;
 uniform sampler2D uWallMask;
@@ -1106,29 +1174,59 @@ uniform vec2 uLevelPx;
 uniform float uWorldRadius;
 uniform float uNearMargin; // no ocluir a menos de esto de la luz (evita auto-sombra de antorchas en su muro)
 uniform float uPen;        // tamano de penumbra en px-mundo (jitter del objetivo)
-const int STEPS = 24;
+uniform float uTime;       // tiempo para animar la deformacion de llama
+uniform float uSeed;       // semilla por luz (descorrelaciona jitter/llama entre antorchas)
+uniform float uShape;      // 0 = circular (jugador); >0 = deforma el borde como llama (antorcha)
+const int STEPS = 28;
 const int RAYS = 4;
+// hash escalar 2D barato (Dave Hoskins-ish) para jitter/dither sin texturas
+float hash21(vec2 p) {
+  p = fract(p * vec2(123.34, 345.45));
+  p += dot(p, p + 34.345);
+  return fract(p.x * p.y);
+}
 // 1.0 si el rayo de 'from' a 'to' llega sin pegar muro; 0.0 si lo bloquea.
-float rayClear(vec2 from, vec2 to) {
+// jit (0..1) corre el arranque del rayo una fraccion de paso -> rompe el banding
+// concentrico del marcheo de paso fijo (a cambio de un poco de grano).
+float rayClear(vec2 from, vec2 to, float jit) {
   vec2 sv = (to - from) / float(STEPS);
-  vec2 q = from;
+  vec2 q = from + sv * jit;
   for (int i = 0; i < STEPS; i++) {
-    q += sv;
     if (distance(q, to) < uNearMargin) break;
     if (texture(uWallMask, q / uLevelPx).r > 0.5) return 0.0;
+    q += sv;
   }
   return 1.0;
 }
 void main(void) {
-  vec4 src = texture(uTexture, vTextureCoord);
-  // posicion mundo de este pixel: el sprite cubre [centro-R, centro+R] en mundo.
-  // vSpriteUV (0..1 sobre el sprite) evita el offset por redondeo de textura del filtro.
-  vec2 pixWorld = uLightWorld + (vSpriteUV - 0.5) * 2.0 * uWorldRadius;
+  // uv centrada sobre el sprite (-0.5..0.5). Para antorchas, ondulamos el radio
+  // segun el angulo + tiempo: el gradiente se remuestrea deformado -> borde de llama
+  // irregular en vez de circulo perfecto. La OCLUSION sigue usando la posicion real.
+  vec2 cuv = vSpriteUV - 0.5;
+  float warp = 1.0;
+  if (uShape > 0.0) {
+    float ang = atan(cuv.y, cuv.x);
+    float w = sin(ang * 3.0 + uTime * 2.0  + uSeed)       * 0.5
+            + sin(ang * 5.0 - uTime * 1.3  + uSeed * 2.1) * 0.3
+            + sin(ang * 8.0 + uTime * 0.7  + uSeed * 3.7) * 0.2;
+    warp = 1.0 + uShape * w;
+  }
+  vec2 wuv = clamp(0.5 + cuv * warp, 0.0, 1.0);
+  vec4 src = texture(uTexture, wuv * vTexScale);
+
+  // posicion mundo real de este pixel (sin deformar): el sprite cubre [centro-R, centro+R].
+  vec2 pixWorld = uLightWorld + cuv * 2.0 * uWorldRadius;
   // penumbra: promediar oclusion hacia 4 puntos alrededor del centro de la luz
   vec2 offs[4] = vec2[4](vec2(uPen, 0.0), vec2(-uPen, 0.0), vec2(0.0, uPen), vec2(0.0, -uPen));
+  float jit = hash21(vSpriteUV * 512.0 + uSeed);
   float acc = 0.0;
-  for (int r = 0; r < RAYS; r++) acc += rayClear(pixWorld, uLightWorld + offs[r]);
-  finalColor = src * (acc / float(RAYS));
+  for (int r = 0; r < RAYS; r++) acc += rayClear(pixWorld, uLightWorld + offs[r], jit);
+  float vis = acc / float(RAYS);
+
+  // dither: +-1 LSB de ruido sobre la intensidad para romper el posterizado a 8 bits
+  // del gradiente (las "olas concentricas"). Escalado por vis -> nada fuera de la luz.
+  float dith = (hash21(vSpriteUV * 1024.0 + uSeed * 7.0) - 0.5) / 255.0;
+  finalColor = src * (vis + dith);
 }
 `;
 function makeOcclusionFilter() {
@@ -1141,8 +1239,116 @@ function makeOcclusionFilter() {
         uWorldRadius: { value: 1, type: 'f32' },
         uNearMargin: { value: 2, type: 'f32' },
         uPen: { value: 5, type: 'f32' },
+        uTime: { value: 0, type: 'f32' },
+        uSeed: { value: 0, type: 'f32' },
+        uShape: { value: 0, type: 'f32' },
       },
       uWallMask: PIXI.Texture.WHITE.source,
+    },
+  });
+  f.padding = 0;
+  return f;
+}
+
+// ---------------------------------------------------------------------
+// Shader de luz ANALITICO (Fase 2). Una sola pasada fullscreen que llena el
+// buffer de luz: por cada pixel reconstruye su posicion-mundo, lee la normal
+// (Fase 2A: plana; 2B: del normalRT) y recorre TODAS las luces (uniforms de
+// array) sumando ambiente + color*intensidad*atenuacion*(N·L)*sombra.
+// La sombra es el raymarch de muros que ya teniamos (reusado por luz).
+// Reemplaza los sprites de gradiente + el filtro de oclusion por-sprite.
+// ---------------------------------------------------------------------
+const MAXLIGHTS = 24;
+// textura 1x1 de normal plana (0.5,0.5,1.0) -> N=(0,0,1). Fallback y relleno del normalRT.
+let _flatNormalSrc = null;
+function flatNormalSource() {
+  if (_flatNormalSrc) return _flatNormalSrc;
+  const c = document.createElement('canvas'); c.width = c.height = 1;
+  const g = c.getContext('2d'); g.fillStyle = 'rgb(128,128,255)'; g.fillRect(0, 0, 1, 1);
+  _flatNormalSrc = PIXI.Texture.from(c).source;
+  return _flatNormalSrc;
+}
+const LIGHTING_FRAG = `#version 300 es
+in vec2 vSpriteUV;
+out vec4 finalColor;
+uniform sampler2D uTexture;   // input del filtro (sin uso directo)
+uniform sampler2D uWallMask;  // mascara de muros (1 texel/tile, blanco=muro)
+uniform sampler2D uNormalTex; // buffer de normales del entorno (screen-space, Fase 2B)
+uniform float uNormalY;       // +1 o -1: corrige el flip-Y del muestreo del normalRT
+#define MAXL ${MAXLIGHTS}
+uniform vec2 uLightPos[MAXL];   // posicion mundo de cada luz
+uniform vec4 uLightColor[MAXL]; // rgb + a = flag de oclusion (1=proyecta sombra)
+uniform vec4 uLightParam[MAXL]; // x=radio, y=altura(z virtual), z=intensidad, w=nearMargin
+uniform int  uCount;
+uniform vec3 uAmbient;          // multiplicador minimo (zona sin luz)
+uniform vec2 uCam;              // esquina sup-izq de la camara en mundo
+uniform vec2 uRender;           // tamano del render en px
+uniform float uZoom;
+uniform vec2 uLevelPx;          // tamano del nivel en px (para muestrear la mascara)
+uniform float uPen;             // penumbra (offset de los rayos de sombra)
+float hash21(vec2 p){ p=fract(p*vec2(123.34,345.45)); p+=dot(p,p+34.345); return fract(p.x*p.y); }
+// 1.0 si el rayo de 'from' a 'to' no pega muro; 0.0 si lo bloquea. jit rompe el banding.
+float rayClear(vec2 from, vec2 to, float nm, float jit){
+  const int STEPS=28;
+  vec2 sv=(to-from)/float(STEPS);
+  vec2 q=from+sv*jit;
+  for(int i=0;i<STEPS;i++){
+    if(distance(q,to)<nm) break;
+    if(texture(uWallMask, q/uLevelPx).r>0.5) return 0.0;
+    q+=sv;
+  }
+  return 1.0;
+}
+void main(void){
+  vec2 uv = vSpriteUV;
+  vec2 worldPos = uCam + (uv*uRender)/uZoom;   // px(wx)=(wx-cam)*zoom  ->  inverso
+  // normal del entorno desde el normalRT (screen-space). uNormalY corrige el flip-Y.
+  vec2 nuv = vec2(uv.x, uNormalY > 0.0 ? uv.y : 1.0 - uv.y);
+  vec3 N = normalize(texture(uNormalTex, nuv).xyz * 2.0 - 1.0);
+  vec3 lit = uAmbient;
+  float jit = hash21(uv*512.0);
+  for(int i=0;i<MAXL;i++){
+    if(i>=uCount) break;
+    vec2 d = uLightPos[i]-worldPos;
+    float radius = uLightParam[i].x;
+    float dist = length(d);
+    if(dist>radius) continue;
+    float atten = pow(max(1.0-dist/radius,0.0),2.0);     // falloff cuadratico a 0
+    vec3 L = normalize(vec3(d, uLightParam[i].y));        // altura = angulo rasante
+    float ndl = max(dot(N,L),0.0);
+    float sh = 1.0;
+    if(uLightColor[i].a>0.5){
+      float nm=uLightParam[i].w;
+      sh = (rayClear(worldPos, uLightPos[i]+vec2(uPen,0.0), nm, jit)
+          + rayClear(worldPos, uLightPos[i]-vec2(uPen,0.0), nm, jit)
+          + rayClear(worldPos, uLightPos[i]+vec2(0.0,uPen), nm, jit)
+          + rayClear(worldPos, uLightPos[i]-vec2(0.0,uPen), nm, jit))*0.25;
+    }
+    lit += uLightColor[i].rgb * uLightParam[i].z * atten * ndl * sh;
+  }
+  float dith=(hash21(uv*1024.0)-0.5)/255.0;     // anti-posterizado
+  finalColor = vec4(lit+dith, 1.0);
+}
+`;
+function makeLightingFilter() {
+  const f = new PIXI.Filter({
+    glProgram: PIXI.GlProgram.from({ vertex: OCCLUSION_VERT, fragment: LIGHTING_FRAG, name: 'deferred-lighting' }),
+    resources: {
+      lightUniforms: {
+        uLightPos:   { value: new Float32Array(MAXLIGHTS * 2), type: 'vec2<f32>', size: MAXLIGHTS },
+        uLightColor: { value: new Float32Array(MAXLIGHTS * 4), type: 'vec4<f32>', size: MAXLIGHTS },
+        uLightParam: { value: new Float32Array(MAXLIGHTS * 4), type: 'vec4<f32>', size: MAXLIGHTS },
+        uCount:   { value: 0, type: 'i32' },
+        uAmbient: { value: new Float32Array([0.17, 0.155, 0.19]), type: 'vec3<f32>' },
+        uCam:     { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
+        uRender:  { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
+        uZoom:    { value: 1, type: 'f32' },
+        uLevelPx: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
+        uPen:     { value: 5, type: 'f32' },
+        uNormalY: { value: 1, type: 'f32' },
+      },
+      uWallMask: PIXI.Texture.WHITE.source,
+      uNormalTex: flatNormalSource(), // normal plana hasta tener el normalRT
     },
   });
   f.padding = 0;
@@ -1153,21 +1359,40 @@ function makeOcclusionFilter() {
 // las entidades: la luz cae sobre el piso y los personajes van encima a brillo
 // normal ("caminan sobre la luz", sin aura pintada sobre el sprite).
 function buildLighting() {
+  // curva concava con cola larga: el degradé se desvanece suave hasta 0 en el borde
+  // (en vez de cortarse de golpe), se ve mas natural.
   const lightTex = makeRadialTex([
-    [0, 'rgba(255,255,255,0.95)'],
-    [0.25, 'rgba(255,255,255,0.55)'],
-    [0.55, 'rgba(255,255,255,0.22)'],
-    [0.8, 'rgba(255,255,255,0.06)'],
+    [0, 'rgba(255,255,255,0.92)'],
+    [0.18, 'rgba(255,255,255,0.60)'],
+    [0.36, 'rgba(255,255,255,0.34)'],
+    [0.55, 'rgba(255,255,255,0.17)'],
+    [0.72, 'rgba(255,255,255,0.07)'],
+    [0.88, 'rgba(255,255,255,0.02)'],
     [1, 'rgba(255,255,255,0)'],
   ], 128);
   const shadowCone = makeShadowConeTex(128);
-  const lighting = new PIXI.Container();
-  const darkness = new PIXI.Sprite(PIXI.Texture.WHITE);
-  darkness.tint = 0x07060d;
+  // escena de luz que se renderiza a un buffer (lightRT) cada frame: un fondo ambiente
+  // opaco + las luces aditivas (con oclusion por muros). El resultado es "cuanta luz
+  // recibe cada pixel de la pantalla".
+  const lightScene = new PIXI.Container();
+  const ambient = new PIXI.Sprite(PIXI.Texture.WHITE); // base ambiente (multiplicador minimo)
   const lightsLayer = new PIXI.Container();
-  const vignette = new PIXI.Sprite(PIXI.Texture.EMPTY);
-  lighting.addChild(darkness, lightsLayer, vignette);
-  return { lightTex, shadowCone, lighting, darkness, lightsLayer, vignette, pool: [], poolUsed: 0, vigW: 0, vigH: 0 };
+  lightScene.addChild(ambient, lightsLayer);
+  // sprite que MULTIPLICA la escena ya dibujada por el buffer de luz (composicion realista):
+  // zona sin luz -> escena * ambiente (oscura), zona iluminada -> escena * ~1 (color real).
+  const composite = new PIXI.Sprite(PIXI.Texture.EMPTY);
+  composite.blendMode = 'multiply';
+  // Fase 2: pase de luz analitico. Sprite blanco fullscreen con el filtro de luz;
+  // se renderiza a lightRT y reemplaza a [ambient + lightsLayer]. El filtro computa
+  // ambiente + todas las luces por pixel (ver makeLightingFilter).
+  const lightPass = new PIXI.Sprite(PIXI.Texture.WHITE);
+  const lightingFilter = makeLightingFilter();
+  lightPass.filters = [lightingFilter];
+  // buffer de normales del entorno: fondo plano + el sprite de normales (con transform de mundo).
+  const flatBg = new PIXI.Sprite(flatNormalSource());
+  return { lightTex, shadowCone, lightScene, ambient, lightsLayer, composite,
+           lightPass, lightingFilter, flatBg,
+           rt: null, rtW: 0, rtH: 0, normalRT: null, pool: [], poolUsed: 0 };
 }
 
 function pixiLight(L, x, y, radius, tint, alpha, occ) {
@@ -1193,6 +1418,9 @@ function pixiLight(L, x, y, radius, tint, alpha, occ) {
     u.uWorldRadius = occ.r;
     u.uNearMargin = occ.nm != null ? occ.nm : 2;
     u.uPen = occ.pen != null ? occ.pen : 5;
+    u.uTime = occ.time != null ? occ.time : 0;
+    u.uSeed = occ.seed != null ? occ.seed : 0;
+    u.uShape = occ.shape != null ? occ.shape : 0;
     s._occ.resources.uWallMask = L.wallMaskSource;
     s.filters = [s._occ];
   } else if (s.filters) {
@@ -1200,59 +1428,128 @@ function pixiLight(L, x, y, radius, tint, alpha, occ) {
   }
 }
 
+// Junta TODAS las luces del frame como descriptores en coordenadas MUNDO (radio en
+// px-mundo; height = z virtual -> angulo rasante; occ = proyecta sombra; cr/cg/cb = color
+// 0..1). Corre ANTES de dibujar los actores para poder iluminarlos por su punto de pie.
+function gatherFrameLights() {
+  const L = PR.lights; if (!L) return;
+  const p = state.player, lvl = state.level, cam = state.cam, t = state.time;
+  const W = PR.app.renderer.width, H = PR.app.renderer.height;
+  L.wallMaskSource = (PR.tileCache && PR.tileCache.wallMaskTex) ? PR.tileCache.wallMaskTex.source : null;
+  const occOk = !!L.wallMaskSource;
+  const lights = [];
+  const push = (x, y, c, radius, height, intensity, occ, nm) => lights.push({
+    x, y, radius, height, intensity, occ: (occ && occOk) ? 1 : 0, nm,
+    cr: ((c >> 16) & 255) / 255, cg: ((c >> 8) & 255) / 255, cb: (c & 255) / 255 });
+  push(p.x, p.y + 8, 0xff9a3c, 42, 28, 1.30, 1, 4);                 // jugador: charquito a los pies
+  for (const pr of state.projs) {                                    // orbes magicos
+    if (pr.dead || pr.style !== 'bolt') continue;
+    push(pr.x, pr.y - (pr.z || 0), 0x88b4ff, 46, 24, 0.42, 0, 2);
+  }
+  if (state.fx) for (const f of state.fx) {                          // destellos de explosion
+    if (f.type !== 'lightburst') continue;
+    push(f.x, f.y, 0xbfe0ff, f.r || 60, 30, 0.6 * (f.t / f.t0), 0, 2);
+  }
+  const tc = PR.tileCache, margin = 70 * ZOOM;                       // antorchas (culling por pantalla)
+  if (tc && tc.torches) for (const [tX, tY, seed] of tc.torches) {
+    const sx = (tX - cam.x) * ZOOM, sy = (tY - cam.y) * ZOOM;
+    if (sx < -margin || sx > W + margin || sy < -margin || sy > H + margin) continue;
+    const flick = 0.82 + Math.sin(t * 7 + seed) * 0.12 + Math.sin(t * 17 + seed * 1.7) * 0.05;
+    const rmul = 0.95 + Math.sin(t * 5 + seed) * 0.05;
+    push(tX, tY + 6, 0xff9a3c, 58 * rmul, 40, 1.35 * flick, 1, 16);  // nm grande: montada en muro
+  }
+  if (lights.length > MAXLIGHTS) { console.warn('[luz] +' + (lights.length - MAXLIGHTS) + ' luces descartadas (cap ' + MAXLIGHTS + ')'); lights.length = MAXLIGHTS; }
+  PR.frameLights = lights;
+  PR.frameAmbient = (lvl.evento === 'oscuro') ? [0.235, 0.217, 0.265] : [0.420, 0.392, 0.450];
+}
+
+// Raymarch en JS sobre lvl.map: 1.0 si la linea de (ax,ay) a (bx,by) no pega muro.
+function wallClearJS(ax, ay, bx, by, nm) {
+  const lvl = state.level; if (!lvl) return 1;
+  const STEPS = 20, dx = (bx - ax) / STEPS, dy = (by - ay) / STEPS;
+  let x = ax, y = ay;
+  for (let i = 0; i < STEPS; i++) {
+    x += dx; y += dy;
+    const ddx = bx - x, ddy = by - y;
+    if (ddx * ddx + ddy * ddy < nm * nm) break;
+    const tx = (x / TILE) | 0, ty = (y / TILE) | 0;
+    if (ty < 0 || ty >= lvl.H || tx < 0 || tx >= lvl.W) continue;
+    if (lvl.map[ty][tx] === 0) return 0; // muro
+  }
+  return 1;
+}
+
+// Luz que recibe un punto del piso (mundo) = ambiente + suma de luces (atenuacion*N·L*sombra),
+// con N plana. Devuelve un tint hex para multiplicar el sprite del actor parado ahi (Fase 3).
+function lightAtFoot(wx, wy) {
+  const lights = PR.frameLights, amb = PR.frameAmbient;
+  if (!lights || !amb) return 0xffffff;
+  let r = amb[0], g = amb[1], b = amb[2];
+  for (let i = 0; i < lights.length; i++) {
+    const Lg = lights[i];
+    const dx = Lg.x - wx, dy = Lg.y - wy, dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > Lg.radius) continue;
+    const k = Math.max(1 - dist / Lg.radius, 0), atten = k * k;
+    const ndl = Lg.height / Math.sqrt(dist * dist + Lg.height * Lg.height);
+    const sh = Lg.occ ? wallClearJS(wx, wy, Lg.x, Lg.y, Lg.nm) : 1;
+    const f = Lg.intensity * atten * ndl * sh;
+    r += Lg.cr * f; g += Lg.cg * f; b += Lg.cb * f;
+  }
+  const ti = (v) => v <= 0 ? 0 : v >= 1 ? 255 : (v * 255) | 0;
+  return (ti(r) << 16) | (ti(g) << 8) | ti(b);
+}
+
 function drawPixiLighting() {
   const L = PR.lights;
   if (!L) return;
-  const W = PR.app.renderer.width, H = PR.app.renderer.height;
-  const p = state.player, lvl = state.level, cam = state.cam, t = state.time;
-  const oscuro = lvl.evento === 'oscuro';
-  // fuente de la mascara de muros para el filtro de oclusion (cambia por nivel)
-  L.wallMaskSource = (PR.tileCache && PR.tileCache.wallMaskTex) ? PR.tileCache.wallMaskTex.source : null;
+  const renderer = PR.app.renderer;
+  const W = renderer.width, H = renderer.height;
+  // (re)crear el buffer de luz al tamano de pantalla (solo si cambio)
+  if (!L.rt || L.rtW !== W || L.rtH !== H) {
+    if (L.rt) L.rt.destroy(true);
+    L.rt = PIXI.RenderTexture.create({ width: W, height: H });
+    L.rtW = W; L.rtH = H;
+    L.composite.texture = L.rt;
+  }
+  const lvl = state.level, cam = state.cam;
   const lvlPxW = lvl.W * TILE, lvlPxH = lvl.H * TILE;
+  const lights = PR.frameLights || [], amb = PR.frameAmbient || [0.42, 0.392, 0.45];
 
-  // oscuridad ambiente: dungeon oscuro pero legible (mas en pisos 'oscuro')
-  L.darkness.width = W; L.darkness.height = H;
-  L.darkness.alpha = oscuro ? 0.84 : 0.52;
-
-  // vinneta: se regenera solo si cambio el tamanno (no por frame)
-  if (L.vigW !== W || L.vigH !== H) {
-    if (L.vignette.texture && L.vignette.texture !== PIXI.Texture.EMPTY) L.vignette.texture.destroy(true);
-    L.vignette.texture = makeVignetteTex(W, H);
-    L.vigW = W; L.vigH = H;
+  // ----- buffer de NORMALES del entorno (Fase 2B): fondo plano + sprite de normales con
+  // transform de mundo -> screen-space. Lo samplea el shader para el N·L direccional. -----
+  if (!L.normalRT || L.normalRT.width !== W || L.normalRT.height !== H) {
+    if (L.normalRT) L.normalRT.destroy(true);
+    L.normalRT = PIXI.RenderTexture.create({ width: W, height: H });
   }
-  L.vignette.alpha = 1;
+  L.flatBg.width = W; L.flatBg.height = H;
+  PR.normalWorld.scale.set(ZOOM);
+  PR.normalWorld.position.set(-cam.x * ZOOM, -cam.y * ZOOM);
+  renderer.render({ container: L.flatBg, target: L.normalRT, clear: true });
+  renderer.render({ container: PR.normalWorld, target: L.normalRT, clear: false });
+  L.lightingFilter.resources.uNormalTex = L.normalRT.source;
 
-  L.poolUsed = 0;
-  const px = (wx) => (wx - cam.x) * ZOOM, py = (wy) => (wy - cam.y) * ZOOM;
-
-  // antorchas: luz calida con flicker sutil (alpha + scale, sin regenerar)
-  const tc = PR.tileCache;
-  if (tc && tc.torches) for (const [tX, tY, seed] of tc.torches) {
-    const sx = px(tX), sy = py(tY + 6), rad = 50 * ZOOM;
-    if (sx < -rad || sx > W + rad || sy < -rad || sy > H + rad) continue;
-    const flick = 0.82 + Math.sin(t * 7 + seed) * 0.12 + Math.sin(t * 17 + seed * 1.7) * 0.05;
-    const rmul = 0.95 + Math.sin(t * 5 + seed) * 0.05;
-    // oclusion: la antorcha esta montada en un muro -> nm grande (~tile) para que su
-    // propio tile no la auto-tape. wy = tY+6 (la llama, apenas debajo del tope).
-    pixiLight(L, sx, sy, rad * rmul, 0xff9a3c, 0.55 * flick,
-      { wx: tX, wy: tY + 6, r: 50 * rmul, levelPxW: lvlPxW, levelPxH: lvlPxH, nm: 16, pen: 5 });
+  // volcar las luces (ya juntadas por gatherFrameLights) al shader analitico
+  const lf = L.lightingFilter.resources.lightUniforms.uniforms;
+  const pos = lf.uLightPos, col = lf.uLightColor, par = lf.uLightParam;
+  for (let i = 0; i < lights.length; i++) {
+    const g = lights[i];
+    pos[i * 2] = g.x; pos[i * 2 + 1] = g.y;
+    col[i * 4] = g.cr; col[i * 4 + 1] = g.cg; col[i * 4 + 2] = g.cb; col[i * 4 + 3] = g.occ;
+    par[i * 4] = g.radius; par[i * 4 + 1] = g.height; par[i * 4 + 2] = g.intensity; par[i * 4 + 3] = g.nm;
   }
+  lf.uCount = lights.length;
+  lf.uAmbient[0] = amb[0]; lf.uAmbient[1] = amb[1]; lf.uAmbient[2] = amb[2];
+  lf.uCam[0] = cam.x; lf.uCam[1] = cam.y;
+  lf.uRender[0] = W; lf.uRender[1] = H;
+  lf.uZoom = ZOOM;
+  lf.uLevelPx[0] = lvlPxW; lf.uLevelPx[1] = lvlPxH;
+  lf.uPen = 5;
+  lf.uNormalY = (PR.normalFlipY != null) ? PR.normalFlipY : 1; // toggle de flip-Y para tunear en vivo
+  // reasignar recurso + filters cada frame -> fuerza el re-upload de los uniforms.
+  L.lightingFilter.resources.uWallMask = L.wallMaskSource || PIXI.Texture.WHITE.source;
+  L.lightPass.filters = [L.lightingFilter];
+  L.lightPass.width = W; L.lightPass.height = H;
 
-  // luz del jugador: suave, no quema el centro. Con oclusion por muros (raymarch).
-  pixiLight(L, px(p.x), py(p.y), 72 * ZOOM, 0xffd6a0, 0.34, { wx: p.x, wy: p.y, r: 72, levelPxW: lvlPxW, levelPxH: lvlPxH });
-
-  // auras magicas (orbes del jugador): a la altura VISUAL del orbe (pr.y - z)
-  for (const pr of state.projs) {
-    if (pr.dead || pr.style !== 'bolt') continue;
-    pixiLight(L, px(pr.x), py(pr.y - (pr.z || 0)), 46 * ZOOM, 0x88b4ff, 0.42);
-  }
-
-  // destello de explosion (lightburst): ilumina el area un instante al estallar
-  if (state.fx) for (const f of state.fx) {
-    if (f.type !== 'lightburst') continue;
-    pixiLight(L, px(f.x), py(f.y), (f.r || 60) * ZOOM, 0xbfe0ff, 0.6 * (f.t / f.t0));
-  }
-
-  // ocultar sprites de luz sobrantes del pool
-  for (let i = L.poolUsed; i < L.pool.length; i++) L.pool[i].visible = false;
+  // render del pase de luz -> lightRT. El stage luego multiplica el SUELO por este buffer.
+  renderer.render({ container: L.lightPass, target: L.rt, clear: true });
 }
