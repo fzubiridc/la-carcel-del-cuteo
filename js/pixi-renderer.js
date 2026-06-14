@@ -13,6 +13,7 @@ const LIGHT_KNOB_DEFAULTS = {
   torchInt: 2.25, torchRad: 99, torchHt: 27,
   bloomOn: false, bloomThresh: 0.78, bloomInt: 1.5, bloomBlur: 16,
   normalStrength: 4.5, normalFlipY: 1,
+  shadowY: -2, shadowSize: 8.5, shadowAlpha: 0.78, shadowWide: 3.3,
 };
 function loadKnobs() {
   let saved = {};
@@ -106,6 +107,10 @@ function buildLightKnobs() {
     ['bloomInt', 'Bloom intensidad', 0, 3, 0.05],
     ['bloomBlur', 'Bloom blur', 2, 40, 1],
     ['normalStrength', 'Relieve (rebake)', 0, 12, 0.5, true],
+    ['shadowY', 'Sombra: offset Y', -15, 15, 1],
+    ['shadowSize', 'Sombra: tamano', 3, 16, 0.5],
+    ['shadowWide', 'Sombra: ancho', 1.5, 5, 0.1],
+    ['shadowAlpha', 'Sombra: intensidad', 0, 1, 0.02],
   ];
   const TOGGLES = [['bloomOn', 'Bloom on'], ['normalFlipY', 'Normal flip Y']];
   const p = document.createElement('div');
@@ -699,9 +704,10 @@ function drawPixiPlayer(p) {
   // contacto se estira hacia la luz dominante para fundirse con su silueta.
   const lights = occludingLightsFor(p.x, fy, 3);
   const nearest = lights[0];
-  // sombra circular de apoyo SIEMPRE bajo los pies (independiente de antorchas): ancha para
-  // asomar alrededor del personaje, intensa, y justo bajo los pies (no separada).
-  pixiContactBlob(p.x, fy + 4, 8.5, { alpha: 0.78, wide: 3.3, tall: 1.45 });
+  // sombra circular de apoyo SIEMPRE bajo los pies (independiente de antorchas). Tuneable
+  // por knobs (offset Y / tamano / ancho / intensidad).
+  const KS = PR.knobs;
+  pixiContactBlob(p.x, fy + KS.shadowY, KS.shadowSize, { alpha: KS.shadowAlpha, wide: KS.shadowWide, tall: 1.45 });
   // ademas, si hay una luz cerca, un estiron hacia el lado opuesto para fundirse con la silueta.
   if (nearest) {
     pixiContactBlob(p.x, fy + 3, 7, {
