@@ -962,7 +962,9 @@ function drawPixiMob(e) {
   const dw = set.px * S;
   const dh = set.px * S;
   const alpha = set.alpha < 1 ? set.alpha : 1;
-  const tint = e.flashT > 0 ? 0xffffff : (e.enraged ? 0xff3030 : 0xffffff);
+  // tint normal = null -> el sprite hereda el tint de luz por-pie (PR.actorTint) y se integra
+  // con el ambiente. Solo el flash de golpe (blanco) y enraged (rojo) lo pisan.
+  const tint = e.flashT > 0 ? 0xffffff : (e.enraged ? 0xff3030 : null);
   return drawPixiMobFrame(set, anim, face, fi, dx, dy, dw, dh, { alpha, tint });
 }
 
