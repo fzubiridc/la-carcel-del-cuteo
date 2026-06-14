@@ -598,14 +598,18 @@ const DECOR_DEFS = {
   crystal:     { sheet: 'decor_other',    box: [70, 59, 21, 27],  scale: 0.62, anchorY: 0.95 },
   banner_blue: { sheet: 'decor_other',    box: [196, 64, 23, 30], scale: 0.62, anchorY: 0.97 },
   banner_red:  { sheet: 'decor_other',    box: [164, 64, 23, 30], scale: 0.62, anchorY: 0.97 },
-  cauldron:    { sheet: 'decor_boilers',  box: [0, 0, 32, 32],    scale: 0.62, anchorY: 0.92,
-                 anim: { col: 0, rows: 24, ms: 90 } },
+  // Boilers TAMBIÉN intercala por fila: col0 par = caldero lava (naranja), col0 impar =
+  // caldero púrpura. Cada uno anima cada 2 filas -> 12 frames (antes se mezclaban).
+  cauldron:        { sheet: 'decor_boilers', box: [0, 0, 32, 32], scale: 0.62, anchorY: 0.92,
+                 anim: { col: 0, rowStart: 0, rowStep: 2, frames: 12, ms: 110 } },
   cauldron_purple: { sheet: 'decor_boilers', box: [0, 0, 32, 32], scale: 0.62, anchorY: 0.92,
-                 anim: { col: 4, rows: 24, ms: 90 } },
-  // piedras rúnicas animadas (sheet 5 cols × 24 frames de 64px; col = elemento)
-  rune_fire:   { sheet: 'decor_runes', box: [0, 0, 64, 64], scale: 0.42, anchorY: 0.95, anim: { col: 0, rows: 24, ms: 120 } },
-  rune_nature: { sheet: 'decor_runes', box: [0, 0, 64, 64], scale: 0.42, anchorY: 0.95, anim: { col: 1, rows: 24, ms: 120 } },
-  rune_arcane: { sheet: 'decor_runes', box: [0, 0, 64, 64], scale: 0.42, anchorY: 0.95, anim: { col: 4, rows: 24, ms: 120 } },
+                 anim: { col: 0, rowStart: 1, rowStep: 2, frames: 12, ms: 110 } },
+  // piedras rúnicas animadas (sheet 5 cols × 24 filas de 64px). OJO: las filas INTERCALAN
+  // dos sets de runas (pares vs impares); cada tipo anima cada 2 filas -> 12 frames.
+  // Set PAR (rowStart 0): col0=fuego, col4=rayo.  Set IMPAR (rowStart 1): col1=naturaleza.
+  rune_fire:   { sheet: 'decor_runes', box: [0, 0, 64, 64], scale: 0.42, anchorY: 0.95, anim: { col: 0, rowStart: 0, rowStep: 2, frames: 12, ms: 130 } },
+  rune_nature: { sheet: 'decor_runes', box: [0, 0, 64, 64], scale: 0.42, anchorY: 0.95, anim: { col: 1, rowStart: 1, rowStep: 2, frames: 12, ms: 130 } },
+  rune_arcane: { sheet: 'decor_runes', box: [0, 0, 64, 64], scale: 0.42, anchorY: 0.95, anim: { col: 4, rowStart: 0, rowStep: 2, frames: 12, ms: 130 } },
 };
 
 function drawPixiDecorProp(d) {
@@ -615,9 +619,13 @@ function drawPixiDecorProp(d) {
   if (!pixiImageReady(img)) return;
   let [bx, by, bw, bh] = def.box;
   if (def.anim) {
-    const fi = Math.floor(state.time * 1000 / def.anim.ms) % def.anim.rows;
-    bx = def.anim.col * bw;
-    by = fi * bh;
+    const a = def.anim;
+    // frames del tipo: por defecto filas consecutivas desde 0 (rows). Si el sheet
+    // INTERCALA tipos (p.ej. runas: pares vs impares), rowStart/rowStep saltean.
+    const frames = a.frames || a.rows;
+    const fi = Math.floor(state.time * 1000 / a.ms) % frames;
+    bx = a.col * bw;
+    by = ((a.rowStart || 0) + fi * (a.rowStep || 1)) * bh;
   }
   const tex = pixiFrameTexture(img, bx, by, bw, bh);
   if (!tex) return;
