@@ -376,14 +376,22 @@
   .tbtn{ position:absolute; border-radius:50%; pointer-events:auto; touch-action:none;
     background:#ffffff18; border:2px solid #ffffff44; color:#d8d2c8;
     font-family:inherit; font-weight:bold; display:flex; align-items:center;
-    justify-content:center; user-select:none; -webkit-user-select:none; }
-  #btnatk{ right:24px; bottom:60px; width:84px; height:84px; font-size:15px; }
-  #btnnova{ right:120px; bottom:94px; width:60px; height:60px; font-size:24px;
+    justify-content:center; user-select:none; -webkit-user-select:none;
+    -webkit-touch-callout:none; transition:transform .06s ease, background .06s ease; }
+  .tbtn:active{ background:#ffffff3a; transform:scale(0.92); }    /* feedback al tocar */
+  /* cluster derecho ELEVADO sobre la barra de maná + título; safe-area para notch/barra home.
+     --sar/--sab = insets seguros (0 en desktop). Combate (atk/dash/nova) abajo; pot/int arriba. */
+  #touchui{ --sar:env(safe-area-inset-right); --sab:env(safe-area-inset-bottom); --sal:env(safe-area-inset-left); }
+  #btnatk{ right:calc(28px + var(--sar)); bottom:calc(108px + var(--sab)); width:88px; height:88px; font-size:15px; }
+  #btnnova{ right:calc(124px + var(--sar)); bottom:calc(150px + var(--sab)); width:62px; height:62px; font-size:24px;
     color:#e0c2ff; border-color:#b14fff99; background:#b14fff22; text-shadow:0 0 6px #b14fffaa; }
+  #btnnova:active{ background:#b14fff55; }
   #btnnova.cooling{ opacity:0.35; }
-  #btndash{ right:120px; bottom:30px; width:54px; height:54px; font-size:11px; }
-  #btnpot{ right:140px; bottom:164px; width:46px; height:46px; font-size:16px; }
-  #btnint{ right:34px; bottom:160px; width:48px; height:48px; font-size:14px; }
+  #btndash{ right:calc(128px + var(--sar)); bottom:calc(86px + var(--sab)); width:56px; height:56px; font-size:11px; }
+  #btnpot{ right:calc(40px + var(--sar)); bottom:calc(210px + var(--sab)); width:48px; height:48px; font-size:16px; }
+  #btnint{ right:calc(150px + var(--sar)); bottom:calc(210px + var(--sab)); width:48px; height:48px; font-size:14px; }
+  /* joystick: respetar el inset izquierdo/inferior del dispositivo */
+  #joyzone{ padding-left:var(--sal); padding-bottom:var(--sab); }
 </style>
 </head>
 <body>
@@ -514,6 +522,6 @@
 <script src="js/entities.js?v=168"></script>
 <script src="js/ui.js?v=161"></script>
 <script src="js/pixi-renderer.js?v=86"></script>
-<script src="js/main.js?v=176"></script>
+<script src="js/main.js?v=177"></script>
 </body>
 </html>

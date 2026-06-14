@@ -191,6 +191,9 @@ function bindTouch() {
   if (!touch.enabled) return;
   $('touchui').classList.remove('hidden');
   $('hint').style.display = 'none'; // el hint de teclado no aplica en táctil
+  // controles de debug/dev: fuera en móvil (ocupan lugar y no son para jugar)
+  const dbg = $('debugboss'); if (dbg) dbg.style.display = 'none';
+  const sst = $('stafftest'); if (sst) sst.style.display = 'none';
 
   const jz = $('joyzone'), base = $('joybase'), knob = $('joyknob');
   const RADIO = 40;
