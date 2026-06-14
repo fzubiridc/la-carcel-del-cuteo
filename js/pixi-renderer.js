@@ -1130,39 +1130,6 @@ function makeNormalTex(srcCanvas, strength) {
 }
 const NORMAL_STRENGTH = 4.5; // relieve del entorno (subir = mas marcado)
 
-function makeVignetteTex(w, h) {
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d');
-  // la sombra ambiente crece con la distancia al centro (= jugador) pero TOPEA:
-  // burbuja clara cerca -> media mas tenue -> lejos oscuro pero aun legible (0.62).
-  const r = Math.max(w, h) * 0.78;
-  const grd = g.createRadialGradient(w / 2, h / 2, r * 0.34, w / 2, h / 2, r);
-  grd.addColorStop(0, 'rgba(0,0,0,0)');
-  grd.addColorStop(0.62, 'rgba(3,2,6,0.26)');
-  grd.addColorStop(1, 'rgba(3,2,6,0.62)');
-  g.fillStyle = grd; g.fillRect(0, 0, w, h);
-  return PIXI.Texture.from(c);
-}
-
-// Textura de cono para la sombra proyectada: negra OPACA en la base (los pies) y
-// transparente + ancha en la punta. Da el efecto "mas oscura cerca de los pies" y
-// la forma conica que se ensancha al alejarse.
-function makeShadowConeTex(size) {
-  const c = document.createElement('canvas'); c.width = c.height = size;
-  const g = c.getContext('2d');
-  const grad = g.createLinearGradient(0, size, 0, 0); // base abajo -> punta arriba
-  grad.addColorStop(0, 'rgba(0,0,0,1)');
-  grad.addColorStop(0.55, 'rgba(0,0,0,0.5)');
-  grad.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = grad;
-  const cx = size / 2, baseHalf = size * 0.10, tipHalf = size * 0.46;
-  g.beginPath();
-  g.moveTo(cx - baseHalf, size); g.lineTo(cx + baseHalf, size);
-  g.lineTo(cx + tipHalf, 0); g.lineTo(cx - tipHalf, 0);
-  g.closePath(); g.fill();
-  return PIXI.Texture.from(c);
-}
-
 // ---------------------------------------------------------------------
 // Oclusion de luz por raymarch (fase 2). Filtro custom WebGL aplicado a cada sprite
 // de luz: por cada pixel marcha un rayo hacia el centro de la luz a traves de la
@@ -1479,62 +1446,19 @@ function buildLighting() {
     [0.88, 'rgba(255,255,255,0.02)'],
     [1, 'rgba(255,255,255,0)'],
   ], 128);
-  const shadowCone = makeShadowConeTex(128);
-  // escena de luz que se renderiza a un buffer (lightRT) cada frame: un fondo ambiente
-  // opaco + las luces aditivas (con oclusion por muros). El resultado es "cuanta luz
-  // recibe cada pixel de la pantalla".
-  const lightScene = new PIXI.Container();
-  const ambient = new PIXI.Sprite(PIXI.Texture.WHITE); // base ambiente (multiplicador minimo)
-  const lightsLayer = new PIXI.Container();
-  lightScene.addChild(ambient, lightsLayer);
   // sprite que MULTIPLICA la escena ya dibujada por el buffer de luz (composicion realista):
   // zona sin luz -> escena * ambiente (oscura), zona iluminada -> escena * ~1 (color real).
   const composite = new PIXI.Sprite(PIXI.Texture.EMPTY);
   composite.blendMode = 'multiply';
-  // Fase 2: pase de luz analitico. Sprite blanco fullscreen con el filtro de luz;
-  // se renderiza a lightRT y reemplaza a [ambient + lightsLayer]. El filtro computa
-  // ambiente + todas las luces por pixel (ver makeLightingFilter).
+  // pase de luz analitico: sprite blanco fullscreen con el filtro de luz; se renderiza a
+  // lightRT (ver makeLightingFilter / drawPixiLighting).
   const lightPass = new PIXI.Sprite(PIXI.Texture.WHITE);
   const lightingFilter = makeLightingFilter();
   lightPass.filters = [lightingFilter];
   // buffer de normales del entorno: fondo plano + el sprite de normales (con transform de mundo).
   const flatBg = new PIXI.Sprite(flatNormalSource());
-  return { lightTex, shadowCone, lightScene, ambient, lightsLayer, composite,
-           lightPass, lightingFilter, flatBg,
-           rt: null, rtW: 0, rtH: 0, normalRT: null, pool: [], poolUsed: 0 };
-}
-
-function pixiLight(L, x, y, radius, tint, alpha, occ) {
-  let s = L.pool[L.poolUsed++];
-  if (!s) {
-    s = new PIXI.Sprite(L.lightTex);
-    s.anchor.set(0.5);
-    s.blendMode = 'add';
-    L.lightsLayer.addChild(s);
-    L.pool.push(s);
-  }
-  s.visible = true;
-  s.position.set(x, y);
-  s.scale.set((radius * 2) / L.lightTex.width);
-  s.tint = tint;
-  s.alpha = alpha;
-  // oclusion por muros (opcional): occ = { wx, wy, r (radio mundo), levelPxW, levelPxH }
-  if (occ && L.wallMaskSource) {
-    if (!s._occ) s._occ = makeOcclusionFilter();
-    const u = s._occ.resources.occlusionUniforms.uniforms;
-    u.uLightWorld[0] = occ.wx; u.uLightWorld[1] = occ.wy;
-    u.uLevelPx[0] = occ.levelPxW; u.uLevelPx[1] = occ.levelPxH;
-    u.uWorldRadius = occ.r;
-    u.uNearMargin = occ.nm != null ? occ.nm : 2;
-    u.uPen = occ.pen != null ? occ.pen : 5;
-    u.uTime = occ.time != null ? occ.time : 0;
-    u.uSeed = occ.seed != null ? occ.seed : 0;
-    u.uShape = occ.shape != null ? occ.shape : 0;
-    s._occ.resources.uWallMask = L.wallMaskSource;
-    s.filters = [s._occ];
-  } else if (s.filters) {
-    s.filters = null;
-  }
+  return { lightTex, composite, lightPass, lightingFilter, flatBg,
+           rt: null, rtW: 0, rtH: 0, normalRT: null };
 }
 
 // Junta TODAS las luces del frame como descriptores en coordenadas MUNDO (radio en
