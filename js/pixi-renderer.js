@@ -443,12 +443,9 @@ function drawPixiTiles() {
     if (PR.tileCache && PR.tileCache.topTex) PR.tileCache.topTex.destroy(true);
     if (PR.tileCache && PR.tileCache.normalTex) PR.tileCache.normalTex.destroy(true);
     if (PR.tileCache && PR.tileCache.wallMaskTex) {
-      // soltar la referencia de los filtros de luz al source viejo ANTES de destruirlo,
-      // si no, al cambiar de piso el filtro pooled apunta a textura muerta -> crash.
-      if (PR.lights) for (const s of PR.lights.pool) {
-        if (s._occ) s._occ.resources.uWallMask = PIXI.Texture.WHITE.source;
-        s.filters = null;
-      }
+      // soltar la referencia al source viejo ANTES de destruirlo: si no, al cambiar de piso
+      // el filtro apunta a textura muerta y Pixi crashea al swappearla -> null.
+      if (PR.lights && PR.lights.lightingFilter) PR.lights.lightingFilter.resources.uWallMask = PIXI.Texture.WHITE.source;
       PR.tileCache.wallMaskTex.destroy(true);
     }
     buildPixiTileCache(lvl, zoneNow, pal);
@@ -1561,15 +1558,21 @@ function drawPixiLighting() {
   // ----- buffer de NORMALES del entorno (Fase 2B): fondo plano + sprite de normales con
   // transform de mundo -> screen-space. Lo samplea el shader para el N·L direccional. -----
   if (!L.normalRT || L.normalRT.width !== W || L.normalRT.height !== H) {
-    if (L.normalRT) L.normalRT.destroy(true);
+    if (L.normalRT) {
+      // soltar el source viejo del filtro ANTES de destruirlo: si no, al setear el nuevo
+      // Pixi intenta liberar el binding del viejo ya destruido -> crash null en resize.
+      L.lightingFilter.resources.uNormalTex = flatNormalSource();
+      L.normalRT.destroy(true);
+    }
     L.normalRT = PIXI.RenderTexture.create({ width: W, height: H });
+    // setear el sampler al crear el RT (mismo objeto entre frames; solo cambia su contenido).
+    L.lightingFilter.resources.uNormalTex = L.normalRT.source;
   }
   L.flatBg.width = W; L.flatBg.height = H;
   PR.normalWorld.scale.set(ZOOM);
   PR.normalWorld.position.set(-cam.x * ZOOM, -cam.y * ZOOM);
   renderer.render({ container: L.flatBg, target: L.normalRT, clear: true });
   renderer.render({ container: PR.normalWorld, target: L.normalRT, clear: false });
-  L.lightingFilter.resources.uNormalTex = L.normalRT.source;
 
   // volcar las luces (ya juntadas por gatherFrameLights) al shader analitico
   const lf = L.lightingFilter.resources.lightUniforms.uniforms;
