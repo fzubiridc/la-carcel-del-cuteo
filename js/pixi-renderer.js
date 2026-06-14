@@ -14,6 +14,8 @@ const LIGHT_KNOB_DEFAULTS = {
   bloomOn: false, bloomThresh: 0.78, bloomInt: 1.5, bloomBlur: 16,
   normalStrength: 0, normalFlipY: 1,
   shadowY: 0, shadowSize: 9.5, shadowAlpha: 1, shadowWide: 3.5,
+  // sombra proyectada de cuerpos (billboards): proyeccion de luz puntual (F1)
+  shadowLightHt: 64, shadowMinGap: 4, shadowMaxLen: 64, shadowCastAlpha: 0.7, shadowFalloff: 1.2,
 };
 function loadKnobs() {
   let saved = {};
@@ -62,6 +64,10 @@ async function initPixiRenderer(view) {
     graphicsUsed: 0,
     shadePool: [],   // filtros de sombreado de cuerpo, uno por entidad/frame
     shadeUsed: 0,
+    meshPool: [],    // PerspectiveMesh para sombras proyectadas (cono de luz puntual)
+    meshUsed: 0,
+    shadowTex: new Map(),  // sombra horneada (silueta negra + degrade de fuerza) por textura fuente
+    shadowGrad: null,      // degrade vertical reusable (mascara del horneado)
     lights: null, // capa de luz/oscuridad (ver buildLighting)
     // knobs de luz tuneables en vivo (panel con tecla K). El render lee de aca.
     // Carga de localStorage si hay config guardada; si no, los defaults.
@@ -111,6 +117,11 @@ function buildLightKnobs() {
     ['shadowSize', 'Sombra: tamano', 3, 16, 0.5],
     ['shadowWide', 'Sombra: ancho', 1.5, 5, 0.1],
     ['shadowAlpha', 'Sombra: intensidad', 0, 1, 0.02],
+    ['shadowCastAlpha', 'Sombra proy: fuerza', 0, 2, 0.05],
+    ['shadowLightHt', 'Sombra proy: altura luz', 16, 160, 2],
+    ['shadowMaxLen', 'Sombra proy: largo max', 16, 160, 2],
+    ['shadowMinGap', 'Sombra proy: gap min', 1, 20, 1],
+    ['shadowFalloff', 'Sombra proy: caida dist', 0.3, 3, 0.1],
   ];
   const TOGGLES = [['bloomOn', 'Bloom on'], ['normalFlipY', 'Normal flip Y']];
   const p = document.createElement('div');
@@ -188,6 +199,7 @@ function renderPixi() {
   PR.spriteUsed = 0;
   PR.graphicsUsed = 0;
   PR.shadeUsed = 0;
+  PR.meshUsed = 0;
   PR.bodyShadeFilter = null;
   PR.objects.removeChildren();
   PR.shadows.removeChildren();
@@ -535,6 +547,9 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
   const wallMaskTex = PIXI.Texture.from(maskCv);
   if (wallMaskTex.source) wallMaskTex.source.scaleMode = 'nearest';
 
+  // antorchas explicitas del nivel (p.ej. el cuarto de test): se suman a las de pared
+  if (lvl.extraTorches) for (const t of lvl.extraTorches) torches.push(t);
+
   PR.tileCache = { lvl, zoneIdx: state.run.zoneIdx, exitOpen: lvl.exitOpen, tex, torches, topTex, wallMaskTex, normalTex };
 }
 
@@ -651,23 +666,15 @@ function drawPixiDecorProp(d) {
 // (como las siluetas del jugador). Sin luz cerca, una silueta tenue y achatada que ancla
 // al piso. Va en PR.shadows (blureado, debajo de los actores).
 function drawPixiDecorShadow(x, y, tex, S, anchorY) {
+  const w = tex.width * S, h = tex.height * S;
   const lights = occludingLightsFor(x, y, 2);
   if (!lights.length) {
-    pixiSpriteFromTexture(PR.shadows, tex, x, y + 1, {
-      anchor: [0.5, anchorY], scale: [S * 0.95, S * 0.34], tint: 0x000000, alpha: 0.26,
-    });
+    // sin luz cerca: leve sombra de contacto que ancla el prop al piso (sin silueta achatada)
+    pixiContactBlob(x, y, w * 0.34, { alpha: 0.2, wide: 1.0, tall: 0.5 });
     return;
   }
   const fade = 1 / Math.sqrt(lights.length);
-  for (const L of lights) {
-    pixiSpriteFromTexture(PR.shadows, tex, x, y, {
-      anchor: [0.5, anchorY],
-      scale: [S * 0.95, S * (0.5 + L.prox * 1.0)],   // se estira al acercarse a la luz
-      rotation: Math.atan2(L.dx, -L.dy),             // el "alto" del prop apunta lejos de la luz
-      tint: 0x000000,
-      alpha: (0.34 + 0.42 * L.prox) * (L.power || 1) * fade,
-    });
-  }
+  for (const L of lights) drawCastCone(PR.shadows, tex, x, y, w * 0.5, h, L, fade);
 }
 
 // Filtro de sombreado de cuerpo para un actor en (fx,fy): direccion HACIA su luz dominante
@@ -758,29 +765,128 @@ function occludingLightsFor(fx, fy, maxN) {
     const R = L.radius * 1.15;
     if (d2 >= R * R || d2 < 196) continue; // fuera de rango, o a <14px (su propia luz)
     const d = Math.sqrt(d2);
-    out.push({ dx: dx / d, dy: dy / d, prox: 1 - d / R, power: Math.min(1, L.intensity * 0.74), d2 });
+    out.push({ dx: dx / d, dy: dy / d, prox: 1 - d / R, power: Math.min(1, L.intensity * 0.74), d2, d, height: L.height });
   }
   out.sort((a, b) => a.d2 - b.d2);
   if (out.length > (maxN || 3)) out.length = maxN || 3;
   return out;
 }
 
-// Silueta del PNG: redibuja la imagen del personaje en negro, anclada en los pies,
-// rotada para "acostarse" en direccion contraria a la luz y estirada a lo largo.
-// MANTIENE la forma reconocible del personaje (sin deformar). El fade (alpha por
-// proximidad) y el circulo de contacto completan el efecto.
+// ===== Sombra proyectada de luz PUNTUAL (cono) =====================================
+// Una luz puntual proyecta una sombra que (a) se ENSANCHA con la distancia al objeto
+// (rayos divergentes -> cono/trapecio) y (b) PIERDE FUERZA hacia la punta (mas
+// transparente). Lo resolvemos con un PerspectiveMesh (4 vertices: base angosta en los
+// pies -> punta ancha lejos de la luz) cuya textura es una "sombra horneada": la silueta
+// del sprite en negro, con un degrade vertical de alpha (opaca en los pies -> tenue en la
+// cabeza). Asi la divergencia la da el cono y el desvanecimiento ya viene en la textura.
+
+// Degrade vertical reusable (mascara del horneado): blanco opaco abajo (pies, v=1) ->
+// casi transparente arriba (cabeza, v=0). Se usa como alpha-mask del silueteado.
+function shadowGradientTex() {
+  if (PR.shadowGrad) return PR.shadowGrad;
+  const c = document.createElement('canvas');
+  c.width = 4; c.height = 64;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 0, 64);
+  grd.addColorStop(0, 'rgba(255,255,255,0.28)');   // punta (cabeza): tenue pero presente
+  grd.addColorStop(0.5, 'rgba(255,255,255,0.72)');
+  grd.addColorStop(1, 'rgba(255,255,255,1)');       // base (pies): plena
+  g.fillStyle = grd; g.fillRect(0, 0, 4, 64);
+  PR.shadowGrad = PIXI.Texture.from(c);
+  return PR.shadowGrad;
+}
+
+// Sombra horneada para una textura fuente: silueta negra * degrade. Se cachea por textura
+// (las texturas de pixiTexture/pixiFrameTexture son estables -> el horneo ocurre 1 sola vez).
+function shadowTexFor(tex) {
+  if (!tex || !tex.source) return null;
+  let baked = PR.shadowTex.get(tex);
+  if (baked) return baked;
+  const w = Math.max(1, Math.round(tex.width)), h = Math.max(1, Math.round(tex.height));
+  const rt = PIXI.RenderTexture.create({ width: w, height: h });
+  rt.source.scaleMode = 'nearest';
+  const cont = new PIXI.Container();
+  const sil = new PIXI.Sprite(tex);
+  sil.tint = 0x000000; sil.anchor.set(0, 0);
+  const mask = new PIXI.Sprite(shadowGradientTex());
+  mask.width = w; mask.height = h;
+  sil.mask = mask;
+  cont.addChild(mask, sil);
+  PR.app.renderer.render({ container: cont, target: rt, clear: true });
+  sil.mask = null;
+  cont.destroy({ children: true });   // libera los sprites; NO sus texturas (compartidas)
+  PR.shadowTex.set(tex, rt);
+  return rt;
+}
+
+// Saca/crea un PerspectiveMesh del pool y lo apunta a (tex, esquinas c=[x0,y0..x3,y3]).
+function pixiShadowMesh(parent, tex, c, alpha) {
+  let m = PR.meshPool[PR.meshUsed++];
+  if (!m) {
+    m = new PIXI.PerspectiveMesh({
+      texture: tex, verticesX: 6, verticesY: 10,
+      x0: c[0], y0: c[1], x1: c[2], y1: c[3], x2: c[4], y2: c[5], x3: c[6], y3: c[7],
+    });
+    PR.meshPool.push(m);
+  } else {
+    m.visible = true;
+    m.texture = tex;
+    m.setCorners(c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
+  }
+  m.position.set(0, 0);
+  m.tint = 0xffffff;       // la textura ya es negra
+  m.alpha = alpha;
+  m.blendMode = 'normal';
+  parent.addChild(m);
+  return m;
+}
+
+// Dibuja la sombra proyectada de UNA luz puntual (F1). Proyeccion por triangulos
+// semejantes: para una luz a altura zL sobre el piso y un objeto de altura H a distancia
+// horizontal d, la sombra en el piso (en direccion luz->objeto) mide L = d*H/(zL-H).
+// -> cerca de la luz corta, lejos larga, objeto alto mas larga. La divergencia (punta mas
+// ancha) es la magnificacion proyectiva de la cabeza: farH = halfW*zL/(zL-H).
+// 'H' es el alto del objeto en px-mundo (del PNG); el fade a lo largo viene horneado en bk.
+function drawCastCone(parent, srcTex, baseX, baseY, halfW, H, light, fade) {
+  const bk = shadowTexFor(srcTex);
+  if (!bk) return;
+  const K = PR.knobs;
+  const ax = light.dx, ay = light.dy;     // direccion luz->entidad = hacia donde cae la sombra
+  const px = -ay, py = ax;                 // perpendicular (ancho)
+  const pw = (light.power == null ? 1 : light.power);
+  const d = light.d != null ? light.d : 0;
+  // altura de luz PARA LA SOMBRA (knob propio, independiente del 'height' del pool de luz);
+  // se fuerza zL > H para que el denominador sea positivo y la proyeccion no explote.
+  const zL = Math.max(K.shadowLightHt, H + K.shadowMinGap);
+  const denom = zL - H;
+  const Llen = Math.min(d * H / denom, K.shadowMaxLen);
+  if (Llen < 1) return;                                   // degenerada: no dibujar (evita flicker)
+  const nearH = halfW;                                    // base = footprint del objeto
+  const farH = halfW * (zL / denom);                      // magnificacion proyectiva de la cabeza
+  // intensidad CAE con la distancia a la luz (prox: 1 en la luz -> 0 en el borde del radio):
+  // cerca = oscura, lejos = tenue y se apaga sola en el borde (sin pop, ramp gradual).
+  const prox = light.prox != null ? light.prox : 0;
+  const falloff = Math.pow(prox, K.shadowFalloff);
+  const a = Math.min(1, K.shadowCastAlpha * pw * falloff * (fade == null ? 1 : fade));
+  if (a < 0.012) return;                                  // invisible: no dibujar
+  const bx = baseX - ax * 2, by = baseY - ay * 2;         // borde cercano ~2px detras del pie (funde con el contact blob)
+  const fx = baseX + ax * Llen, fy = baseY + ay * Llen;
+  pixiShadowMesh(parent, bk, [
+    fx - px * farH, fy - py * farH,        // TL (cabeza, lejos) - lado izq
+    fx + px * farH, fy + py * farH,        // TR (cabeza, lejos) - lado der
+    bx + px * nearH, by + py * nearH,      // BR (pies, cerca) - lado der
+    bx - px * nearH, by - py * nearH,      // BL (pies, cerca) - lado izq
+  ], a);
+}
+
+// Silueta del PNG proyectada como cono de luz puntual (ver drawCastCone). El fade por
+// distancia esta horneado; aca solo modulamos por proximidad/llama. El circulo de
+// contacto (pixiContactBlob) ancla la base.
 function drawPixiSilhouette(img, footX, footY, S, light, fade) {
   const tex = pixiTexture(img);
   if (!tex) return;
-  const w = img.naturalWidth || 120, h = img.naturalHeight || 120;
-  const lenMul = 0.9 + light.prox * 1.2; // se estira a lo largo al acercarse a la luz
-  pixiSpriteFromTexture(PR.shadows, tex, footX, footY, {
-    anchor: [60 / w, 90 / h],            // pie del rig V2 = (60,90)
-    scale: [S * 0.95, S * lenMul],
-    rotation: Math.atan2(light.dx, -light.dy), // la cabeza apunta lejos de la luz
-    tint: 0x000000,
-    alpha: light.prox * 0.6 * (light.power || 1) * (fade == null ? 1 : fade), // respira con la llama
-  });
+  const w = img.naturalWidth || img.width || 120, h = img.naturalHeight || img.height || 120;
+  drawCastCone(PR.shadows, tex, footX, footY, w * S * 0.5, h * S, light, fade == null ? 1 : fade);
 }
 
 function drawPixiPlayer(p) {

@@ -601,6 +601,54 @@ function nextFloor() {
   saveRunToStorage();
 }
 
+// DEV: cuarto vacio grande con antorchas en las paredes + una central, para testear sombras.
+// Llamar desde consola: testRoom()  (o testRoom(60, 44) para otro tamano).
+function testRoom(W = 48, H = 36) {
+  if (!state.run || !state.player) startRun('mago'); // necesita run + jugador
+  // mapa: borde de muro de 2 tiles, interior piso (0=muro, 1=piso, igual que genDungeon)
+  const map = Array.from({ length: H }, () => new Array(W).fill(0));
+  for (let ty = 2; ty < H - 2; ty++)
+    for (let tx = 2; tx < W - 2; tx++) map[ty][tx] = 1;
+  const cx = W >> 1, cy = H >> 1;
+
+  // antorchas: en las 4 paredes interiores (cada ~7 tiles) + una en el medio
+  const extraTorches = [];
+  let seed = 1;
+  for (let tx = 5; tx < W - 5; tx += 7) {
+    extraTorches.push([tx * TILE + TILE / 2, 1 * TILE, seed++]);        // pared norte
+    extraTorches.push([tx * TILE + TILE / 2, (H - 2) * TILE, seed++]);  // pared sur
+  }
+  for (let ty = 5; ty < H - 5; ty += 7) {
+    extraTorches.push([1 * TILE + TILE / 2, ty * TILE, seed++]);        // pared oeste
+    extraTorches.push([(W - 2) * TILE + TILE / 2, ty * TILE, seed++]);  // pared este
+  }
+  extraTorches.push([cx * TILE, cy * TILE, 999]);                       // antorcha CENTRAL
+
+  const lvl = {
+    map, W, H,
+    start: { x: (cx - 6) * TILE, y: cy * TILE }, // nace corrido del centro para ver su sombra
+    exit: { tx: cx, ty: cy }, exitOpen: true,
+    spawns: [], chests: [], groundItems: [], lockedChest: null,
+    altar: null, evento: null, decor: [], solidDecor: new Set(),
+    isBoss: false, boss: null, extraTorches,
+  };
+  state.level = lvl;
+  state.enemies = []; state.projs = []; state.pickups = [];
+  state.particles = []; state.floaters = []; state.fx = []; state.motes = [];
+  state.explored = Array.from({ length: H }, () => new Array(W).fill(true));
+  state.minimapDirty = true;
+
+  const p = state.player;
+  p.x = lvl.start.x; p.y = lvl.start.y; p.ifr = 1; p.hasKey = false;
+  state.cam.x = p.x - canvas.width / ZOOM / 2;
+  state.cam.y = p.y - canvas.height / ZOOM / 2;
+
+  if (typeof PR !== 'undefined') PR.tileCache = null; // forzar rebuild de tiles/antorchas/wallMask
+  toast && toast('Cuarto de test cargado', '#8ad8ff');
+  return lvl;
+}
+if (typeof window !== 'undefined') window.testRoom = testRoom;
+
 function onBossKilled(boss) {
   const run = state.run;
   const lvl = state.level;
