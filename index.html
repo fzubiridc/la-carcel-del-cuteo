@@ -393,8 +393,18 @@
   #btndash{ right:calc(128px + var(--sar)); bottom:calc(86px + var(--sab)); width:56px; height:56px; font-size:11px; }
   #btnpot{ right:calc(40px + var(--sar)); bottom:calc(210px + var(--sab)); width:48px; height:48px; font-size:16px; }
   #btnint{ right:calc(150px + var(--sar)); bottom:calc(210px + var(--sab)); width:48px; height:48px; font-size:14px; }
+  /* inventario: arriba a la izquierda (fuera de la zona del joystick, que es el 65% inferior) */
+  #btninv{ left:calc(12px + var(--sal)); top:calc(10px + env(safe-area-inset-top)); width:48px; height:48px; font-size:22px; }
   /* joystick: respetar el inset izquierdo/inferior del dispositivo */
   #joyzone{ padding-left:var(--sal); padding-bottom:var(--sab); }
+  /* botón cerrar del inventario (✕): vive DENTRO de #inv (z-index 20), así queda
+     por encima del overlay. Sirve en táctil (donde no hay tecla Esc) y en desktop. */
+  .invclose{ position:absolute; top:max(12px, 2vh); right:max(12px, 2vh);
+    width:52px; height:52px; border-radius:50%; background:#16131cdd;
+    border:2px solid #5a4a2e; color:#e6ddcf; font-size:24px; font-weight:bold;
+    cursor:pointer; z-index:40; display:flex; align-items:center; justify-content:center;
+    line-height:1; -webkit-tap-highlight-color:transparent; }
+  .invclose:active{ background:#2a2336; transform:scale(0.92); }
 </style>
 </head>
 <body>
@@ -460,6 +470,7 @@
   </div>
   <div id="touchui" class="hidden">
     <div id="joyzone"><div id="joybase" class="hidden"><div id="joyknob"></div></div></div>
+    <button class="tbtn" id="btninv">🎒</button>
     <button class="tbtn" id="btnatk">ATK</button>
     <button class="tbtn" id="btnnova">✦</button>
     <button class="tbtn" id="btndash">DASH</button>
@@ -523,8 +534,8 @@
 <script src="js/dungeon.js?v=164"></script>
 <script src="js/items.js?v=161"></script>
 <script src="js/entities.js?v=168"></script>
-<script src="js/ui.js?v=161"></script>
+<script src="js/ui.js?v=162"></script>
 <script src="js/pixi-renderer.js?v=86"></script>
-<script src="js/main.js?v=177"></script>
+<script src="js/main.js?v=178"></script>
 </body>
 </html>

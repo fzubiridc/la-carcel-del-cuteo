@@ -408,6 +408,14 @@ function renderInv() {
   const inv = $('inv');
   inv.innerHTML = '';
 
+  // botón cerrar (✕): imprescindible en táctil (sin tecla Esc); también sirve en desktop
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'invclose';
+  closeBtn.textContent = '✕';
+  closeBtn.setAttribute('aria-label', 'cerrar inventario');
+  closeBtn.addEventListener('click', () => toggleInv());
+  inv.appendChild(closeBtn);
+
   const title = document.createElement('div');
   title.className = 'invtitle'; title.textContent = 'INVENTARIO';
   const hint = document.createElement('div');

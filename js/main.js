@@ -268,6 +268,7 @@ function bindTouch() {
 
   bind('btndash', () => tryDash());
   bind('btnnova', () => tryNova());
+  bind('btninv', () => toggleInv());
   bind('btnpot', () => drinkPotion());
   bind('btnint', () => tryInteract());
 }
