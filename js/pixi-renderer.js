@@ -1228,10 +1228,13 @@ void main(void){
     float sh = 1.0;
     if(uLightColor[i].a>0.5){
       float nm=uLightParam[i].w;
-      sh = (rayClear(worldPos, uLightPos[i]+vec2(uPen,0.0), nm, jit)
-          + rayClear(worldPos, uLightPos[i]-vec2(uPen,0.0), nm, jit)
-          + rayClear(worldPos, uLightPos[i]+vec2(0.0,uPen), nm, jit)
-          + rayClear(worldPos, uLightPos[i]-vec2(0.0,uPen), nm, jit))*0.25;
+      // penumbra PERPENDICULAR a la direccion de la luz (no en ejes fijos del mundo): con
+      // offsets en ejes, al alinearte con la antorcha (misma fila/columna) los rayos
+      // degeneran y aparece una linea horizontal/vertical cruzando la pantalla.
+      vec2 perp = (dist > 0.001 ? vec2(-d.y, d.x) / dist : vec2(1.0, 0.0)) * uPen;
+      sh = (rayClear(worldPos, uLightPos[i], nm, jit)
+          + rayClear(worldPos, uLightPos[i] + perp, nm, jit)
+          + rayClear(worldPos, uLightPos[i] - perp, nm, jit)) * 0.33333;
     }
     lit += uLightColor[i].rgb * uLightParam[i].z * atten * ndl * sh;
   }
