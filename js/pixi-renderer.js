@@ -41,6 +41,8 @@ async function initPixiRenderer(view) {
     spriteUsed: 0,
     graphicsPool: [],
     graphicsUsed: 0,
+    shadePool: [],   // filtros de sombreado de cuerpo, uno por entidad/frame
+    shadeUsed: 0,
     lights: null, // capa de luz/oscuridad (ver buildLighting)
   };
   PR.world.addChild(PR.tiles, PR.torches);
@@ -86,6 +88,8 @@ function renderPixi() {
   if (!PR) return false;
   PR.spriteUsed = 0;
   PR.graphicsUsed = 0;
+  PR.shadeUsed = 0;
+  PR.bodyShadeFilter = null;
   PR.silUsed = 0;
   PR.objects.removeChildren();
   PR.shadows.removeChildren();
@@ -159,6 +163,7 @@ function pixiSpriteFromTexture(parent, tex, x, y, opt) {
     s.tint = 0xffffff;
     s.anchor.set(0, 0);
     s.blendMode = 'normal';
+    s.filters = null;
   }
   s.position.set(x, y);
   if (opt && opt.anchor) s.anchor.set(opt.anchor[0], opt.anchor[1]);
@@ -167,6 +172,8 @@ function pixiSpriteFromTexture(parent, tex, x, y, opt) {
   if (opt && opt.alpha != null) s.alpha = opt.alpha;
   if (opt && opt.tint != null) s.tint = opt.tint; // != null: 0x000000 (negro) es falsy, no usar truthy
   else if (parent === PR.objects && PR.actorTint != null) s.tint = PR.actorTint; // luz por-pie (Fase 3)
+  // sombreado direccional del cuerpo (normales de entidad): solo en sprites de actores.
+  if (parent === PR.objects && PR.bodyShadeFilter) s.filters = [PR.bodyShadeFilter];
   parent.addChild(s);
   return s;
 }
@@ -187,6 +194,7 @@ function pixiSprite(parent, img, x, y, w, h, opt) {
     s.scale.set(1);
     s.tint = 0xffffff;
     s.blendMode = 'normal';
+    s.filters = null;
   }
   s.position.set(x, y);
   s.width = w == null ? (img.naturalWidth || img.width) : w;
@@ -197,6 +205,7 @@ function pixiSprite(parent, img, x, y, w, h, opt) {
   if (opt && opt.rotation) s.rotation = opt.rotation;
   if (opt && opt.tint != null) s.tint = opt.tint; // != null: 0x000000 (negro) es falsy, no usar truthy
   else if (parent === PR.objects && PR.actorTint != null) s.tint = PR.actorTint; // luz por-pie (Fase 3)
+  if (parent === PR.objects && PR.bodyShadeFilter) s.filters = [PR.bodyShadeFilter]; // sombreado de cuerpo
   parent.addChild(s);
   return s;
 }
@@ -467,12 +476,29 @@ function drawPixiObjects() {
     // Fase 3: tint = luz en el pie del actor -> se ilumina como objeto parado ahi, no como
     // suelo (evita el efecto "transparente"/dos-tonos al tapar la union muro/piso).
     PR.actorTint = lightAtFoot(e.x, e.y);
+    // normales de entidad: sombreado direccional del cuerpo hacia la luz dominante.
+    PR.bodyShadeFilter = bodyShadeFor(e.x, e.y + 5);
     if (e._merchant) drawPixiMerchant(e._merchant);
     else if (e._chest) drawPixiChest(e._chest, e._gold);
     else if (e === p) drawPixiPlayer(p);
     else drawPixiEnemy(e);
   }
   PR.actorTint = 0xffffff;
+  PR.bodyShadeFilter = null;
+}
+
+// Filtro de sombreado de cuerpo para un actor en (fx,fy): direccion HACIA su luz dominante
+// + un leve volumen base desde arriba. Devuelve un filtro del pool (o null si esta off).
+function bodyShadeFor(fx, fy) {
+  if (PR.bodyShadeOn === false) return null;
+  const ls = occludingLightsFor(fx, fy, 1);
+  let lx = 0, ly = -1, sh = 0.12; // base: leve relieve desde arriba
+  if (ls.length) { lx = -ls[0].dx; ly = -ls[0].dy; sh = 0.15 + 0.75 * ls[0].prox * ls[0].power; }
+  const f = PR.shadePool[PR.shadeUsed] || (PR.shadePool[PR.shadeUsed] = makeShadeFilter());
+  PR.shadeUsed++;
+  const u = f.resources.shadeUniforms.uniforms;
+  u.uLightDir[0] = lx; u.uLightDir[1] = ly; u.uShade = sh;
+  return f;
 }
 
 // Mercader: NPC junto a la escalera. Iba perdido en Pixi (solo se dibujaba en canvas).
@@ -1359,6 +1385,43 @@ function makeLightingFilter() {
     },
   });
   f.padding = 0;
+  return f;
+}
+
+// ---------------------------------------------------------------------
+// Sombreado direccional del cuerpo de personajes (normales de entidad). Saca el
+// relieve por Sobel del propio sprite (luminancia) y lo ilumina con N·L hacia la luz
+// dominante -> lado iluminado mas claro / opuesto mas oscuro. Un filtro por entidad.
+// ---------------------------------------------------------------------
+const SHADE_FRAG = `#version 300 es
+precision highp float;     // uInputSize es highp en el vertex (OCCLUSION_VERT): igualar o no linkea
+in vec2 vTextureCoord;
+out vec4 finalColor;
+uniform sampler2D uTexture;
+uniform vec4 uInputSize;   // .zw = 1/tamano (texel) para el Sobel
+uniform vec2 uLightDir;    // direccion 2D HACIA la luz (screen-space), normalizada
+uniform float uShade;      // fuerza del sombreado
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+void main(void){
+  vec4 c = texture(uTexture, vTextureCoord);
+  if (c.a < 0.02) { finalColor = c; return; }
+  vec2 tx = uInputSize.zw;
+  float lx1 = luma(texture(uTexture, vTextureCoord + vec2(tx.x, 0.0)).rgb);
+  float lx0 = luma(texture(uTexture, vTextureCoord - vec2(tx.x, 0.0)).rgb);
+  float ly1 = luma(texture(uTexture, vTextureCoord + vec2(0.0, tx.y)).rgb);
+  float ly0 = luma(texture(uTexture, vTextureCoord - vec2(0.0, tx.y)).rgb);
+  vec2 grad = vec2(lx1 - lx0, ly1 - ly0);     // gradiente de altura
+  float ndl = dot(-grad, uLightDir);          // relieve que mira a la luz -> +
+  float shade = clamp(1.0 + uShade * ndl, 0.55, 1.7);
+  finalColor = vec4(c.rgb * shade, c.a);      // premultiplied: escalar rgb conserva alpha
+}
+`;
+function makeShadeFilter() {
+  const f = new PIXI.Filter({
+    glProgram: PIXI.GlProgram.from({ vertex: OCCLUSION_VERT, fragment: SHADE_FRAG, name: 'actor-shade' }),
+    resources: { shadeUniforms: { uLightDir: { value: new Float32Array([0, -1]), type: 'vec2<f32>' }, uShade: { value: 0, type: 'f32' } } },
+  });
+  f.padding = 2; // borde para el Sobel en los bordes del sprite (da rim sutil)
   return f;
 }
 
