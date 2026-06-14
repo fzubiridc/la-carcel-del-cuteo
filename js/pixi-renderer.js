@@ -44,6 +44,14 @@ async function initPixiRenderer(view) {
     shadePool: [],   // filtros de sombreado de cuerpo, uno por entidad/frame
     shadeUsed: 0,
     lights: null, // capa de luz/oscuridad (ver buildLighting)
+    // knobs de luz tuneables en vivo (panel con tecla K). El render lee de aca.
+    knobs: {
+      exposure: 1.5, flatten: 1.3, ambient: 1.0,
+      playerInt: 1.30, playerRad: 42, playerHt: 28, playerY: 3,
+      torchInt: 1.35, torchRad: 70, torchHt: 44,
+      bloomOn: true, bloomThresh: 0.78, bloomInt: 1.5, bloomBlur: 18,
+      normalStrength: 4.5, normalFlipY: 1,
+    },
   };
   PR.world.addChild(PR.tiles, PR.torches);
   // capa de sombras con blur: difumina los bordes del blob de contacto y de la
@@ -63,6 +71,63 @@ async function initPixiRenderer(view) {
   PR.finalRoot = new PIXI.Container();
   PR.finalRoot.addChild(PR.bloom.sceneScreenSprite, PR.bloom.bloomScreenSprite, PR.screen);
   app.stage.addChild(PR.finalRoot);
+  if (typeof document !== 'undefined') buildLightKnobs();
+}
+
+// Panel de knobs de luz en vivo (toggle con tecla K). Edita PR.knobs; el render lee de ahi.
+function buildLightKnobs() {
+  if (document.getElementById('lightKnobs')) return;
+  const K = PR.knobs;
+  const SPECS = [
+    ['exposure', 'Exposure (tonemap)', 0.5, 3, 0.05],
+    ['ambient', 'Ambiente x', 0.3, 2.5, 0.05],
+    ['flatten', 'Achatado charco', 1, 2, 0.05],
+    ['playerInt', 'Jugador intensidad', 0, 2.5, 0.05],
+    ['playerRad', 'Jugador radio', 20, 90, 1],
+    ['playerHt', 'Jugador altura', 5, 80, 1],
+    ['playerY', 'Jugador offset Y', -10, 20, 1],
+    ['torchInt', 'Antorcha intensidad', 0, 2.5, 0.05],
+    ['torchRad', 'Antorcha radio', 30, 120, 1],
+    ['torchHt', 'Antorcha altura', 5, 90, 1],
+    ['bloomThresh', 'Bloom umbral', 0.3, 1, 0.01],
+    ['bloomInt', 'Bloom intensidad', 0, 3, 0.05],
+    ['bloomBlur', 'Bloom blur', 2, 40, 1],
+    ['normalStrength', 'Relieve (rebake)', 0, 12, 0.5, true],
+  ];
+  const TOGGLES = [['bloomOn', 'Bloom on'], ['normalFlipY', 'Normal flip Y']];
+  const p = document.createElement('div');
+  p.id = 'lightKnobs';
+  p.style.cssText = 'position:fixed;top:8px;left:8px;z-index:99999;background:rgba(8,6,12,0.92);color:#e8e8e8;font:12px monospace;padding:8px 10px;border:1px solid #5a4a2a;border-radius:6px;width:250px;max-height:90vh;overflow:auto;display:none';
+  let html = '<div style="font-weight:bold;color:#ffcf6a;margin-bottom:6px">LUZ — knobs (K para ocultar)</div>';
+  for (const [k, label, min, max, step] of SPECS) {
+    html += `<div style="margin:4px 0"><label>${label}: <span id="kv_${k}">${K[k]}</span></label>`
+      + `<input type="range" id="ks_${k}" min="${min}" max="${max}" step="${step}" value="${K[k]}" style="width:100%"></div>`;
+  }
+  for (const [k, label] of TOGGLES) {
+    html += `<div style="margin:4px 0"><label><input type="checkbox" id="kc_${k}" ${K[k] ? 'checked' : ''}> ${label}</label></div>`;
+  }
+  html += '<button id="kCopy" style="margin-top:6px;width:100%;cursor:pointer">Copiar config</button>';
+  p.innerHTML = html;
+  document.body.appendChild(p);
+  for (const [k, , , , , rebake] of SPECS) {
+    const s = document.getElementById('ks_' + k);
+    s.addEventListener('input', () => {
+      K[k] = parseFloat(s.value);
+      document.getElementById('kv_' + k).textContent = K[k];
+      if (rebake && PR) PR.tileCache = null; // re-hornea el normal map
+    });
+  }
+  for (const [k] of TOGGLES) {
+    document.getElementById('kc_' + k).addEventListener('change', (e) => { K[k] = e.target.checked ? (k === 'normalFlipY' ? 1 : true) : (k === 'normalFlipY' ? -1 : false); });
+  }
+  document.getElementById('kCopy').addEventListener('click', () => {
+    navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(K, null, 2));
+    document.getElementById('kCopy').textContent = 'Copiado!';
+    setTimeout(() => { const b = document.getElementById('kCopy'); if (b) b.textContent = 'Copiar config'; }, 1200);
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'k' || e.key === 'K') { p.style.display = (p.style.display === 'none') ? 'block' : 'none'; }
+  });
 }
 
 function resizePixiRenderer(w, h) {
@@ -395,7 +460,7 @@ function buildPixiTileCache(lvl, zoneNow, pal) {
   PR.tiles.addChild(sprite);
 
   // normal map del entorno (Sobel del albedo de tiles) -> relieve de muros/piso (Fase 2B).
-  const normalTex = makeNormalTex(cv, NORMAL_STRENGTH);
+  const normalTex = makeNormalTex(cv, (PR.knobs ? PR.knobs.normalStrength : NORMAL_STRENGTH));
   const normalSprite = new PIXI.Sprite(normalTex);
   normalSprite.roundPixels = true;
   PR.normalWorld.removeChildren();
@@ -605,15 +670,17 @@ function drawPixiPlayer(p) {
   // contacto se estira hacia la luz dominante para fundirse con su silueta.
   const lights = occludingLightsFor(p.x, fy, 3);
   const nearest = lights[0];
+  // blob de contacto: sombra de apoyo bajo los pies. (El "centro claro" del charco no era
+  // este blob sino el clamp a blanco de la luz; eso lo arregla el tonemap.)
   if (nearest) {
     pixiContactBlob(p.x, fy, 6, {
-      alpha: (0.52 + 0.16 * nearest.prox) * nearest.power,
+      alpha: (0.48 + 0.14 * nearest.prox) * nearest.power,
       wide: 2.7 + 1.5 * nearest.prox,
       tall: 1.15,
       rotation: Math.atan2(nearest.dy, nearest.dx),
     });
   } else {
-    pixiContactBlob(p.x, fy, 6, { alpha: 0.6, wide: 2.7, tall: 1.2 });
+    pixiContactBlob(p.x, fy, 6, { alpha: 0.55, wide: 2.7, tall: 1.2 });
   }
   const body = (typeof V2H !== 'undefined' && V2H.ready) ? pixiPlayerImage(p) : null;
   if (pixiImageReady(body) && lights.length) {
@@ -1195,6 +1262,8 @@ uniform vec2 uRender;           // tamano del render en px
 uniform float uZoom;
 uniform vec2 uLevelPx;          // tamano del nivel en px (para muestrear la mascara)
 uniform float uPen;             // penumbra (offset de los rayos de sombra)
+uniform float uFlatten;         // >1 = achata el charco de luz en Y (mas horizontal, vista 3/4)
+uniform float uExposure;        // tonemap: comprime brillos sin saturar a blanco (gradiente real)
 float hash21(vec2 p){ p=fract(p*vec2(123.34,345.45)); p+=dot(p,p+34.345); return fract(p.x*p.y); }
 // 1.0 si el rayo de 'from' a 'to' no pega muro; 0.0 si lo bloquea. jit rompe el banding.
 float rayClear(vec2 from, vec2 to, float nm, float jit){
@@ -1220,7 +1289,8 @@ void main(void){
     if(i>=uCount) break;
     vec2 d = uLightPos[i]-worldPos;
     float radius = uLightParam[i].x;
-    float dist = length(d);
+    // distancia ACHATADA en Y (charco eliptico/horizontal); la direccion L usa la d real.
+    float dist = length(vec2(d.x, d.y * uFlatten));
     if(dist>radius) continue;
     float atten = pow(max(1.0-dist/radius,0.0),2.0);     // falloff cuadratico a 0
     vec3 L = normalize(vec3(d, uLightParam[i].y));        // altura = angulo rasante
@@ -1238,7 +1308,15 @@ void main(void){
     }
     lit += uLightColor[i].rgb * uLightParam[i].z * atten * ndl * sh;
   }
-  float dith=(hash21(uv*1024.0)-0.5)/255.0;     // anti-posterizado
+  // tonemap que PRESERVA EL TONO (Reinhard/exposicion sobre la luminancia): comprime los
+  // brillos en vez de clampear a blanco. El charco mantiene su naranja del centro al borde
+  // (gradiente suave real, sin disco plano ni borde duro), y la sombra de contacto deja de
+  // lavarse. uExposure controla cuanto.
+  float lum = dot(lit, vec3(0.299, 0.587, 0.114));
+  float lum2 = 1.0 - exp(-lum * uExposure);
+  lit *= lum2 / max(lum, 0.0001);
+  // dither leve del buffer de luz (el anti-banding fuerte va en pantalla, post-multiply).
+  float dith=(hash21(floor(uv*uRender))-0.5)/255.0;
   finalColor = vec4(lit+dith, 1.0);
 }
 `;
@@ -1258,6 +1336,8 @@ function makeLightingFilter() {
         uLevelPx: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
         uPen:     { value: 5, type: 'f32' },
         uNormalY: { value: 1, type: 'f32' },
+        uFlatten: { value: 1.3, type: 'f32' },
+        uExposure: { value: 1.5, type: 'f32' },
       },
       uWallMask: PIXI.Texture.WHITE.source,
       uNormalTex: flatNormalSource(), // normal plana hasta tener el normalRT
@@ -1330,13 +1410,38 @@ function makeThresholdFilter() {
   f.padding = 0;
   return f;
 }
+// Dither de PANTALLA: +-0.5 LSB de ruido por-pixel sobre la imagen final. Rompe el escalon
+// de 8 bits del buffer de luz que, en gradientes muy suaves (bordes de charcos), se veia
+// como lineas que parpadeaban. Va post-multiply, asi que el albedo no lo atenua.
+const DITHER_FRAG = `#version 300 es
+precision highp float;
+in vec2 vTextureCoord;
+out vec4 finalColor;
+uniform sampler2D uTexture;
+uniform vec4 uInputSize;
+float hash21(vec2 p){ p=fract(p*vec2(123.34,345.45)); p+=dot(p,p+34.345); return fract(p.x*p.y); }
+void main(void){
+  vec4 c = texture(uTexture, vTextureCoord);
+  float d = (hash21(floor(vTextureCoord * uInputSize.xy)) - 0.5) / 255.0;
+  finalColor = vec4(c.rgb + d, c.a);
+}
+`;
+function makeDitherFilter() {
+  const f = new PIXI.Filter({
+    glProgram: PIXI.GlProgram.from({ vertex: OCCLUSION_VERT, fragment: DITHER_FRAG, name: 'screen-dither' }),
+    resources: {},
+  });
+  f.padding = 0;
+  return f;
+}
 function buildBloom() {
   const thresholdFilter = makeThresholdFilter();
   const blur = new PIXI.BlurFilter({ strength: 18, quality: 4 });
   blur.padding = 32;
   const srcSprite = new PIXI.Sprite(PIXI.Texture.EMPTY);   // = sceneRT, con umbral+blur -> bloomRT
   srcSprite.filters = [thresholdFilter, blur];
-  const sceneScreenSprite = new PIXI.Sprite(PIXI.Texture.EMPTY); // = sceneRT, a pantalla (normal)
+  const sceneScreenSprite = new PIXI.Sprite(PIXI.Texture.EMPTY); // = sceneRT, a pantalla (normal + dither)
+  sceneScreenSprite.filters = [makeDitherFilter()];
   const bloomScreenSprite = new PIXI.Sprite(PIXI.Texture.EMPTY); // = bloomRT, a pantalla (add)
   bloomScreenSprite.blendMode = 'add';
   return { thresholdFilter, blur, srcSprite, sceneScreenSprite, bloomScreenSprite,
@@ -1383,10 +1488,11 @@ function gatherFrameLights() {
   L.wallMaskSource = (PR.tileCache && PR.tileCache.wallMaskTex) ? PR.tileCache.wallMaskTex.source : null;
   const occOk = !!L.wallMaskSource;
   const lights = [];
+  const K = PR.knobs;
   const push = (x, y, c, radius, height, intensity, occ, nm) => lights.push({
     x, y, radius, height, intensity, occ: (occ && occOk) ? 1 : 0, nm,
     cr: ((c >> 16) & 255) / 255, cg: ((c >> 8) & 255) / 255, cb: (c & 255) / 255 });
-  push(p.x, p.y + 8, 0xff9a3c, 42, 28, 1.30, 1, 4);                 // jugador: charquito a los pies
+  push(p.x, p.y + K.playerY, 0xff9a3c, K.playerRad, K.playerHt, K.playerInt, 1, 4); // jugador: charquito a los pies
   for (const pr of state.projs) {                                    // orbes magicos
     if (pr.dead || pr.style !== 'bolt') continue;
     push(pr.x, pr.y - (pr.z || 0), 0x88b4ff, 46, 24, 0.42, 0, 2);
@@ -1395,17 +1501,18 @@ function gatherFrameLights() {
     if (f.type !== 'lightburst') continue;
     push(f.x, f.y, 0xbfe0ff, f.r || 60, 30, 0.6 * (f.t / f.t0), 0, 2);
   }
-  const tc = PR.tileCache, margin = 70 * ZOOM;                       // antorchas (culling por pantalla)
+  const tc = PR.tileCache, margin = 84 * ZOOM;                       // antorchas (culling por pantalla; > radio)
   if (tc && tc.torches) for (const [tX, tY, seed] of tc.torches) {
     const sx = (tX - cam.x) * ZOOM, sy = (tY - cam.y) * ZOOM;
     if (sx < -margin || sx > W + margin || sy < -margin || sy > H + margin) continue;
     const flick = 0.82 + Math.sin(t * 7 + seed) * 0.12 + Math.sin(t * 17 + seed * 1.7) * 0.05;
     const rmul = 0.95 + Math.sin(t * 5 + seed) * 0.05;
-    push(tX, tY + 6, 0xff9a3c, 58 * rmul, 40, 1.35 * flick, 1, 16);  // nm grande: montada en muro
+    push(tX, tY + 6, 0xff9a3c, K.torchRad * rmul, K.torchHt, K.torchInt * flick, 1, 16); // nm grande: montada en muro
   }
   if (lights.length > MAXLIGHTS) { console.warn('[luz] +' + (lights.length - MAXLIGHTS) + ' luces descartadas (cap ' + MAXLIGHTS + ')'); lights.length = MAXLIGHTS; }
   PR.frameLights = lights;
-  PR.frameAmbient = (lvl.evento === 'oscuro') ? [0.235, 0.217, 0.265] : [0.420, 0.392, 0.450];
+  const amb = K.ambient;
+  PR.frameAmbient = (lvl.evento === 'oscuro') ? [0.235 * amb, 0.217 * amb, 0.265 * amb] : [0.420 * amb, 0.392 * amb, 0.450 * amb];
 }
 
 // Raymarch en JS sobre lvl.map: 1.0 si la linea de (ax,ay) a (bx,by) no pega muro.
@@ -1495,7 +1602,9 @@ function drawPixiLighting() {
   lf.uZoom = ZOOM;
   lf.uLevelPx[0] = lvlPxW; lf.uLevelPx[1] = lvlPxH;
   lf.uPen = 5;
-  lf.uNormalY = (PR.normalFlipY != null) ? PR.normalFlipY : 1; // toggle de flip-Y para tunear en vivo
+  lf.uNormalY = PR.knobs.normalFlipY;   // knobs (panel tecla K)
+  lf.uFlatten = PR.knobs.flatten;
+  lf.uExposure = PR.knobs.exposure;
   // reasignar recurso + filters cada frame -> fuerza el re-upload de los uniforms.
   L.lightingFilter.resources.uWallMask = L.wallMaskSource || PIXI.Texture.WHITE.source;
   L.lightPass.filters = [L.lightingFilter];
@@ -1523,7 +1632,11 @@ function renderSceneAndBloom() {
   // 1) escena completa (sin UI) -> sceneRT
   renderer.render({ container: PR.sceneRoot, target: B.sceneRT, clear: true });
   // 2) bloom: umbral + blur de lo brillante -> bloomRT
-  const on = PR.bloomOn !== false;
+  const on = PR.knobs.bloomOn !== false;
+  // bloom desde knobs (umbral alto = solo florece lo MUY brillante / llamas, no el charco).
+  const tu = B.thresholdFilter.resources.threshUniforms.uniforms;
+  tu.uThreshold = PR.knobs.bloomThresh; tu.uIntensity = PR.knobs.bloomInt;
+  B.blur.strength = PR.knobs.bloomBlur;
   if (on) renderer.render({ container: B.srcSprite, target: B.bloomRT, clear: true });
   B.bloomScreenSprite.visible = on;
   // 3) a pantalla: escena + bloom(add) + UI
