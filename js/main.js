@@ -48,6 +48,7 @@ window.addEventListener('load', () => {
   if (typeof loadTowerTiles === 'function') loadTowerTiles(); // tileset Torre en Ruinas (8+8 variantes)
   if (typeof loadTorchImg === 'function') loadTorchImg(); // antorcha animada (sheet 8 frames)
   if (typeof loadLichFire === 'function') loadLichFire(); // bola de fuego del liche
+  if (typeof loadDecorSheets === 'function') loadDecorSheets(); // props decorativos por zona (CraftPix)
   canvas = $('game'); ctx = PIXI_MODE ? null : canvas.getContext('2d');
   mini = $('minimap'); mctx = mini.getContext('2d');
   resize();

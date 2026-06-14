@@ -1,0 +1,16 @@
+Props decorativos — fuentes y licencia
+========================================
+
+Sheets usados por el sistema de decoración (DECOR_DEFS en js/pixi-renderer.js):
+
+- dobj_supplies.png, dobj_other.png
+  CraftPix — "Free Pixel Art Dungeon Objects Asset Pack"
+  https://craftpix.net/freebies/free-pixel-art-dungeon-objects-asset-pack/
+
+- magic_boilers.png, magic_bottles.png, magic_runes.png
+  CraftPix — "Magic Objects and Icons Pixel Art Pack"
+  https://craftpix.net/product/magic-objects-and-icons-pixel-art-pack/
+
+Licencia CraftPix: uso royalty-free en proyectos (incl. comerciales).
+NO se permite redistribuir/revender los assets crudos como tales.
+Ver: https://craftpix.net/file-licenses/

@@ -569,20 +569,56 @@ function drawPixiObjects() {
   if (lvl.lockedChest) chestDraws.push({ y: lvl.lockedChest.y, _chest: lvl.lockedChest, _gold: true });
   const extra = [];
   if (lvl.merchant) extra.push({ y: lvl.merchant.y, _merchant: lvl.merchant });
-  const drawables = [...state.enemies, p, ...chestDraws, ...extra].sort((a, b) => a.y - b.y);
+  const decorDraws = (lvl.decor || []).map(d => ({ x: d.x, y: d.y, _decor: d }));
+  const drawables = [...state.enemies, p, ...chestDraws, ...extra, ...decorDraws].sort((a, b) => a.y - b.y);
   for (const e of drawables) {
     // Fase 3: tint = luz en el pie del actor -> se ilumina como objeto parado ahi, no como
     // suelo (evita el efecto "transparente"/dos-tonos al tapar la union muro/piso).
     PR.actorTint = lightAtFoot(e.x, e.y);
     // normales de entidad: sombreado direccional del cuerpo hacia la luz dominante.
-    PR.bodyShadeFilter = bodyShadeFor(e.x, e.y + 5);
-    if (e._merchant) drawPixiMerchant(e._merchant);
+    // (los props decorativos no llevan body-shade: no son personajes con relieve propio.)
+    PR.bodyShadeFilter = e._decor ? null : bodyShadeFor(e.x, e.y + 5);
+    if (e._decor) drawPixiDecorProp(e._decor);
+    else if (e._merchant) drawPixiMerchant(e._merchant);
     else if (e._chest) drawPixiChest(e._chest, e._gold);
     else if (e === p) drawPixiPlayer(p);
     else drawPixiEnemy(e);
   }
   PR.actorTint = 0xffffff;
   PR.bodyShadeFilter = null;
+}
+
+// Props decorativos (CraftPix). Cada tipo = un sub-rectangulo de un sheet (cargado en
+// Sprites por loadDecorSheets). 'scale' mapea px-sheet -> px-mundo (TILE=16). 'anim' anima
+// recorriendo filas de una columna del sheet. Se dibujan en PR.objects (luz por-pie + sombra).
+const DECOR_DEFS = {
+  barrel:      { sheet: 'decor_supplies', box: [22, 332, 19, 29], scale: 0.85, anchorY: 0.95 },
+  sack:        { sheet: 'decor_supplies', box: [112, 335, 28, 28], scale: 0.55, anchorY: 0.95 },
+  statue:      { sheet: 'decor_other',    box: [7, 5, 34, 43],    scale: 0.60, anchorY: 0.96 },
+  crystal:     { sheet: 'decor_other',    box: [70, 59, 21, 27],  scale: 0.62, anchorY: 0.95 },
+  banner_blue: { sheet: 'decor_other',    box: [196, 64, 23, 30], scale: 0.62, anchorY: 0.97 },
+  banner_red:  { sheet: 'decor_other',    box: [164, 64, 23, 30], scale: 0.62, anchorY: 0.97 },
+  cauldron:    { sheet: 'decor_boilers',  box: [0, 0, 32, 32],    scale: 0.62, anchorY: 0.92,
+                 anim: { col: 0, rows: 24, ms: 90 } },
+};
+
+function drawPixiDecorProp(d) {
+  const def = DECOR_DEFS[d.type];
+  if (!def) return;
+  const img = Sprites[def.sheet];
+  if (!pixiImageReady(img)) return;
+  let [bx, by, bw, bh] = def.box;
+  if (def.anim) {
+    const fi = Math.floor(state.time * 1000 / def.anim.ms) % def.anim.rows;
+    bx = def.anim.col * bw;
+    by = fi * bh;
+  }
+  const tex = pixiFrameTexture(img, bx, by, bw, bh);
+  if (!tex) return;
+  const S = def.scale;
+  drawPixiShadow(d.x, d.y, bw * S * 0.42, 1); // sombra de contacto (mismo motor que mobs/cofres)
+  // PR.objects -> hereda PR.actorTint (luz por-pie), se integra al ambiente como cualquier actor
+  pixiSpriteFromTexture(PR.objects, tex, d.x, d.y, { anchor: [0.5, def.anchorY], scale: [S, S] });
 }
 
 // Filtro de sombreado de cuerpo para un actor en (fx,fy): direccion HACIA su luz dominante

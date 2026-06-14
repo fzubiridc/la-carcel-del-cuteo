@@ -787,6 +787,23 @@ function loadXpFlames() {
 let STAIRS_IMG = null;
 function loadStairsImg() { const im = new Image(); im.onload = () => { STAIRS_IMG = im; }; im.src = 'assets/stairs_down.png'; }
 
+// Sheets de decoración (CraftPix). Se cargan como Image y se dibujan por sub-rectángulo
+// con pixiFrameTexture (ver DECOR_DEFS en pixi-renderer.js). No se cortan en frames acá.
+function loadDecorSheets() {
+  const sheets = {
+    decor_supplies: 'assets/decor/dobj_supplies.png',
+    decor_other:    'assets/decor/dobj_other.png',
+    decor_boilers:  'assets/decor/magic_boilers.png',
+    decor_bottles:  'assets/decor/magic_bottles.png',
+    decor_runes:    'assets/decor/magic_runes.png',
+  };
+  for (const k in sheets) {
+    const im = new Image();
+    im.onload = () => { Sprites[k] = im; };
+    im.src = sheets[k] + '?v=1';
+  }
+}
+
 // antorcha animada (sheet 256Ã—128 = 8 frames de 64Ã—64, 4 columnas Ã— 2 filas)
 let TORCH_IMG = null;
 function loadTorchImg() { const im = new Image(); im.onload = () => { TORCH_IMG = im; }; im.src = 'assets/torch_anim.png?v=1'; }

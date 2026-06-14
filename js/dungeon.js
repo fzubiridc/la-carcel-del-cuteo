@@ -7,6 +7,14 @@
 function randInt(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+// Props decorativos por zona (tipos definidos en DECOR_DEFS, pixi-renderer.js). Son
+// puramente visuales (no colisionan): reciben luz y proyectan sombra como las entidades.
+const ZONE_DECOR = {
+  torre:     ['barrel', 'banner_blue', 'banner_red', 'statue', 'sack'],
+  cavernas:  ['crystal', 'barrel', 'sack'],
+  santuario: ['cauldron', 'statue', 'crystal'],
+};
+
 function genDungeon(zone, depth, isBoss) {
   if (isBoss) return genBossArena(zone, depth);
 
@@ -119,7 +127,29 @@ function genDungeon(zone, depth, isBoss) {
     altar = { x: (r.cx + 0.5) * TILE, y: (r.cy + 0.5) * TILE, used: false };
   }
 
-  return { map, W, H, start, exit, exitOpen: true, spawns, chests, groundItems, lockedChest, altar, evento, decor: [], isBoss: false, boss: null };
+  // Decoración ambiental: props sueltos pegados al borde interior de las salas (no la
+  // inicial). Visual: no colisionan, pero el motor de luz los ilumina y les da sombra.
+  const decor = [];
+  const decorTypes = ZONE_DECOR[zone.id] || [];
+  if (decorTypes.length) {
+    for (let i = 1; i < rooms.length; i++) {
+      const r = rooms[i];
+      let n = randInt(0, 2);
+      while (n-- > 0) {
+        const type = pick(decorTypes);
+        const side = randInt(0, 3);
+        let tx, ty;
+        if (side === 0) { tx = randInt(r.x + 1, r.x + r.w - 2); ty = r.y + 1; }            // pegado arriba
+        else if (side === 1) { tx = randInt(r.x + 1, r.x + r.w - 2); ty = r.y + r.h - 2; }  // abajo
+        else if (side === 2) { tx = r.x + 1; ty = randInt(r.y + 1, r.y + r.h - 2); }        // izquierda
+        else { tx = r.x + r.w - 2; ty = randInt(r.y + 1, r.y + r.h - 2); }                  // derecha
+        if (map[ty][tx] !== 1) continue;
+        decor.push({ type, x: (tx + 0.5) * TILE, y: (ty + 0.6) * TILE });
+      }
+    }
+  }
+
+  return { map, W, H, start, exit, exitOpen: true, spawns, chests, groundItems, lockedChest, altar, evento, decor, isBoss: false, boss: null };
 }
 
 function genBossArena(zone, depth) {
