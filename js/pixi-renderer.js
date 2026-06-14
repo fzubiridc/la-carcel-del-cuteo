@@ -5,6 +5,24 @@
 
 let PR = null;
 
+// Defaults de los knobs de luz (los que "dentro de todo gustan"). El panel puede volver
+// a estos, y los cambios persisten en localStorage entre recargas.
+const LIGHT_KNOB_DEFAULTS = {
+  exposure: 1.5, flatten: 1.3, ambient: 1.0,
+  playerInt: 1.30, playerRad: 42, playerHt: 28, playerY: 3,
+  torchInt: 1.35, torchRad: 70, torchHt: 44,
+  bloomOn: true, bloomThresh: 0.78, bloomInt: 1.5, bloomBlur: 18,
+  normalStrength: 4.5, normalFlipY: 1,
+};
+function loadKnobs() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('luzKnobs') || '{}'); } catch (e) {}
+  return Object.assign({}, LIGHT_KNOB_DEFAULTS, saved);
+}
+function saveKnobs() {
+  try { localStorage.setItem('luzKnobs', JSON.stringify(PR.knobs)); } catch (e) {}
+}
+
 async function initPixiRenderer(view) {
   if (typeof PIXI === 'undefined') throw new Error('PIXI no esta cargado');
   const app = new PIXI.Application();
@@ -45,13 +63,8 @@ async function initPixiRenderer(view) {
     shadeUsed: 0,
     lights: null, // capa de luz/oscuridad (ver buildLighting)
     // knobs de luz tuneables en vivo (panel con tecla K). El render lee de aca.
-    knobs: {
-      exposure: 1.5, flatten: 1.3, ambient: 1.0,
-      playerInt: 1.30, playerRad: 42, playerHt: 28, playerY: 3,
-      torchInt: 1.35, torchRad: 70, torchHt: 44,
-      bloomOn: true, bloomThresh: 0.78, bloomInt: 1.5, bloomBlur: 18,
-      normalStrength: 4.5, normalFlipY: 1,
-    },
+    // Carga de localStorage si hay config guardada; si no, los defaults.
+    knobs: loadKnobs(),
   };
   PR.world.addChild(PR.tiles, PR.torches);
   // capa de sombras con blur: difumina los bordes del blob de contacto y de la
@@ -106,20 +119,36 @@ function buildLightKnobs() {
   for (const [k, label] of TOGGLES) {
     html += `<div style="margin:4px 0"><label><input type="checkbox" id="kc_${k}" ${K[k] ? 'checked' : ''}> ${label}</label></div>`;
   }
-  html += '<button id="kCopy" style="margin-top:6px;width:100%;cursor:pointer">Copiar config</button>';
+  html += '<button id="kReset" style="margin-top:6px;width:100%;cursor:pointer;background:#3a2a1a;color:#ffcf6a;border:1px solid #5a4a2a">Volver a defaults</button>';
+  html += '<button id="kCopy" style="margin-top:4px;width:100%;cursor:pointer">Copiar config</button>';
   p.innerHTML = html;
   document.body.appendChild(p);
+  // re-sincroniza los controles del panel con PR.knobs (tras un reset o load)
+  const syncUI = () => {
+    for (const [k] of SPECS) { const s = document.getElementById('ks_' + k); if (s) { s.value = K[k]; document.getElementById('kv_' + k).textContent = K[k]; } }
+    for (const [k] of TOGGLES) { const c = document.getElementById('kc_' + k); if (c) c.checked = (k === 'normalFlipY') ? K[k] > 0 : !!K[k]; }
+  };
   for (const [k, , , , , rebake] of SPECS) {
     const s = document.getElementById('ks_' + k);
     s.addEventListener('input', () => {
       K[k] = parseFloat(s.value);
       document.getElementById('kv_' + k).textContent = K[k];
       if (rebake && PR) PR.tileCache = null; // re-hornea el normal map
+      saveKnobs();
     });
   }
   for (const [k] of TOGGLES) {
-    document.getElementById('kc_' + k).addEventListener('change', (e) => { K[k] = e.target.checked ? (k === 'normalFlipY' ? 1 : true) : (k === 'normalFlipY' ? -1 : false); });
+    document.getElementById('kc_' + k).addEventListener('change', (e) => {
+      K[k] = e.target.checked ? (k === 'normalFlipY' ? 1 : true) : (k === 'normalFlipY' ? -1 : false);
+      saveKnobs();
+    });
   }
+  document.getElementById('kReset').addEventListener('click', () => {
+    Object.assign(K, LIGHT_KNOB_DEFAULTS);
+    syncUI();
+    saveKnobs();
+    if (PR) PR.tileCache = null; // por si cambio el relieve
+  });
   document.getElementById('kCopy').addEventListener('click', () => {
     navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(K, null, 2));
     document.getElementById('kCopy').textContent = 'Copiado!';
