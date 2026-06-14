@@ -796,6 +796,7 @@ function loadDecorSheets() {
     decor_boilers:  'assets/decor/magic_boilers.png',
     decor_bottles:  'assets/decor/magic_bottles.png',
     decor_runes:    'assets/decor/magic_runes.png',
+    decor_furniture: 'assets/decor/magic_furniture.png',
   };
   for (const k in sheets) {
     const im = new Image();

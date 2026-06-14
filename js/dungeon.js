@@ -10,9 +10,9 @@ function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 // Props decorativos por zona (tipos definidos en DECOR_DEFS, pixi-renderer.js). Son
 // puramente visuales (no colisionan): reciben luz y proyectan sombra como las entidades.
 const ZONE_DECOR = {
-  torre:     ['barrel', 'banner_blue', 'banner_red', 'statue', 'sack', 'rune_fire'],
-  cavernas:  ['crystal', 'barrel', 'sack', 'rune_nature'],
-  santuario: ['cauldron', 'cauldron_purple', 'statue', 'crystal', 'rune_arcane', 'rune_fire'],
+  torre:     ['barrel', 'banner_blue', 'banner_red', 'statue', 'sack', 'rune_fire', 'bookshelf', 'desk', 'table', 'cabinet'],
+  cavernas:  ['crystal', 'barrel', 'sack', 'rune_nature', 'table'],
+  santuario: ['cauldron', 'cauldron_purple', 'statue', 'crystal', 'rune_arcane', 'rune_fire', 'bookshelf_pot', 'desk'],
 };
 
 function genDungeon(zone, depth, isBoss) {

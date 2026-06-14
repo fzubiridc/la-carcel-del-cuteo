@@ -610,6 +610,12 @@ const DECOR_DEFS = {
   rune_fire:   { sheet: 'decor_runes', box: [0, 0, 64, 64], scale: 0.42, anchorY: 0.95, anim: { col: 0, rowStart: 0, rowStep: 2, frames: 12, ms: 130 } },
   rune_nature: { sheet: 'decor_runes', box: [0, 0, 64, 64], scale: 0.42, anchorY: 0.95, anim: { col: 1, rowStart: 1, rowStep: 2, frames: 12, ms: 130 } },
   rune_arcane: { sheet: 'decor_runes', box: [0, 0, 64, 64], scale: 0.42, anchorY: 0.95, anim: { col: 4, rowStart: 0, rowStep: 2, frames: 12, ms: 130 } },
+  // mobiliario de estudio del mago (magic_furniture): bibliotecas, escritorio, mesa, cómoda
+  bookshelf:     { sheet: 'decor_furniture', box: [1, 69, 46, 52],  scale: 0.60, anchorY: 0.97 },
+  bookshelf_pot: { sheet: 'decor_furniture', box: [1, 133, 46, 52], scale: 0.60, anchorY: 0.97 },
+  cabinet:       { sheet: 'decor_furniture', box: [1, 5, 46, 52],   scale: 0.60, anchorY: 0.97 },
+  desk:          { sheet: 'decor_furniture', box: [53, 40, 39, 24], scale: 0.64, anchorY: 0.94 },
+  table:         { sheet: 'decor_furniture', box: [53, 10, 39, 22], scale: 0.64, anchorY: 0.94 },
 };
 
 function drawPixiDecorProp(d) {
