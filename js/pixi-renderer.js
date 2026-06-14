@@ -487,11 +487,9 @@ function drawPixiMerchant(m) {
   else pixiCircle(PR.objects, m.x, m.y + bob - 2, 6, 0xc7b8e8, 1);
 }
 
-// Sombra de contacto suave + DIRECCIONAL: si hay una antorcha cerca, la sombra se
-// proyecta en direccion contraria a la luz, estirandose y marcandose cuanto mas
-// cerca estes (al pasar al lado de una antorcha, "barre" hacia el lado opuesto).
-// Sin antorcha cerca, queda el blob suave centrado bajo los pies.
-const SHADOW_LIGHT_R = 78; // alcance de antorcha que proyecta sombra (mas grande = fade mas gradual)
+// Sombra de contacto suave + DIRECCIONAL: las entidades proyectan una silueta por cada
+// luz cercana (ver occludingLightsFor), estirandose y marcandose cuanto mas cerca de la luz.
+// Sin luz cerca, queda el blob suave centrado bajo los pies.
 // Circulo de contacto: elipse negra oscura justo bajo los pies (ancla, y es lo
 // "mas oscuro cerca de los pies"). Va en PR.shadows (blureado).
 function pixiContactBlob(x, y, w, opt) {
@@ -518,45 +516,50 @@ function drawPixiShadow(x, y, w, footDy) {
   pixiContactBlob(x, fy, w);
   const tex = PR.lights && PR.lights.lightTex;
   if (!tex) return;
-  const light = nearestTorchShadow(x, fy);
-  if (!light) return;
-  const baseW = w * 3.0, baseH = w * 1.1;
-  const len = baseW * (1 + light.prox * 1.6);
-  const off = (len - baseW) * 0.5 + w * 0.5 * light.prox;
-  pixiSpriteFromTexture(PR.shadows, tex, x + light.dx * off, fy + light.dy * off, {
-    anchor: [0.5, 0.5],
-    scale: [len / tex.width, baseH / tex.height],
-    rotation: Math.atan2(light.dy, light.dx),
-    tint: 0x000000,
-    alpha: 0.5 * light.prox * (light.power || 1),
-  });
+  // una sombra estirada POR CADA luz cercana (abanico). fade evita que se ennegrezca al solaparse.
+  const lights = occludingLightsFor(x, fy, 3);
+  if (!lights.length) return;
+  const fade = 1 / Math.sqrt(lights.length);
+  for (const light of lights) {
+    const baseW = w * 3.0, baseH = w * 1.1;
+    const len = baseW * (1 + light.prox * 1.6);
+    const off = (len - baseW) * 0.5 + w * 0.5 * light.prox;
+    pixiSpriteFromTexture(PR.shadows, tex, x + light.dx * off, fy + light.dy * off, {
+      anchor: [0.5, 0.5],
+      scale: [len / tex.width, baseH / tex.height],
+      rotation: Math.atan2(light.dy, light.dx),
+      tint: 0x000000,
+      alpha: 0.5 * light.prox * light.power * fade,
+    });
+  }
 }
 
-// Antorcha mas cercana al punto (fx,fy) que proyecta sombra. Devuelve direccion
-// luz->entidad normalizada y proximidad (0 lejos -> 1 pegado), o null si no hay.
-function nearestTorchShadow(fx, fy) {
-  const tc = PR.tileCache;
-  if (!tc || !tc.torches) return null;
-  let blx = 0, bly = 0, bestD2 = Infinity, bestSeed = 0;
-  for (let i = 0; i < tc.torches.length; i++) {
-    const lx = tc.torches[i][0], ly = tc.torches[i][1] + 6;
-    const dx = fx - lx, dy = fy - ly, d2 = dx * dx + dy * dy;
-    if (d2 < bestD2) { bestD2 = d2; blx = lx; bly = ly; bestSeed = tc.torches[i][2]; }
+// Luces que proyectan sombra sobre un punto (fx,fy): las que ocluyen (occ) de PR.frameLights,
+// dentro de rango y NO demasiado pegadas (excluye la propia luz a los pies del jugador).
+// Ordenadas por cercania, top maxN. Devuelve dir luz->entidad, proximidad (0..1) y power(flicker).
+function occludingLightsFor(fx, fy, maxN) {
+  const lights = PR.frameLights;
+  if (!lights) return [];
+  const out = [];
+  for (let i = 0; i < lights.length; i++) {
+    const L = lights[i];
+    if (!L.occ) continue;
+    const dx = fx - L.x, dy = fy - L.y, d2 = dx * dx + dy * dy;
+    const R = L.radius * 1.15;
+    if (d2 >= R * R || d2 < 196) continue; // fuera de rango, o a <14px (su propia luz)
+    const d = Math.sqrt(d2);
+    out.push({ dx: dx / d, dy: dy / d, prox: 1 - d / R, power: Math.min(1, L.intensity * 0.74), d2 });
   }
-  if (bestD2 >= SHADOW_LIGHT_R * SHADOW_LIGHT_R) return null;
-  const d = Math.sqrt(bestD2) || 0.001;
-  // potencia = mismo flicker que la luz de esa antorcha (drawPixiLighting): la
-  // sombra "respira" con la llama -> mas fuerte la luz, mas fuerte la sombra.
-  const t = state.time;
-  const power = 0.82 + Math.sin(t * 7 + bestSeed) * 0.12 + Math.sin(t * 17 + bestSeed * 1.7) * 0.05;
-  return { dx: (fx - blx) / d, dy: (fy - bly) / d, prox: 1 - d / SHADOW_LIGHT_R, power };
+  out.sort((a, b) => a.d2 - b.d2);
+  if (out.length > (maxN || 3)) out.length = maxN || 3;
+  return out;
 }
 
 // Silueta del PNG: redibuja la imagen del personaje en negro, anclada en los pies,
 // rotada para "acostarse" en direccion contraria a la luz y estirada a lo largo.
 // MANTIENE la forma reconocible del personaje (sin deformar). El fade (alpha por
 // proximidad) y el circulo de contacto completan el efecto.
-function drawPixiSilhouette(img, footX, footY, S, light) {
+function drawPixiSilhouette(img, footX, footY, S, light, fade) {
   const tex = pixiTexture(img);
   if (!tex) return;
   const w = img.naturalWidth || 120, h = img.naturalHeight || 120;
@@ -566,28 +569,31 @@ function drawPixiSilhouette(img, footX, footY, S, light) {
     scale: [S * 0.95, S * lenMul],
     rotation: Math.atan2(light.dx, -light.dy), // la cabeza apunta lejos de la luz
     tint: 0x000000,
-    alpha: light.prox * 0.6 * (light.power || 1), // nace en 0 en el borde -> sin pop; respira con la llama
+    alpha: light.prox * 0.6 * (light.power || 1) * (fade == null ? 1 : fade), // respira con la llama
   });
 }
 
 function drawPixiPlayer(p) {
   const fy = p.y + 5;
-  const light = nearestTorchShadow(p.x, fy);
-  // sombra de contacto del jugador: mas grande y fuerte que la de mobs. Con una
-  // antorcha cerca, se estira hacia el lado opuesto a la luz para FUNDIRSE con la
-  // silueta proyectada -> una sola sombra coherente, no dos manchas separadas.
-  if (light) {
+  // sombras del jugador: una silueta proyectada POR CADA luz cercana (abanico). El blob de
+  // contacto se estira hacia la luz dominante para fundirse con su silueta.
+  const lights = occludingLightsFor(p.x, fy, 3);
+  const nearest = lights[0];
+  if (nearest) {
     pixiContactBlob(p.x, fy, 6, {
-      alpha: (0.52 + 0.16 * light.prox) * (light.power || 1),
-      wide: 2.7 + 1.5 * light.prox,
+      alpha: (0.52 + 0.16 * nearest.prox) * nearest.power,
+      wide: 2.7 + 1.5 * nearest.prox,
       tall: 1.15,
-      rotation: Math.atan2(light.dy, light.dx),
+      rotation: Math.atan2(nearest.dy, nearest.dx),
     });
   } else {
     pixiContactBlob(p.x, fy, 6, { alpha: 0.6, wide: 2.7, tall: 1.2 });
   }
   const body = (typeof V2H !== 'undefined' && V2H.ready) ? pixiPlayerImage(p) : null;
-  if (light && pixiImageReady(body)) drawPixiSilhouette(body, p.x, fy, 0.4, light); // silueta del PNG
+  if (pixiImageReady(body) && lights.length) {
+    const fade = 1 / Math.sqrt(lights.length);
+    for (const light of lights) drawPixiSilhouette(body, p.x, fy, 0.4, light, fade);
+  }
   if (drawPixiV2Hero(p)) return;
   const img = pixiPlayerImage(p);
   if (pixiImageReady(img)) pixiSprite(PR.objects, img, p.x - 24, p.y + 5 - 36, 48, 48);
