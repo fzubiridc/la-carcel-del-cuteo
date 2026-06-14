@@ -268,9 +268,37 @@ function bindTouch() {
 
   bind('btndash', () => tryDash());
   bind('btnnova', () => tryNova());
-  bind('btninv', () => toggleInv());
   bind('btnpot', () => drinkPotion());
   bind('btnint', () => tryInteract());
+
+  // Abrir el inventario tocando el PERSONAJE. El canvas solo recibe los toques que no
+  // caen en el joystick ni en los botones (esos están encima, con pointer-events:auto).
+  let invTap = null;
+  canvas.addEventListener('touchstart', e => {
+    const t = e.changedTouches[0];
+    invTap = { x: t.clientX, y: t.clientY, t0: e.timeStamp, id: t.identifier };
+  }, { passive: true });
+  canvas.addEventListener('touchend', e => {
+    if (!invTap || state.mode !== 'play' || state.invOpen) { invTap = null; return; }
+    for (const t of e.changedTouches) {
+      if (t.identifier !== invTap.id) continue;
+      const moved = Math.hypot(t.clientX - invTap.x, t.clientY - invTap.y);
+      const dur = e.timeStamp - invTap.t0;
+      if (moved < 18 && dur < 320 && tapOnPlayer(t.clientX, t.clientY)) toggleInv();
+    }
+    invTap = null;
+  }, { passive: true });
+}
+
+// ¿El toque (coords de pantalla) cae sobre el cuerpo del jugador? Convierte la posición
+// del jugador a pantalla (px = (mundo - cámara) * ZOOM) y mide distancia; el sprite está
+// anclado en los pies, así que el centro del cuerpo va un poco más arriba.
+function tapOnPlayer(sx, sy) {
+  const p = state.player;
+  if (!p || typeof state.cam === 'undefined') return false;
+  const psx = (p.x - state.cam.x) * ZOOM;
+  const psy = (p.y - 10 - state.cam.y) * ZOOM;
+  return Math.hypot(sx - psx, sy - psy) < 30 * ZOOM;
 }
 
 // Ángulo de apuntado: ratón en escritorio, auto-apuntado al enemigo

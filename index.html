@@ -393,8 +393,7 @@
   #btndash{ right:calc(128px + var(--sar)); bottom:calc(86px + var(--sab)); width:56px; height:56px; font-size:11px; }
   #btnpot{ right:calc(40px + var(--sar)); bottom:calc(210px + var(--sab)); width:48px; height:48px; font-size:16px; }
   #btnint{ right:calc(150px + var(--sar)); bottom:calc(210px + var(--sab)); width:48px; height:48px; font-size:14px; }
-  /* inventario: arriba a la izquierda (fuera de la zona del joystick, que es el 65% inferior) */
-  #btninv{ left:calc(12px + var(--sal)); top:calc(10px + env(safe-area-inset-top)); width:48px; height:48px; font-size:22px; }
+  /* (el inventario en táctil se abre tocando el personaje — ver tapInvCheck en main.js) */
   /* joystick: respetar el inset izquierdo/inferior del dispositivo */
   #joyzone{ padding-left:var(--sal); padding-bottom:var(--sab); }
   /* botón cerrar del inventario (✕): vive DENTRO de #inv (z-index 20), así queda
@@ -470,7 +469,6 @@
   </div>
   <div id="touchui" class="hidden">
     <div id="joyzone"><div id="joybase" class="hidden"><div id="joyknob"></div></div></div>
-    <button class="tbtn" id="btninv">🎒</button>
     <button class="tbtn" id="btnatk">ATK</button>
     <button class="tbtn" id="btnnova">✦</button>
     <button class="tbtn" id="btndash">DASH</button>
@@ -536,6 +534,6 @@
 <script src="js/entities.js?v=168"></script>
 <script src="js/ui.js?v=162"></script>
 <script src="js/pixi-renderer.js?v=86"></script>
-<script src="js/main.js?v=178"></script>
+<script src="js/main.js?v=179"></script>
 </body>
 </html>
