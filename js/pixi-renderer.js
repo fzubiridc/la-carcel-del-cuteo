@@ -641,9 +641,33 @@ function drawPixiDecorProp(d) {
   const tex = pixiFrameTexture(img, bx, by, bw, bh);
   if (!tex) return;
   const S = def.scale;
-  drawPixiShadow(d.x, d.y, bw * S * 0.42, 1); // sombra de contacto (mismo motor que mobs/cofres)
+  drawPixiDecorShadow(d.x, d.y, tex, S, def.anchorY); // sombra con la FORMA del prop (no círculo)
   // PR.objects -> hereda PR.actorTint (luz por-pie), se integra al ambiente como cualquier actor
   pixiSpriteFromTexture(PR.objects, tex, d.x, d.y, { anchor: [0.5, def.anchorY], scale: [S, S] });
+}
+
+// Sombra de un prop con SU forma (silueta en negro), no un círculo: proyecta el sprite
+// del prop, anclado en su base, "acostado" en dirección contraria a cada luz cercana
+// (como las siluetas del jugador). Sin luz cerca, una silueta tenue y achatada que ancla
+// al piso. Va en PR.shadows (blureado, debajo de los actores).
+function drawPixiDecorShadow(x, y, tex, S, anchorY) {
+  const lights = occludingLightsFor(x, y, 2);
+  if (!lights.length) {
+    pixiSpriteFromTexture(PR.shadows, tex, x, y + 1, {
+      anchor: [0.5, anchorY], scale: [S * 0.95, S * 0.34], tint: 0x000000, alpha: 0.26,
+    });
+    return;
+  }
+  const fade = 1 / Math.sqrt(lights.length);
+  for (const L of lights) {
+    pixiSpriteFromTexture(PR.shadows, tex, x, y, {
+      anchor: [0.5, anchorY],
+      scale: [S * 0.95, S * (0.5 + L.prox * 1.0)],   // se estira al acercarse a la luz
+      rotation: Math.atan2(L.dx, -L.dy),             // el "alto" del prop apunta lejos de la luz
+      tint: 0x000000,
+      alpha: (0.34 + 0.42 * L.prox) * (L.power || 1) * fade,
+    });
+  }
 }
 
 // Filtro de sombreado de cuerpo para un actor en (fx,fy): direccion HACIA su luz dominante

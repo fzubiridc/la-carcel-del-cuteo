@@ -27,6 +27,10 @@ const ZONE_DECOR = {
   },
 };
 
+// Props "macizos" que BLOQUEAN al jugador (mobiliario y objetos grandes). Los chicos /
+// de pared (banderas, runas, cristal, saco) no colisionan: se puede pasar por al lado.
+const DECOR_SOLID = new Set(['bookshelf', 'bookshelf_pot', 'cabinet', 'statue', 'desk', 'table', 'cauldron', 'cauldron_purple', 'barrel']);
+
 function genDungeon(zone, depth, isBoss) {
   if (isBoss) return genBossArena(zone, depth);
 
@@ -146,6 +150,7 @@ function genDungeon(zone, depth, isBoss) {
   // cofres pueden convivir con la decoración (solo evitamos apilar props en su tile y en
   // la escalera de salida).
   const decor = [];
+  const solidDecor = new Set();   // tiles "tx,ty" de props macizos (colisión del jugador)
   const zd = ZONE_DECOR[zone.id];
   if (zd) {
     const occ = new Set();
@@ -159,7 +164,9 @@ function genDungeon(zone, depth, isBoss) {
     const place = (list, tx, ty) => {
       if (!list.length || !free(tx, ty)) return;
       occ.add(key(tx, ty));
-      decor.push({ type: pick(list), x: (tx + 0.5) * TILE, y: (ty + 0.6) * TILE });
+      const type = pick(list);
+      decor.push({ type, x: (tx + 0.5) * TILE, y: (ty + 0.6) * TILE });
+      if (DECOR_SOLID.has(type)) solidDecor.add(key(tx, ty));   // bloquea al jugador
     };
     for (let i = 1; i < rooms.length; i++) {
       const r = rooms[i];
@@ -184,7 +191,7 @@ function genDungeon(zone, depth, isBoss) {
     }
   }
 
-  return { map, W, H, start, exit, exitOpen: true, spawns, chests, groundItems, lockedChest, altar, evento, decor, isBoss: false, boss: null };
+  return { map, W, H, start, exit, exitOpen: true, spawns, chests, groundItems, lockedChest, altar, evento, decor, solidDecor, isBoss: false, boss: null };
 }
 
 function genBossArena(zone, depth) {
@@ -252,6 +259,17 @@ function rectHitsChest(level, x, y, w, h) {
   return !!(lc && hit(lc.x, lc.y));
 }
 
+// ¿Los pies del jugador chocan con un prop macizo? El prop ocupa su tile (base en
+// tx+0.5,ty+0.6); bloqueamos el tile del pie para que no lo atraviese. Solo jugador.
+function rectHitsDecor(level, x, y, w, h) {
+  const sd = level.solidDecor; if (!sd || !sd.size) return false;
+  const ty = Math.floor((y + h / 2) / TILE), hw = w / 2;
+  for (let dx = -hw; dx <= hw; dx += hw) {
+    if (sd.has(Math.floor((x + dx) / TILE) + ',' + ty)) return true;
+  }
+  return false;
+}
+
 // Mover entidad eje por eje (permite deslizarse por paredes). Los cofres cerrados
 // bloquean al jugador (no se puede pasar por arriba; se abren con [E]).
 function moveWithCollision(level, e, dx, dy, noclip) {
@@ -261,8 +279,9 @@ function moveWithCollision(level, e, dx, dy, noclip) {
   // define colDY/colH usa una caja a la altura de los PIES (el jugador) -> te pegas
   // a los muros desde el sur sin que la "cabeza" choque antes. Cofres ya usan pies.
   const cy = e.y + (e.colDY || 0), ch = e.colH || e.h;
-  if (dx !== 0 && !rectHitsWall(level, e.x + dx, cy, e.w, ch) && !(chestBlock && rectHitsChest(level, e.x + dx, e.y, e.w, e.h))) e.x += dx;
-  if (dy !== 0 && !rectHitsWall(level, e.x, cy + dy, e.w, ch) && !(chestBlock && rectHitsChest(level, e.x, e.y + dy, e.w, e.h))) e.y += dy;
+  const blocked = (nx, ny) => chestBlock && (rectHitsChest(level, nx, ny, e.w, e.h) || rectHitsDecor(level, nx, ny, e.w, e.h));
+  if (dx !== 0 && !rectHitsWall(level, e.x + dx, cy, e.w, ch) && !blocked(e.x + dx, e.y)) e.x += dx;
+  if (dy !== 0 && !rectHitsWall(level, e.x, cy + dy, e.w, ch) && !blocked(e.x, e.y + dy)) e.y += dy;
 }
 
 function clampToLevel(level, e) {
