@@ -165,17 +165,17 @@ function genDungeon(zone, depth, isBoss) {
       const r = rooms[i];
       if (Math.random() < 0.18) continue;                 // sala despejada (para mobs)
       const area = r.w * r.h;
-      // contra las paredes (mayoría arriba: se ve el frente del mueble en vista 3/4)
-      const nWall = Math.min(7, 2 + (area / 15 | 0));
-      for (let k = 0; k < nWall; k++) {
-        const s = Math.random();
-        let tx, ty;
-        if (s < 0.55) { tx = randInt(r.x + 1, r.x + r.w - 2); ty = r.y; }                  // arriba
-        else if (s < 0.72) { tx = randInt(r.x + 1, r.x + r.w - 2); ty = r.y + r.h - 1; }   // abajo
-        else if (s < 0.86) { tx = r.x; ty = randInt(r.y + 1, r.y + r.h - 2); }             // izquierda
-        else { tx = r.x + r.w - 1; ty = randInt(r.y + 1, r.y + r.h - 2); }                 // derecha
-        place(zd.wall, tx, ty);
+      // CONTRA LA PARED de verdad: tiles de piso con pared JUSTO ARRIBA -> el mueble
+      // apoya en ella y mira hacia la cámara (vista 3/4); nunca flota ni tapa un pasillo.
+      const wallTiles = [];
+      for (let ty = r.y; ty < r.y + r.h; ty++)
+        for (let tx = r.x; tx < r.x + r.w; tx++)
+          if (map[ty][tx] === 1 && ty > 0 && map[ty - 1][tx] === 0) wallTiles.push([tx, ty]);
+      for (let a = wallTiles.length - 1; a > 0; a--) {        // barajar
+        const b = (Math.random() * (a + 1)) | 0, t = wallTiles[a]; wallTiles[a] = wallTiles[b]; wallTiles[b] = t;
       }
+      const nWall = Math.min(wallTiles.length, Math.min(7, 2 + (area / 15 | 0)));
+      for (let k = 0; k < nWall; k++) place(zd.wall, wallTiles[k][0], wallTiles[k][1]);
       // clutter de piso (restos de experimentación, mesas) en el interior
       const nFloor = Math.min(5, 1 + (area / 22 | 0));
       for (let k = 0; k < nFloor; k++) {
