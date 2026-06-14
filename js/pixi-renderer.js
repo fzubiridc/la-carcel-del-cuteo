@@ -1131,12 +1131,9 @@ function makeNormalTex(srcCanvas, strength) {
 const NORMAL_STRENGTH = 4.5; // relieve del entorno (subir = mas marcado)
 
 // ---------------------------------------------------------------------
-// Oclusion de luz por raymarch (fase 2). Filtro custom WebGL aplicado a cada sprite
-// de luz: por cada pixel marcha un rayo hacia el centro de la luz a traves de la
-// mascara de muros (1 texel por tile, blanco=muro). Si choca pared antes de llegar,
-// el pixel queda a oscuras -> la luz no cruza paredes ni esquinas.
-// El sprite de luz cubre en pantalla [centro - R, centro + R], que en mundo es
-// [Lw - Rw, Lw + Rw]; por eso pixWorld = Lw + (uv - 0.5) * 2 * Rw.
+// Vertex compartido de los filtros de luz (lighting / shade / bloom-threshold). Expone:
+//   vSpriteUV  = aPosition (0..1 sobre el sprite, robusto al redondeo del filtro)
+//   vTextureCoord / vTexScale = coords y escala uv->textura del input del filtro.
 // ---------------------------------------------------------------------
 const OCCLUSION_VERT = `#version 300 es
 in vec2 aPosition;
@@ -1162,94 +1159,6 @@ void main(void) {
   vTexScale = uOutputFrame.zw * uInputSize.zw;
 }
 `;
-const OCCLUSION_FRAG = `#version 300 es
-in vec2 vTextureCoord;
-in vec2 vSpriteUV;
-in vec2 vTexScale;
-out vec4 finalColor;
-uniform sampler2D uTexture;
-uniform sampler2D uWallMask;
-uniform vec2 uLightWorld;
-uniform vec2 uLevelPx;
-uniform float uWorldRadius;
-uniform float uNearMargin; // no ocluir a menos de esto de la luz (evita auto-sombra de antorchas en su muro)
-uniform float uPen;        // tamano de penumbra en px-mundo (jitter del objetivo)
-uniform float uTime;       // tiempo para animar la deformacion de llama
-uniform float uSeed;       // semilla por luz (descorrelaciona jitter/llama entre antorchas)
-uniform float uShape;      // 0 = circular (jugador); >0 = deforma el borde como llama (antorcha)
-const int STEPS = 28;
-const int RAYS = 4;
-// hash escalar 2D barato (Dave Hoskins-ish) para jitter/dither sin texturas
-float hash21(vec2 p) {
-  p = fract(p * vec2(123.34, 345.45));
-  p += dot(p, p + 34.345);
-  return fract(p.x * p.y);
-}
-// 1.0 si el rayo de 'from' a 'to' llega sin pegar muro; 0.0 si lo bloquea.
-// jit (0..1) corre el arranque del rayo una fraccion de paso -> rompe el banding
-// concentrico del marcheo de paso fijo (a cambio de un poco de grano).
-float rayClear(vec2 from, vec2 to, float jit) {
-  vec2 sv = (to - from) / float(STEPS);
-  vec2 q = from + sv * jit;
-  for (int i = 0; i < STEPS; i++) {
-    if (distance(q, to) < uNearMargin) break;
-    if (texture(uWallMask, q / uLevelPx).r > 0.5) return 0.0;
-    q += sv;
-  }
-  return 1.0;
-}
-void main(void) {
-  // uv centrada sobre el sprite (-0.5..0.5). Para antorchas, ondulamos el radio
-  // segun el angulo + tiempo: el gradiente se remuestrea deformado -> borde de llama
-  // irregular en vez de circulo perfecto. La OCLUSION sigue usando la posicion real.
-  vec2 cuv = vSpriteUV - 0.5;
-  float warp = 1.0;
-  if (uShape > 0.0) {
-    float ang = atan(cuv.y, cuv.x);
-    float w = sin(ang * 3.0 + uTime * 2.0  + uSeed)       * 0.5
-            + sin(ang * 5.0 - uTime * 1.3  + uSeed * 2.1) * 0.3
-            + sin(ang * 8.0 + uTime * 0.7  + uSeed * 3.7) * 0.2;
-    warp = 1.0 + uShape * w;
-  }
-  vec2 wuv = clamp(0.5 + cuv * warp, 0.0, 1.0);
-  vec4 src = texture(uTexture, wuv * vTexScale);
-
-  // posicion mundo real de este pixel (sin deformar): el sprite cubre [centro-R, centro+R].
-  vec2 pixWorld = uLightWorld + cuv * 2.0 * uWorldRadius;
-  // penumbra: promediar oclusion hacia 4 puntos alrededor del centro de la luz
-  vec2 offs[4] = vec2[4](vec2(uPen, 0.0), vec2(-uPen, 0.0), vec2(0.0, uPen), vec2(0.0, -uPen));
-  float jit = hash21(vSpriteUV * 512.0 + uSeed);
-  float acc = 0.0;
-  for (int r = 0; r < RAYS; r++) acc += rayClear(pixWorld, uLightWorld + offs[r], jit);
-  float vis = acc / float(RAYS);
-
-  // dither: +-1 LSB de ruido sobre la intensidad para romper el posterizado a 8 bits
-  // del gradiente (las "olas concentricas"). Escalado por vis -> nada fuera de la luz.
-  float dith = (hash21(vSpriteUV * 1024.0 + uSeed * 7.0) - 0.5) / 255.0;
-  finalColor = src * (vis + dith);
-}
-`;
-function makeOcclusionFilter() {
-  const f = new PIXI.Filter({
-    glProgram: PIXI.GlProgram.from({ vertex: OCCLUSION_VERT, fragment: OCCLUSION_FRAG, name: 'light-occlusion' }),
-    resources: {
-      occlusionUniforms: {
-        uLightWorld: { value: new Float32Array([0, 0]), type: 'vec2<f32>' },
-        uLevelPx: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
-        uWorldRadius: { value: 1, type: 'f32' },
-        uNearMargin: { value: 2, type: 'f32' },
-        uPen: { value: 5, type: 'f32' },
-        uTime: { value: 0, type: 'f32' },
-        uSeed: { value: 0, type: 'f32' },
-        uShape: { value: 0, type: 'f32' },
-      },
-      uWallMask: PIXI.Texture.WHITE.source,
-    },
-  });
-  f.padding = 0;
-  return f;
-}
-
 // ---------------------------------------------------------------------
 // Shader de luz ANALITICO (Fase 2). Una sola pasada fullscreen que llena el
 // buffer de luz: por cada pixel reconstruye su posicion-mundo, lee la normal
