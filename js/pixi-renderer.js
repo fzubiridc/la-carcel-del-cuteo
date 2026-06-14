@@ -10,7 +10,7 @@ let PR = null;
 const LIGHT_KNOB_DEFAULTS = {
   exposure: 0.85, flatten: 1, ambient: 1,
   playerInt: 1.9, playerRad: 75, playerHt: 26, playerY: 3,
-  torchInt: 2.25, torchRad: 120, torchHt: 27,
+  torchInt: 2.25, torchRad: 99, torchHt: 27,
   bloomOn: false, bloomThresh: 0.78, bloomInt: 1.5, bloomBlur: 16,
   normalStrength: 4.5, normalFlipY: 1,
 };
@@ -699,17 +699,17 @@ function drawPixiPlayer(p) {
   // contacto se estira hacia la luz dominante para fundirse con su silueta.
   const lights = occludingLightsFor(p.x, fy, 3);
   const nearest = lights[0];
-  // blob de contacto: sombra de apoyo bajo los pies. (El "centro claro" del charco no era
-  // este blob sino el clamp a blanco de la luz; eso lo arregla el tonemap.)
+  // sombra circular de apoyo SIEMPRE bajo los pies (independiente de antorchas): ancha para
+  // asomar alrededor del personaje, intensa, y justo bajo los pies (no separada).
+  pixiContactBlob(p.x, fy + 4, 8.5, { alpha: 0.78, wide: 3.3, tall: 1.45 });
+  // ademas, si hay una luz cerca, un estiron hacia el lado opuesto para fundirse con la silueta.
   if (nearest) {
-    pixiContactBlob(p.x, fy, 6, {
-      alpha: (0.48 + 0.14 * nearest.prox) * nearest.power,
-      wide: 2.7 + 1.5 * nearest.prox,
+    pixiContactBlob(p.x, fy + 3, 7, {
+      alpha: (0.5 + 0.16 * nearest.prox) * nearest.power,
+      wide: 2.7 + 1.6 * nearest.prox,
       tall: 1.15,
       rotation: Math.atan2(nearest.dy, nearest.dx),
     });
-  } else {
-    pixiContactBlob(p.x, fy, 6, { alpha: 0.55, wide: 2.7, tall: 1.2 });
   }
   const body = (typeof V2H !== 'undefined' && V2H.ready) ? pixiPlayerImage(p) : null;
   if (pixiImageReady(body) && lights.length) {
