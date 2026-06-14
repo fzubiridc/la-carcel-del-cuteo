@@ -378,8 +378,11 @@
     font-family:inherit; font-weight:bold; display:flex; align-items:center;
     justify-content:center; user-select:none; -webkit-user-select:none; }
   #btnatk{ right:24px; bottom:60px; width:84px; height:84px; font-size:15px; }
-  #btndash{ right:120px; bottom:30px; width:56px; height:56px; font-size:11px; }
-  #btnpot{ right:130px; bottom:100px; width:48px; height:48px; font-size:16px; }
+  #btnnova{ right:120px; bottom:94px; width:60px; height:60px; font-size:24px;
+    color:#e0c2ff; border-color:#b14fff99; background:#b14fff22; text-shadow:0 0 6px #b14fffaa; }
+  #btnnova.cooling{ opacity:0.35; }
+  #btndash{ right:120px; bottom:30px; width:54px; height:54px; font-size:11px; }
+  #btnpot{ right:140px; bottom:164px; width:46px; height:46px; font-size:16px; }
   #btnint{ right:34px; bottom:160px; width:48px; height:48px; font-size:14px; }
 </style>
 </head>
@@ -447,6 +450,7 @@
   <div id="touchui" class="hidden">
     <div id="joyzone"><div id="joybase" class="hidden"><div id="joyknob"></div></div></div>
     <button class="tbtn" id="btnatk">ATK</button>
+    <button class="tbtn" id="btnnova">✦</button>
     <button class="tbtn" id="btndash">DASH</button>
     <button class="tbtn" id="btnpot">⚗</button>
     <button class="tbtn" id="btnint">E</button>
@@ -454,7 +458,7 @@
   <div id="prompt"></div>
   <div id="bigtoast"></div>
   <div id="toast"></div>
-  <div id="hint" class="hidden">WASD mover · ratón apuntar · clic atacar · Espacio dash · Q poción · E interactuar · I inventario · Esc pausa</div>
+  <div id="hint" class="hidden">WASD mover · ratón apuntar · clic atacar · clic der / R nova · Espacio dash · Q poción · E interactuar · I inventario · Esc pausa</div>
 
   <div id="loading" class="screen">
     <div class="loadbox panel">
@@ -508,8 +512,8 @@
 <script src="js/dungeon.js?v=164"></script>
 <script src="js/items.js?v=161"></script>
 <script src="js/entities.js?v=168"></script>
-<script src="js/ui.js?v=160"></script>
+<script src="js/ui.js?v=161"></script>
 <script src="js/pixi-renderer.js?v=86"></script>
-<script src="js/main.js?v=175"></script>
+<script src="js/main.js?v=176"></script>
 </body>
 </html>

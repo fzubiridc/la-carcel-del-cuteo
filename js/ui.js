@@ -149,6 +149,9 @@ function updateHUD() {
   const dashFrac = Math.max(0, Math.min(1, p.dashCd / 1.2));
   $('dashcd').style.height = (dashFrac * 100) + '%';
   $('dashwrap').classList.toggle('ready', p.dashCd <= 0);
+  // botón táctil de la nova: se atenúa mientras está en cooldown
+  const novaBtn = document.getElementById('btnnova');
+  if (novaBtn) novaBtn.classList.toggle('cooling', (p.novaCd || 0) > 0);
   updateRunes(p);
   updateBossBar();
 }

@@ -264,6 +264,7 @@ function bindTouch() {
   atk.addEventListener('touchcancel', endAtk);
 
   bind('btndash', () => tryDash());
+  bind('btnnova', () => tryNova());
   bind('btnpot', () => drinkPotion());
   bind('btnint', () => tryInteract());
 }
