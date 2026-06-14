@@ -8,10 +8,10 @@ let PR = null;
 // Defaults de los knobs de luz (los que "dentro de todo gustan"). El panel puede volver
 // a estos, y los cambios persisten en localStorage entre recargas.
 const LIGHT_KNOB_DEFAULTS = {
-  exposure: 1.5, flatten: 1.3, ambient: 1.0,
-  playerInt: 1.30, playerRad: 42, playerHt: 28, playerY: 3,
-  torchInt: 1.35, torchRad: 70, torchHt: 44,
-  bloomOn: true, bloomThresh: 0.78, bloomInt: 1.5, bloomBlur: 18,
+  exposure: 0.85, flatten: 1, ambient: 1,
+  playerInt: 1.9, playerRad: 75, playerHt: 26, playerY: 3,
+  torchInt: 2.25, torchRad: 120, torchHt: 27,
+  bloomOn: false, bloomThresh: 0.78, bloomInt: 1.5, bloomBlur: 16,
   normalStrength: 4.5, normalFlipY: 1,
 };
 function loadKnobs() {
@@ -1530,7 +1530,7 @@ function gatherFrameLights() {
     if (f.type !== 'lightburst') continue;
     push(f.x, f.y, 0xbfe0ff, f.r || 60, 30, 0.6 * (f.t / f.t0), 0, 2);
   }
-  const tc = PR.tileCache, margin = 84 * ZOOM;                       // antorchas (culling por pantalla; > radio)
+  const tc = PR.tileCache, margin = (K.torchRad + 16) * ZOOM;        // antorchas (culling por pantalla; > radio)
   if (tc && tc.torches) for (const [tX, tY, seed] of tc.torches) {
     const sx = (tX - cam.x) * ZOOM, sy = (tY - cam.y) * ZOOM;
     if (sx < -margin || sx > W + margin || sy < -margin || sy > H + margin) continue;
