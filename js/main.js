@@ -150,6 +150,7 @@ function bindInput() {
     if (k === 'q') drinkPotion();
     if (k === 'f') drinkManaPotion();
     if (k === 'm') toggleMusic();
+    if (k === 'l' && typeof toggleDecorEditor === 'function') toggleDecorEditor(); // editor de decor (dev)
     // autoplay: si la música quedó bloqueada, este gesto la destraba
     if (music && music.paused && musicOk && !musicMuted) music.play().catch(() => { });
   });

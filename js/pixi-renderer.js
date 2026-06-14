@@ -1790,3 +1790,111 @@ function renderSceneAndBloom() {
   // 3) a pantalla: escena + bloom(add) + UI
   renderer.render({ container: PR.finalRoot });
 }
+
+// =====================================================================
+// Editor de decoración (DEV, tecla L). Felipe coloca/mueve/borra props en una sala y
+// exporta el layout (JSON con tile + dx/dy relativos + paredes adyacentes) para enseñar
+// la disposición/proximidad. Congela el juego mientras está abierto.
+// =====================================================================
+function toggleDecorEditor() {
+  if (!PR || typeof state === 'undefined' || !state.level) return;
+  if (!PR.editor) PR.editor = { on: false, type: Object.keys(DECOR_DEFS)[0], drag: null, bound: false };
+  const ed = PR.editor;
+  ed.on = !ed.on;
+  state.paused = ed.on;                  // congela update() mientras editás (render sigue)
+  let panel = document.getElementById('decorEditor');
+  if (ed.on) {
+    if (!panel) panel = buildDecorEditorPanel();
+    panel.style.display = 'block';
+    if (!ed.bound) bindDecorEditorMouse();
+  } else if (panel) panel.style.display = 'none';
+}
+
+function decorNear(wx, wy) {
+  const D = state.level && state.level.decor; if (!D) return null;
+  let best = null, bestD = 18 * 18;
+  for (const d of D) { const dd = (d.x - wx) ** 2 + (d.y - wy) ** 2; if (dd < bestD) { bestD = dd; best = d; } }
+  return best;
+}
+
+function bindDecorEditorMouse() {
+  PR.editor.bound = true;
+  canvas.addEventListener('mousedown', e => {
+    const ed = PR.editor; if (!ed || !ed.on || !state.level) return;
+    const wx = mouseWorldX(), wy = mouseWorldY();
+    if (e.button === 2) {                                 // click derecho: borrar
+      const d = decorNear(wx, wy);
+      if (d) { const i = state.level.decor.indexOf(d); if (i >= 0) state.level.decor.splice(i, 1); }
+      e.preventDefault(); return;
+    }
+    if (e.button !== 0) return;
+    const d = decorNear(wx, wy);
+    if (d) ed.drag = d;                                   // agarrar uno existente
+    else {                                                // o colocar nuevo (snap a tile)
+      const tx = Math.floor(wx / TILE), ty = Math.floor(wy / TILE);
+      const np = { type: ed.type, x: (tx + 0.5) * TILE, y: (ty + 0.6) * TILE };
+      state.level.decor.push(np); ed.drag = np;
+    }
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', () => {
+    const ed = PR.editor; if (!ed || !ed.on || !ed.drag) return;
+    const tx = Math.floor(mouseWorldX() / TILE), ty = Math.floor(mouseWorldY() / TILE);
+    ed.drag.x = (tx + 0.5) * TILE; ed.drag.y = (ty + 0.6) * TILE;
+  });
+  window.addEventListener('mouseup', () => { if (PR.editor) PR.editor.drag = null; });
+}
+
+function buildDecorEditorPanel() {
+  const p = document.createElement('div');
+  p.id = 'decorEditor';
+  p.style.cssText = 'position:fixed;top:8px;left:8px;z-index:99999;background:rgba(8,6,12,0.95);color:#e8e8e8;font:12px monospace;padding:8px 10px;border:1px solid #5a4a2a;border-radius:6px;width:244px;max-height:92vh;overflow:auto';
+  document.body.appendChild(p);
+  p.innerHTML = '<div style="font-weight:bold;color:#ffcf6a;margin-bottom:4px">EDITOR DECOR (L)</div>'
+    + '<div style="font-size:10px;color:#9a93a6;margin-bottom:6px">click: poner/agarrar · arrastrar: mover · click der: borrar</div>'
+    + '<div id="deTypes" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px"></div>'
+    + '<div style="font-size:10px;margin:4px 0">Tipo: <b id="deSel" style="color:#ffcf6a"></b></div>'
+    + '<button id="deCopy" style="width:100%;cursor:pointer;background:#3a2a1a;color:#ffcf6a;border:1px solid #5a4a2a;padding:4px;margin-bottom:3px">Copiar layout (JSON)</button>'
+    + '<button id="deClear" style="width:100%;cursor:pointer;padding:3px">Borrar todo del nivel</button>';
+  const types = p.querySelector('#deTypes');
+  for (const k of Object.keys(DECOR_DEFS)) {
+    const b = document.createElement('button');
+    b.textContent = k;
+    b.style.cssText = 'font-size:9px;cursor:pointer;background:#221c2e;color:#d8d2c8;border:1px solid #3a3346;border-radius:3px;padding:2px 4px';
+    b.onclick = () => { PR.editor.type = k; p.querySelector('#deSel').textContent = k; };
+    types.appendChild(b);
+  }
+  p.querySelector('#deSel').textContent = PR.editor.type;
+  p.querySelector('#deCopy').onclick = () => {
+    const json = exportDecorLayout();
+    const b = p.querySelector('#deCopy');
+    b.textContent = 'Copiado! (' + state.level.decor.length + ' props)';
+    setTimeout(() => { b.textContent = 'Copiar layout (JSON)'; }, 1500);
+    console.log('[decor layout]\n' + json);
+  };
+  p.querySelector('#deClear').onclick = () => {
+    if (state.level) { state.level.decor.length = 0; if (state.level.solidDecor) state.level.solidDecor.clear(); }
+  };
+  return p;
+}
+
+// Exporta el layout actual: por prop {type, tx, ty, dx/dy relativos al mínimo, paredes
+// adyacentes}. Con eso aprendo proximidad y orientación sin necesitar el mapa entero.
+function exportDecorLayout() {
+  const lvl = state.level, D = lvl.decor;
+  const items = D.map(d => {
+    const tx = Math.floor(d.x / TILE), ty = Math.floor(d.y / TILE), walls = [];
+    if (ty > 0 && lvl.map[ty - 1][tx] === 0) walls.push('arriba');
+    if (ty < lvl.H - 1 && lvl.map[ty + 1][tx] === 0) walls.push('abajo');
+    if (tx > 0 && lvl.map[ty][tx - 1] === 0) walls.push('izq');
+    if (tx < lvl.W - 1 && lvl.map[ty][tx + 1] === 0) walls.push('der');
+    return { type: d.type, tx, ty, walls };
+  });
+  if (items.length) {
+    const minx = Math.min(...items.map(i => i.tx)), miny = Math.min(...items.map(i => i.ty));
+    items.forEach(i => { i.dx = i.tx - minx; i.dy = i.ty - miny; });
+  }
+  const json = JSON.stringify(items);
+  if (navigator.clipboard) navigator.clipboard.writeText(json).catch(() => {});
+  return json;
+}
