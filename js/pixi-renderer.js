@@ -12,8 +12,8 @@ const LIGHT_KNOB_DEFAULTS = {
   playerInt: 1.9, playerRad: 75, playerHt: 26, playerY: 3,
   torchInt: 2.25, torchRad: 99, torchHt: 27,
   bloomOn: false, bloomThresh: 0.78, bloomInt: 1.5, bloomBlur: 16,
-  normalStrength: 4.5, normalFlipY: 1,
-  shadowY: -2, shadowSize: 8.5, shadowAlpha: 0.78, shadowWide: 3.3,
+  normalStrength: 0, normalFlipY: 1,
+  shadowY: 0, shadowSize: 8, shadowAlpha: 1, shadowWide: 4.8,
 };
 function loadKnobs() {
   let saved = {};
@@ -1582,6 +1582,11 @@ function lightAtFoot(wx, wy) {
     const f = Lg.intensity * atten * ndl * sh;
     r += Lg.cr * f; g += Lg.cg * f; b += Lg.cb * f;
   }
+  // MISMO tonemap que el shader (hue-preserving): el personaje se ilumina igual que el piso,
+  // sin clampear a blanco -> deja de "resaltar" sobre-brillante/saturado respecto del suelo.
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  const s = (1 - Math.exp(-lum * PR.knobs.exposure)) / Math.max(lum, 0.0001);
+  r *= s; g *= s; b *= s;
   const ti = (v) => v <= 0 ? 0 : v >= 1 ? 255 : (v * 255) | 0;
   return (ti(r) << 16) | (ti(g) << 8) | ti(b);
 }
