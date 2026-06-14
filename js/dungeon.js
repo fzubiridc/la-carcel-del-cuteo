@@ -9,10 +9,22 @@ function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 // Props decorativos por zona (tipos definidos en DECOR_DEFS, pixi-renderer.js). Son
 // puramente visuales (no colisionan): reciben luz y proyectan sombra como las entidades.
+// Props por zona, separados en 'wall' (altos, contra la pared: bibliotecas, cómodas,
+// estatuas, banderas, runas) y 'floor' (clutter interior: mesas, escritorios, calderos,
+// barriles, restos de experimentación). El placement (genDungeon) puebla con ambos.
 const ZONE_DECOR = {
-  torre:     ['barrel', 'banner_blue', 'banner_red', 'statue', 'sack', 'rune_fire', 'bookshelf', 'desk', 'table', 'cabinet'],
-  cavernas:  ['crystal', 'barrel', 'sack', 'rune_nature', 'table'],
-  santuario: ['cauldron', 'cauldron_purple', 'statue', 'crystal', 'rune_arcane', 'rune_fire', 'bookshelf_pot', 'desk'],
+  torre: {
+    wall:  ['bookshelf', 'bookshelf_pot', 'cabinet', 'statue', 'banner_blue', 'banner_red', 'rune_fire'],
+    floor: ['table', 'desk', 'barrel', 'sack', 'crystal', 'rune_fire'],
+  },
+  cavernas: {
+    wall:  ['crystal', 'statue', 'rune_nature', 'cabinet'],
+    floor: ['barrel', 'sack', 'table', 'crystal', 'rune_nature'],
+  },
+  santuario: {
+    wall:  ['bookshelf_pot', 'statue', 'rune_arcane', 'rune_fire', 'banner_blue', 'cabinet'],
+    floor: ['cauldron', 'cauldron_purple', 'desk', 'table', 'crystal', 'sack'],
+  },
 };
 
 function genDungeon(zone, depth, isBoss) {
@@ -127,24 +139,47 @@ function genDungeon(zone, depth, isBoss) {
     altar = { x: (r.cx + 0.5) * TILE, y: (r.cy + 0.5) * TILE, used: false };
   }
 
-  // Decoración ambiental: props sueltos pegados al borde interior de las salas (no la
-  // inicial). Visual: no colisionan, pero el motor de luz los ilumina y les da sombra.
+  // Decoración ambiental: torre de magos -> salas BIEN pobladas (libros, bibliotecas,
+  // mesas, restos de experimentación). Props de pared (perímetro, sobre todo arriba) +
+  // clutter de piso, escalando con el tamaño de la sala. ~18% de salas quedan despejadas
+  // para peleas. Visual: no colisionan; el motor de luz los ilumina y les da sombra. Los
+  // cofres pueden convivir con la decoración (solo evitamos apilar props en su tile y en
+  // la escalera de salida).
   const decor = [];
-  const decorTypes = ZONE_DECOR[zone.id] || [];
-  if (decorTypes.length) {
+  const zd = ZONE_DECOR[zone.id];
+  if (zd) {
+    const occ = new Set();
+    const key = (tx, ty) => tx + ',' + ty;
+    const free = (tx, ty) => ty >= 0 && ty < H && tx >= 0 && tx < W && map[ty][tx] === 1 && !occ.has(key(tx, ty));
+    const markTile = (x, y) => occ.add(key(Math.floor(x / TILE), Math.floor(y / TILE)));
+    for (const ch of chests) markTile(ch.x, ch.y);
+    if (lockedChest) markTile(lockedChest.x, lockedChest.y);
+    if (altar) markTile(altar.x, altar.y);
+    occ.add(key(exit.tx, exit.ty));
+    const place = (list, tx, ty) => {
+      if (!list.length || !free(tx, ty)) return;
+      occ.add(key(tx, ty));
+      decor.push({ type: pick(list), x: (tx + 0.5) * TILE, y: (ty + 0.6) * TILE });
+    };
     for (let i = 1; i < rooms.length; i++) {
       const r = rooms[i];
-      let n = randInt(0, 2);
-      while (n-- > 0) {
-        const type = pick(decorTypes);
-        const side = randInt(0, 3);
+      if (Math.random() < 0.18) continue;                 // sala despejada (para mobs)
+      const area = r.w * r.h;
+      // contra las paredes (mayoría arriba: se ve el frente del mueble en vista 3/4)
+      const nWall = Math.min(7, 2 + (area / 15 | 0));
+      for (let k = 0; k < nWall; k++) {
+        const s = Math.random();
         let tx, ty;
-        if (side === 0) { tx = randInt(r.x + 1, r.x + r.w - 2); ty = r.y + 1; }            // pegado arriba
-        else if (side === 1) { tx = randInt(r.x + 1, r.x + r.w - 2); ty = r.y + r.h - 2; }  // abajo
-        else if (side === 2) { tx = r.x + 1; ty = randInt(r.y + 1, r.y + r.h - 2); }        // izquierda
-        else { tx = r.x + r.w - 2; ty = randInt(r.y + 1, r.y + r.h - 2); }                  // derecha
-        if (map[ty][tx] !== 1) continue;
-        decor.push({ type, x: (tx + 0.5) * TILE, y: (ty + 0.6) * TILE });
+        if (s < 0.55) { tx = randInt(r.x + 1, r.x + r.w - 2); ty = r.y; }                  // arriba
+        else if (s < 0.72) { tx = randInt(r.x + 1, r.x + r.w - 2); ty = r.y + r.h - 1; }   // abajo
+        else if (s < 0.86) { tx = r.x; ty = randInt(r.y + 1, r.y + r.h - 2); }             // izquierda
+        else { tx = r.x + r.w - 1; ty = randInt(r.y + 1, r.y + r.h - 2); }                 // derecha
+        place(zd.wall, tx, ty);
+      }
+      // clutter de piso (restos de experimentación, mesas) en el interior
+      const nFloor = Math.min(5, 1 + (area / 22 | 0));
+      for (let k = 0; k < nFloor; k++) {
+        place(zd.floor, randInt(r.x + 1, r.x + r.w - 2), randInt(r.y + 1, r.y + r.h - 2));
       }
     }
   }

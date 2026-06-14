@@ -569,7 +569,12 @@ function drawPixiObjects() {
   if (lvl.lockedChest) chestDraws.push({ y: lvl.lockedChest.y, _chest: lvl.lockedChest, _gold: true });
   const extra = [];
   if (lvl.merchant) extra.push({ y: lvl.merchant.y, _merchant: lvl.merchant });
-  const decorDraws = (lvl.decor || []).map(d => ({ x: d.x, y: d.y, _decor: d }));
+  // culling: con salas muy pobladas puede haber 100+ props por nivel; solo dibujar los
+  // que caen en cámara (+ margen) para no gastar draw calls/sombras fuera de pantalla.
+  const dcam = state.cam, dvw = PR.app.renderer.width / ZOOM, dvh = PR.app.renderer.height / ZOOM, dmg = 28;
+  const decorDraws = (lvl.decor || [])
+    .filter(d => d.x > dcam.x - dmg && d.x < dcam.x + dvw + dmg && d.y > dcam.y - dmg && d.y < dcam.y + dvh + dmg)
+    .map(d => ({ x: d.x, y: d.y, _decor: d }));
   const drawables = [...state.enemies, p, ...chestDraws, ...extra, ...decorDraws].sort((a, b) => a.y - b.y);
   for (const e of drawables) {
     // Fase 3: tint = luz en el pie del actor -> se ilumina como objeto parado ahi, no como
