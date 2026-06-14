@@ -8,12 +8,12 @@ let PR = null;
 // Defaults de los knobs de luz (los que "dentro de todo gustan"). El panel puede volver
 // a estos, y los cambios persisten en localStorage entre recargas.
 const LIGHT_KNOB_DEFAULTS = {
-  exposure: 0.85, flatten: 1, ambient: 1,
-  playerInt: 1.9, playerRad: 75, playerHt: 26, playerY: 3,
+  exposure: 1.1, flatten: 1, ambient: 1.4,
+  playerInt: 2.2, playerRad: 46, playerHt: 26, playerY: 3,
   torchInt: 2.25, torchRad: 99, torchHt: 27,
   bloomOn: false, bloomThresh: 0.78, bloomInt: 1.5, bloomBlur: 16,
   normalStrength: 0, normalFlipY: 1,
-  shadowY: 0, shadowSize: 8, shadowAlpha: 1, shadowWide: 4.8,
+  shadowY: 0, shadowSize: 9.5, shadowAlpha: 1, shadowWide: 3.5,
 };
 function loadKnobs() {
   let saved = {};
@@ -638,7 +638,8 @@ function drawPixiShadow(x, y, w, footDy) {
   // footDy = cuanto baja la sombra desde y hasta los "pies". Jugador/mobs tienen
   // y al centro (pies en y+5); el cofre tiene y ya en su base (footDy ~1).
   const fy = y + (footDy == null ? 5 : footDy);
-  pixiContactBlob(x, fy, w);
+  // misma intensidad/ancho de sombra que el jugador (knobs), escalada al tamano del mob.
+  pixiContactBlob(x, fy, w, { alpha: PR.knobs.shadowAlpha, wide: PR.knobs.shadowWide, tall: 1.4 });
   const tex = PR.lights && PR.lights.lightTex;
   if (!tex) return;
   // una sombra estirada POR CADA luz cercana (abanico). fade evita que se ennegrezca al solaparse.
