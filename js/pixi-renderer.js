@@ -600,6 +600,12 @@ const DECOR_DEFS = {
   banner_red:  { sheet: 'decor_other',    box: [164, 64, 23, 30], scale: 0.62, anchorY: 0.97 },
   cauldron:    { sheet: 'decor_boilers',  box: [0, 0, 32, 32],    scale: 0.62, anchorY: 0.92,
                  anim: { col: 0, rows: 24, ms: 90 } },
+  cauldron_purple: { sheet: 'decor_boilers', box: [0, 0, 32, 32], scale: 0.62, anchorY: 0.92,
+                 anim: { col: 4, rows: 24, ms: 90 } },
+  // piedras rúnicas animadas (sheet 5 cols × 24 frames de 64px; col = elemento)
+  rune_fire:   { sheet: 'decor_runes', box: [0, 0, 64, 64], scale: 0.42, anchorY: 0.95, anim: { col: 0, rows: 24, ms: 120 } },
+  rune_nature: { sheet: 'decor_runes', box: [0, 0, 64, 64], scale: 0.42, anchorY: 0.95, anim: { col: 1, rows: 24, ms: 120 } },
+  rune_arcane: { sheet: 'decor_runes', box: [0, 0, 64, 64], scale: 0.42, anchorY: 0.95, anim: { col: 4, rows: 24, ms: 120 } },
 };
 
 function drawPixiDecorProp(d) {
