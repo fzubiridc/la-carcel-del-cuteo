@@ -1533,7 +1533,15 @@ function gatherFrameLights() {
   push(p.x, p.y + K.playerY, 0xff9a3c, K.playerRad, K.playerHt, K.playerInt, 1, 4); // jugador: charquito a los pies
   for (const pr of state.projs) {                                    // orbes magicos
     if (pr.dead || pr.style !== 'bolt') continue;
-    push(pr.x, pr.y - (pr.z || 0), 0x88b4ff, 46, 24, 0.42, 0, 2);
+    push(pr.x, pr.y - (pr.z || 0), 0x88b4ff, 46, 24, 0.42, 0, 2);     // orbe a su altura visual
+    push(pr.x, pr.y, 0x88b4ff, 42, 14, 0.55, 0, 2);                   // pool en el PISO bajo el bolt
+  }
+  // destello de impacto: un mob recien golpeado (flashT) irradia luz al area (mob + piso),
+  // asi el golpe ilumina el entorno, no solo flashea al bicho.
+  if (state.enemies) for (const e of state.enemies) {
+    const ft = e.flashT || 0;
+    if (ft <= 0) continue;
+    push(e.x, e.y, 0xbfe0ff, 58, 22, Math.min(1.1, ft * 6), 0, 2);
   }
   if (state.fx) for (const f of state.fx) {                          // destellos de explosion
     if (f.type !== 'lightburst') continue;
