@@ -369,7 +369,10 @@
   #touchui{ position:absolute; inset:0; pointer-events:none; z-index:5; }
   #joyzone{ position:absolute; left:0; bottom:0; width:45%; height:65%;
     pointer-events:auto; touch-action:none; }
-  #joybase{ position:absolute; width:84px; height:84px; border-radius:50%;
+  /* fixed (no absolute): se ubica con clientX/clientY del toque, que son coords de
+     VIEWPORT. Con absolute, el offset-parent (#joyzone, arranca al 35% de alto) lo
+     desplazaba ~35% hacia abajo / fuera de pantalla. */
+  #joybase{ position:fixed; width:84px; height:84px; border-radius:50%;
     border:2px solid #ffffff44; background:#ffffff11; transform:translate(-50%,-50%); }
   #joyknob{ position:absolute; width:38px; height:38px; border-radius:50%;
     background:#ffffff55; transform:translate(-50%,-50%); }
