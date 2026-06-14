@@ -52,11 +52,15 @@ async function initPixiRenderer(view) {
   PR.entitiesGround.addChild(PR.wallTops, PR.shadows);
   PR.entitiesActors.addChild(PR.objects, PR.fx);
   PR.lights = buildLighting();
-  // pipeline diferido. SUELO (piso + muros-tope + sombras) se dibuja, el 'multiply' con el
-  // buffer de luz lo modula, y RECIEN DESPUES van los actores (personajes) iluminados por
-  // la luz en sus pies (Fase 3) -> no se los trata como suelo (evita el efecto "transparente").
-  // La UI va arriba, sin multiplicar.
-  app.stage.addChild(PR.world, PR.entitiesGround, PR.lights.composite, PR.entitiesActors, PR.screen);
+  PR.bloom = buildBloom();
+  // sceneRoot = todo el mundo (se rinde a sceneRT): SUELO modulado por el 'multiply' del buffer
+  // de luz, y encima los actores iluminados por la luz en sus pies (Fase 3).
+  PR.sceneRoot = new PIXI.Container();
+  PR.sceneRoot.addChild(PR.world, PR.entitiesGround, PR.lights.composite, PR.entitiesActors);
+  // finalRoot = lo que va a pantalla: la escena + el bloom (add) + la UI (sin bloom).
+  PR.finalRoot = new PIXI.Container();
+  PR.finalRoot.addChild(PR.bloom.sceneScreenSprite, PR.bloom.bloomScreenSprite, PR.screen);
+  app.stage.addChild(PR.finalRoot);
 }
 
 function resizePixiRenderer(w, h) {
@@ -107,7 +111,7 @@ function renderPixi() {
   drawPixiParticles();
   drawPixiFx();
   drawPixiLighting();
-  PR.app.renderer.render(PR.app.stage);
+  renderSceneAndBloom();
   return true;
 }
 
@@ -1355,6 +1359,45 @@ function makeLightingFilter() {
   return f;
 }
 
+// ---------------------------------------------------------------------
+// Bloom (Fase 5): post-proceso. Se extrae lo brillante de la escena (umbral),
+// se difumina y se suma encima -> las antorchas/zonas iluminadas "florecen".
+// Restaura el pop del sistema viejo aditivo, pero como consecuencia de la luz.
+// ---------------------------------------------------------------------
+const BLOOM_THRESH_FRAG = `#version 300 es
+in vec2 vTextureCoord;
+out vec4 finalColor;
+uniform sampler2D uTexture;
+uniform float uThreshold; // brillo a partir del cual algo "florece"
+uniform float uIntensity; // cuanta luz se suma
+void main(void){
+  vec3 c = texture(uTexture, vTextureCoord).rgb;
+  float l = max(c.r, max(c.g, c.b));
+  float w = max(l - uThreshold, 0.0) / max(1.0 - uThreshold, 0.001);
+  finalColor = vec4(c * w * uIntensity, 1.0);
+}
+`;
+function makeThresholdFilter() {
+  const f = new PIXI.Filter({
+    glProgram: PIXI.GlProgram.from({ vertex: OCCLUSION_VERT, fragment: BLOOM_THRESH_FRAG, name: 'bloom-threshold' }),
+    resources: { threshUniforms: { uThreshold: { value: 0.62, type: 'f32' }, uIntensity: { value: 1.5, type: 'f32' } } },
+  });
+  f.padding = 0;
+  return f;
+}
+function buildBloom() {
+  const thresholdFilter = makeThresholdFilter();
+  const blur = new PIXI.BlurFilter({ strength: 18, quality: 4 });
+  blur.padding = 32;
+  const srcSprite = new PIXI.Sprite(PIXI.Texture.EMPTY);   // = sceneRT, con umbral+blur -> bloomRT
+  srcSprite.filters = [thresholdFilter, blur];
+  const sceneScreenSprite = new PIXI.Sprite(PIXI.Texture.EMPTY); // = sceneRT, a pantalla (normal)
+  const bloomScreenSprite = new PIXI.Sprite(PIXI.Texture.EMPTY); // = bloomRT, a pantalla (add)
+  bloomScreenSprite.blendMode = 'add';
+  return { thresholdFilter, blur, srcSprite, sceneScreenSprite, bloomScreenSprite,
+           sceneRT: null, bloomRT: null, w: 0, h: 0 };
+}
+
 // Construye la capa de luz. El orden en el stage (init) la deja ENTRE el piso y
 // las entidades: la luz cae sobre el piso y los personajes van encima a brillo
 // normal ("caminan sobre la luz", sin aura pintada sobre el sprite).
@@ -1552,4 +1595,29 @@ function drawPixiLighting() {
 
   // render del pase de luz -> lightRT. El stage luego multiplica el SUELO por este buffer.
   renderer.render({ container: L.lightPass, target: L.rt, clear: true });
+}
+
+// Render final: escena (mundo modulado por la luz) -> sceneRT, bloom de sus zonas brillantes
+// -> bloomRT, y a pantalla la escena + el bloom (add) + la UI. (Fase 5)
+function renderSceneAndBloom() {
+  const renderer = PR.app.renderer, B = PR.bloom;
+  const W = renderer.width, H = renderer.height;
+  if (!B.sceneRT || B.w !== W || B.h !== H) {
+    if (B.sceneRT) B.sceneRT.destroy(true);
+    if (B.bloomRT) B.bloomRT.destroy(true);
+    B.sceneRT = PIXI.RenderTexture.create({ width: W, height: H });
+    B.bloomRT = PIXI.RenderTexture.create({ width: W, height: H });
+    B.w = W; B.h = H;
+    B.srcSprite.texture = B.sceneRT;
+    B.sceneScreenSprite.texture = B.sceneRT;
+    B.bloomScreenSprite.texture = B.bloomRT;
+  }
+  // 1) escena completa (sin UI) -> sceneRT
+  renderer.render({ container: PR.sceneRoot, target: B.sceneRT, clear: true });
+  // 2) bloom: umbral + blur de lo brillante -> bloomRT
+  const on = PR.bloomOn !== false;
+  if (on) renderer.render({ container: B.srcSprite, target: B.bloomRT, clear: true });
+  B.bloomScreenSprite.visible = on;
+  // 3) a pantalla: escena + bloom(add) + UI
+  renderer.render({ container: PR.finalRoot });
 }
